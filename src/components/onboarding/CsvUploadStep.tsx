@@ -3,7 +3,13 @@
 import { useState, useRef, useCallback } from "react";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle, AlertCircle, ArrowLeft, FileSpreadsheet } from "lucide-react";
+import {
+  Upload,
+  CheckCircle,
+  AlertCircle,
+  ArrowLeft,
+  FileSpreadsheet,
+} from "lucide-react";
 
 interface CsvUploadStepProps {
   userId: string;
@@ -11,32 +17,168 @@ interface CsvUploadStepProps {
   onBack: () => void;
 }
 
-const REQUIRED_COLUMNS = [
-  "First Name",
-  "Last Name",
-  "Email Address",
-  "Company",
-  "Position",
-  "Connected On",
-];
+/* ─── Bulletproof header mapping ─── */
+const HEADER_MAP: Record<string, string> = {
+  // First name
+  "first name": "first_name",
+  firstname: "first_name",
+  first_name: "first_name",
+  first: "first_name",
+  "given name": "first_name",
+  givenname: "first_name",
 
-function normalizeHeader(header: string): string {
-  return header.trim().toLowerCase();
-}
+  // Last name
+  "last name": "last_name",
+  lastname: "last_name",
+  last_name: "last_name",
+  last: "last_name",
+  surname: "last_name",
+  "family name": "last_name",
+  familyname: "last_name",
 
-function findColumn(
-  headers: string[],
-  required: string
-): string | null {
-  const normalizedRequired = normalizeHeader(required);
-  for (const header of headers) {
-    if (normalizeHeader(header) === normalizedRequired) {
-      return header;
-    }
+  // LinkedIn URL
+  url: "linkedin_url",
+  "linkedin url": "linkedin_url",
+  linkedin_url: "linkedin_url",
+  "profile url": "linkedin_url",
+  profile_url: "linkedin_url",
+  "profile link": "linkedin_url",
+  linkedin: "linkedin_url",
+  "linkedin profile": "linkedin_url",
+  link: "linkedin_url",
+
+  // Email
+  "email address": "email_address",
+  email_address: "email_address",
+  emailaddress: "email_address",
+  email: "email_address",
+  "e-mail": "email_address",
+  "e-mail address": "email_address",
+  mail: "email_address",
+
+  // Company
+  company: "company",
+  "company name": "company",
+  company_name: "company",
+  organization: "company",
+  organisation: "company",
+  employer: "company",
+  "current company": "company",
+
+  // Position / Title
+  position: "position",
+  title: "position",
+  "job title": "position",
+  job_title: "position",
+  jobtitle: "position",
+  role: "position",
+  designation: "position",
+  "current position": "position",
+  "current title": "position",
+
+  // Connected On
+  "connected on": "connected_on",
+  connected_on: "connected_on",
+  connectedon: "connected_on",
+  "connection date": "connected_on",
+  connection_date: "connected_on",
+  "date connected": "connected_on",
+  date: "connected_on",
+  connected: "connected_on",
+  "connected date": "connected_on",
+};
+
+/* ─── Date parsing for all LinkedIn locale formats ─── */
+function parseLinkedInDate(dateStr: string): string | null {
+  if (!dateStr || !dateStr.trim()) return null;
+
+  const cleaned = dateStr.trim();
+
+  // Try "28 Jan 2026" or "28 January 2026" (day month year)
+  const dmy = cleaned.match(/(\d{1,2})\s+(\w{3,})\s+(\d{4})/);
+  if (dmy) {
+    const month = monthToNum(dmy[2]);
+    if (month) return `${dmy[3]}-${month}-${dmy[1].padStart(2, "0")}`;
   }
+
+  // Try "Jan 28, 2026" or "January 28, 2026" (month day, year)
+  const mdy = cleaned.match(/(\w{3,})\s+(\d{1,2}),?\s+(\d{4})/);
+  if (mdy) {
+    const month = monthToNum(mdy[1]);
+    if (month) return `${mdy[3]}-${month}-${mdy[2].padStart(2, "0")}`;
+  }
+
+  // Try ISO "2026-01-28"
+  const iso = cleaned.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return cleaned;
+
+  // Try US "01/28/2026" or international "28/01/2026"
+  const slash = cleaned.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (slash) {
+    const a = parseInt(slash[1], 10);
+    const b = parseInt(slash[2], 10);
+    // If first number > 12, it must be day (international format)
+    if (a > 12) {
+      return `${slash[3]}-${String(b).padStart(2, "0")}-${String(a).padStart(2, "0")}`;
+    }
+    // Default to US format (month/day/year)
+    return `${slash[3]}-${String(a).padStart(2, "0")}-${String(b).padStart(2, "0")}`;
+  }
+
+  // Fallback: try native Date parser
+  const date = new Date(cleaned);
+  if (!isNaN(date.getTime())) {
+    return date.toISOString().split("T")[0];
+  }
+
   return null;
 }
 
+function monthToNum(m: string): string | null {
+  const map: Record<string, string> = {
+    jan: "01",
+    feb: "02",
+    mar: "03",
+    apr: "04",
+    may: "05",
+    jun: "06",
+    jul: "07",
+    aug: "08",
+    sep: "09",
+    oct: "10",
+    nov: "11",
+    dec: "12",
+    january: "01",
+    february: "02",
+    march: "03",
+    april: "04",
+    june: "06",
+    july: "07",
+    august: "08",
+    september: "09",
+    october: "10",
+    november: "11",
+    december: "12",
+  };
+  return map[m.toLowerCase()] || null;
+}
+
+/* ─── URL cleaning ─── */
+function cleanLinkedInUrl(url: string | null | undefined): string | null {
+  if (!url || !url.trim()) return null;
+  let cleaned = url.trim();
+  // Remove trailing slashes
+  cleaned = cleaned.replace(/\/+$/, "");
+  // Ensure https://
+  if (cleaned.startsWith("http://"))
+    cleaned = cleaned.replace("http://", "https://");
+  if (!cleaned.startsWith("https://")) cleaned = "https://" + cleaned;
+  // Remove query params (tracking params)
+  cleaned = cleaned.split("?")[0];
+  return cleaned;
+}
+
+/* ─── Component ─── */
 export default function CsvUploadStep({
   userId,
   onNext,
@@ -48,6 +190,7 @@ export default function CsvUploadStep({
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionCount, setConnectionCount] = useState<number | null>(null);
+  const [skippedCount, setSkippedCount] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -56,6 +199,7 @@ export default function CsvUploadStep({
     async (file: File) => {
       setError(null);
       setConnectionCount(null);
+      setSkippedCount(0);
       setUploadComplete(false);
       setUploadProgress(0);
 
@@ -73,7 +217,11 @@ export default function CsvUploadStep({
       setFileName(file.name);
       setParsing(true);
 
-      Papa.parse(file, {
+      // Read file as text and strip BOM
+      const fileContent = await file.text();
+      const cleanedContent = fileContent.replace(/^\uFEFF/, "");
+
+      Papa.parse(cleanedContent, {
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
@@ -84,53 +232,112 @@ export default function CsvUploadStep({
             return;
           }
 
-          const headers = results.meta.fields || [];
-          const missingColumns: string[] = [];
+          // Build column mapping: CSV header → DB column
+          const rawHeaders = results.meta.fields || [];
+          const columnMapping: Record<string, string> = {};
+          const unmatchedHeaders: string[] = [];
 
-          const columnMap: Record<string, string> = {};
-          for (const required of REQUIRED_COLUMNS) {
-            const found = findColumn(headers, required);
-            if (!found) {
-              missingColumns.push(required);
-            } else {
-              columnMap[required] = found;
+          for (const header of rawHeaders) {
+            const normalized = header
+              .trim()
+              .toLowerCase()
+              .replace(/^\uFEFF/, "")
+              .replace(/^["']|["']$/g, "");
+            const dbColumn = HEADER_MAP[normalized];
+            if (dbColumn) {
+              columnMapping[header] = dbColumn;
+            } else if (normalized) {
+              unmatchedHeaders.push(header);
             }
           }
 
-          if (missingColumns.length > 0) {
+          if (unmatchedHeaders.length > 0) {
+            console.warn("Unmatched CSV headers:", unmatchedHeaders);
+          }
+
+          // Check we have at least name columns
+          const mappedDbColumns = new Set(Object.values(columnMapping));
+          if (
+            !mappedDbColumns.has("first_name") &&
+            !mappedDbColumns.has("last_name")
+          ) {
             setError(
-              `Missing required column: ${missingColumns[0]}`
+              "Could not find name columns in your CSV. Expected 'First Name' or 'Last Name'."
             );
             return;
           }
 
+          const hasUrlColumn = mappedDbColumns.has("linkedin_url");
+
+          // Map, clean, and validate each row
           const rows = results.data as Record<string, string>[];
-          const validRows = rows.filter(
-            (row) =>
-              row[columnMap["First Name"]]?.trim() ||
-              row[columnMap["Last Name"]]?.trim()
-          );
+          let skipped = 0;
+          const connections: {
+            first_name: string;
+            last_name: string;
+            linkedin_url: string;
+            email_address: string;
+            company: string;
+            position: string;
+            connected_on: string | null;
+          }[] = [];
 
-          setConnectionCount(validRows.length);
+          for (const row of rows) {
+            // Map CSV columns → DB columns
+            const mapped: Record<string, string> = {};
+            for (const [csvHeader, dbColumn] of Object.entries(columnMapping)) {
+              mapped[dbColumn] = row[csvHeader] || "";
+            }
 
-          if (validRows.length === 0) {
+            // Skip junk rows: all key fields empty
+            const hasName =
+              (mapped.first_name || "").trim() ||
+              (mapped.last_name || "").trim();
+            const hasData =
+              (mapped.company || "").trim() || (mapped.position || "").trim();
+            if (!hasName && !hasData) {
+              skipped++;
+              continue;
+            }
+
+            // Clean LinkedIn URL
+            const cleanedUrl = hasUrlColumn
+              ? cleanLinkedInUrl(mapped.linkedin_url)
+              : null;
+
+            // Skip if URL column exists but URL is invalid
+            if (
+              hasUrlColumn &&
+              (!cleanedUrl || !cleanedUrl.includes("linkedin.com"))
+            ) {
+              skipped++;
+              continue;
+            }
+
+            connections.push({
+              first_name: (mapped.first_name || "").trim(),
+              last_name: (mapped.last_name || "").trim(),
+              linkedin_url: cleanedUrl || "",
+              email_address: (mapped.email_address || "").trim().toLowerCase(),
+              company: (mapped.company || "").trim(),
+              position: (mapped.position || "").trim(),
+              connected_on: parseLinkedInDate(mapped.connected_on || ""),
+            });
+          }
+
+          setConnectionCount(connections.length);
+          setSkippedCount(skipped);
+
+          if (connections.length === 0) {
             setError("No valid connections found in the CSV.");
             return;
           }
 
+          // Upload
           setUploading(true);
           setUploadProgress(10);
 
           try {
-            const connections = validRows.map((row) => ({
-              first_name: row[columnMap["First Name"]]?.trim() || "",
-              last_name: row[columnMap["Last Name"]]?.trim() || "",
-              email_address: row[columnMap["Email Address"]]?.trim() || "",
-              company: row[columnMap["Company"]]?.trim() || "",
-              position: row[columnMap["Position"]]?.trim() || "",
-              connected_on: row[columnMap["Connected On"]]?.trim() || "",
-            }));
-
             setUploadProgress(30);
 
             const res = await fetch("/api/onboarding/csv-upload", {
@@ -150,7 +357,9 @@ export default function CsvUploadStep({
             setUploadComplete(true);
           } catch (err) {
             setError(
-              err instanceof Error ? err.message : "Failed to upload connections"
+              err instanceof Error
+                ? err.message
+                : "Failed to upload connections"
             );
           } finally {
             setUploading(false);
@@ -246,7 +455,9 @@ export default function CsvUploadStep({
             >
               <FileSpreadsheet
                 className={`h-7 w-7 transition-colors duration-300 ${
-                  isDragging ? "text-accent" : "text-warm-400 group-hover:text-accent"
+                  isDragging
+                    ? "text-accent"
+                    : "text-warm-400 group-hover:text-accent"
                 }`}
                 strokeWidth={1.5}
               />
@@ -256,7 +467,10 @@ export default function CsvUploadStep({
                 Drop your Connections.csv here
               </p>
               <p className="text-sm text-warm-400">
-                or <span className="text-accent font-medium underline underline-offset-2">click to browse</span>
+                or{" "}
+                <span className="text-accent font-medium underline underline-offset-2">
+                  click to browse
+                </span>
               </p>
             </div>
             <span className="rounded-full bg-warm-100 px-3 py-1.5 text-xs font-medium text-warm-500">
@@ -300,14 +514,19 @@ export default function CsvUploadStep({
         <div className="card-elevated p-6 sm:p-8 space-y-4 animate-scale-in">
           <div className="flex flex-col items-center text-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 animate-scale-in">
-              <CheckCircle className="h-8 w-8 text-accent" strokeWidth={1.5} />
+              <CheckCircle
+                className="h-8 w-8 text-accent"
+                strokeWidth={1.5}
+              />
             </div>
             <div className="space-y-1">
               <p className="text-xl font-bold text-foreground">
-                {connectionCount.toLocaleString()} connections found
+                {connectionCount.toLocaleString()} connections uploaded
               </p>
               <p className="text-sm text-warm-400">
-                Successfully uploaded from {fileName}
+                {skippedCount > 0
+                  ? `${skippedCount} row${skippedCount > 1 ? "s" : ""} skipped \u2014 missing data`
+                  : `Successfully uploaded from ${fileName}`}
               </p>
             </div>
           </div>
