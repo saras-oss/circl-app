@@ -19,7 +19,7 @@ interface Connection {
   classification_status: string;
 }
 
-type SortField = "name" | "company" | "connected_on" | "seniority_tier";
+type SortField = "name" | "company" | "connected_on" | "seniority_tier" | "function_category";
 
 export default function NetworkClient({ userId }: { userId: string }) {
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -91,13 +91,19 @@ export default function NetworkClient({ userId }: { userId: string }) {
     }
   }
 
-  function getSignalColor(signal: string | null) {
-    switch (signal) {
-      case "Potential Customer":
+  function getFunctionColor(fn: string | null) {
+    switch (fn) {
+      case "Engineering":
+        return "bg-blue-50 text-blue-700 border border-blue-200/60";
+      case "Sales":
         return "bg-accent-light text-accent border border-accent/15";
-      case "Potential Investor":
+      case "Marketing":
         return "bg-purple-light text-purple border border-purple/15";
-      case "Potential Advisor":
+      case "Product":
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200/60";
+      case "Finance":
+        return "bg-amber-50 text-amber-700 border border-amber-200/60";
+      case "Investment":
         return "bg-gold-light text-gold border border-gold/15";
       default:
         return "bg-warm-50 text-warm-500 border border-warm-200/40";
@@ -178,9 +184,13 @@ export default function NetworkClient({ userId }: { userId: string }) {
                   </button>
                 </th>
                 <th className="text-left px-5 py-1 hidden lg:table-cell">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-                    Signal
-                  </span>
+                  <button
+                    onClick={() => handleSort("function_category")}
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                  >
+                    Function
+                    <SortIcon field="function_category" />
+                  </button>
                 </th>
                 <th className="text-left px-5 py-1 hidden xl:table-cell">
                   <button
@@ -272,11 +282,11 @@ export default function NetworkClient({ userId }: { userId: string }) {
                       )}
                     </td>
                     <td className="px-5 py-3.5 hidden lg:table-cell">
-                      {conn.connection_type_signal ? (
+                      {conn.function_category ? (
                         <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getSignalColor(conn.connection_type_signal)}`}
+                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getFunctionColor(conn.function_category)}`}
                         >
-                          {conn.connection_type_signal.replace("Potential ", "")}
+                          {conn.function_category}
                         </span>
                       ) : (
                         <span className="text-warm-300">\u2014</span>

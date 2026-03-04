@@ -38,13 +38,7 @@ export default function WhatHappensNext({
 
   async function handleGoToDashboard() {
     setLoading(true);
-
-    fetch("/api/pipeline/classify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    });
-
+    // Pipeline orchestrator on the dashboard handles classify → enrich → match
     onContinue();
   }
 

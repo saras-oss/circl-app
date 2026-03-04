@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
-import ProcessingBanner from "./ProcessingBanner";
+import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import PipelineProgress from "./PipelineProgress";
 import UpgradeBanner from "./UpgradeBanner";
 import HitListCard from "./HitListCard";
-import { Search, Sparkles, Users, TrendingUp, UserCheck } from "lucide-react";
+import { usePipelineOrchestrator } from "@/hooks/usePipelineOrchestrator";
+import {
+  Search,
+  Sparkles,
+  Users,
+  TrendingUp,
+  UserCheck,
+  ArrowRight,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Match {
   id: string;
@@ -40,6 +50,7 @@ export default function DashboardClient({
   profile,
   matches,
 }: DashboardClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<
     "customer" | "investor" | "advisor"
   >("customer");
@@ -47,10 +58,31 @@ export default function DashboardClient({
     "all"
   );
 
+  const pipelineState = usePipelineOrchestrator(
+    userId,
+    profile.processing_status as string | null
+  );
+
+  const hasRefreshedRef = useRef(false);
+
+  // Refresh page when pipeline completes to get fresh server data
+  useEffect(() => {
+    if (
+      pipelineState.step === "completed" &&
+      profile.processing_status !== "completed" &&
+      !hasRefreshedRef.current
+    ) {
+      hasRefreshedRef.current = true;
+      const timer = setTimeout(() => {
+        router.refresh();
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [pipelineState.step, profile.processing_status, router]);
+
+  const pipelineActive =
+    pipelineState.isRunning && pipelineState.step !== "completed";
   const isFreeTier = profile.subscription_tier === "free";
-  const isProcessing =
-    profile.processing_status !== "idle" &&
-    profile.processing_status !== "completed";
 
   const filteredMatches = matches.filter((m) => {
     if (m.match_type !== activeTab) return false;
@@ -91,14 +123,18 @@ export default function DashboardClient({
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold tracking-tight">
-          {profile.full_name ? `Welcome back, ${(profile.full_name as string).split(" ")[0]}` : "Welcome back"}
+          {profile.full_name
+            ? `Welcome back, ${(profile.full_name as string).split(" ")[0]}`
+            : "Welcome back"}
         </h1>
         <p className="text-warm-500 text-sm mt-1">
           Your network intelligence at a glance
         </p>
       </div>
 
-      {isProcessing && <ProcessingBanner userId={userId} />}
+      {/* Pipeline progress — drives classify → enrich → match */}
+      {pipelineActive && <PipelineProgress state={pipelineState} />}
+
       {isFreeTier && (profile.total_connections as number) > 100 && (
         <UpgradeBanner
           totalConnections={profile.total_connections as number}
@@ -140,90 +176,108 @@ export default function DashboardClient({
                 activeTab === tab.key ? "border-border-strong shadow-md" : ""
               }`}
             >
-              <div className={`w-10 h-10 ${tab.bg} rounded-xl flex items-center justify-center mx-auto mb-2.5`}>
-                <tab.icon className={`w-5 h-5 ${tab.color}`} strokeWidth={1.8} />
+              <div
+                className={`w-10 h-10 ${tab.bg} rounded-xl flex items-center justify-center mx-auto mb-2.5`}
+              >
+                <tab.icon
+                  className={`w-5 h-5 ${tab.color}`}
+                  strokeWidth={1.8}
+                />
               </div>
               <p className="text-2xl font-bold tracking-tight">{tab.count}</p>
-              <p className="text-xs text-warm-500 mt-0.5 font-medium">{tab.label}</p>
+              <p className="text-xs text-warm-500 mt-0.5 font-medium">
+                {tab.label}
+              </p>
             </button>
           ))}
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 bg-surface rounded-2xl p-1.5 border border-border mb-4">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-all duration-200 ${
-              activeTab === tab.key
-                ? "bg-foreground text-white shadow-sm"
-                : "text-warm-400 hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span className={`ml-1.5 text-xs ${activeTab === tab.key ? "opacity-60" : "opacity-50"}`}>
-                {tab.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      {/* Tabs + filter pills — only show when there are matches */}
+      {matches.length > 0 && (
+        <>
+          <div className="flex items-center gap-1 bg-surface rounded-2xl p-1.5 border border-border mb-4">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-all duration-200 ${
+                  activeTab === tab.key
+                    ? "bg-foreground text-white shadow-sm"
+                    : "text-warm-400 hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+                {tab.count > 0 && (
+                  <span
+                    className={`ml-1.5 text-xs ${activeTab === tab.key ? "opacity-60" : "opacity-50"}`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-      {/* Filter pills */}
-      <div className="flex gap-2 mb-5">
-        {(["all", "exceptional", "strong"] as const).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`h-9 px-4 rounded-full text-xs font-semibold border transition-all duration-200 ${
-              filter === f
-                ? f === "exceptional"
-                  ? "badge-exceptional"
-                  : f === "strong"
-                    ? "badge-strong"
-                    : "bg-foreground text-white border-foreground"
-                : "bg-surface text-warm-500 border-border hover:border-border-strong"
-            }`}
-          >
-            {f === "all"
-              ? "All Matches"
-              : f === "exceptional"
-                ? "Exceptional 9-10"
-                : "Strong 7-8"}
-          </button>
-        ))}
-      </div>
+          <div className="flex gap-2 mb-5">
+            {(["all", "exceptional", "strong"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`h-9 px-4 rounded-full text-xs font-semibold border transition-all duration-200 ${
+                  filter === f
+                    ? f === "exceptional"
+                      ? "badge-exceptional"
+                      : f === "strong"
+                        ? "badge-strong"
+                        : "bg-foreground text-white border-foreground"
+                    : "bg-surface text-warm-500 border-border hover:border-border-strong"
+                }`}
+              >
+                {f === "all"
+                  ? "All Matches"
+                  : f === "exceptional"
+                    ? "Exceptional 9-10"
+                    : "Strong 7-8"}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Results */}
       {matches.length === 0 ? (
-        <div className="card-elevated p-10 text-center">
-          {isProcessing ? (
+        pipelineActive ? null : (
+          <div className="card-elevated p-10 text-center">
             <div className="animate-fade-in-up">
               <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <div className="w-7 h-7 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
+                <Sparkles
+                  className="w-7 h-7 text-accent"
+                  strokeWidth={1.5}
+                />
               </div>
-              <h3 className="text-lg font-bold tracking-tight">Analyzing your network</h3>
+              <h3 className="text-lg font-bold tracking-tight">
+                {profile.processing_status === "completed"
+                  ? "Analysis complete!"
+                  : "Your hit list is being prepared"}
+              </h3>
               <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
-                We&apos;re enriching and scoring your connections. This usually
-                takes 15–30 minutes.
+                {profile.processing_status === "completed"
+                  ? "Your connections have been classified and enriched. Explore your network to see the results."
+                  : "Matches will appear here once processing completes. Check back soon."}
               </p>
+              {profile.processing_status === "completed" && (
+                <Link
+                  href="/dashboard/network"
+                  className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all"
+                >
+                  View My Network
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              )}
             </div>
-          ) : (
-            <div className="animate-fade-in-up">
-              <div className="w-16 h-16 bg-warm-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
-                <Sparkles className="w-7 h-7 text-warm-400" strokeWidth={1.5} />
-              </div>
-              <h3 className="text-lg font-bold tracking-tight">Your hit list is being prepared</h3>
-              <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
-                Matches will appear here once processing completes. Check back
-                soon.
-              </p>
-            </div>
-          )}
-        </div>
+          </div>
+        )
       ) : (
         <div className="space-y-3 stagger-children">
           {filteredMatches.map((match, i) => (
