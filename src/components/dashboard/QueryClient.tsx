@@ -33,28 +33,29 @@ export default function QueryClient({ userId }: { userId: string }) {
   }
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Query Your Network</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Query Your Network</h1>
+        <p className="text-sm text-warm-400 mt-1 font-medium">
           Search your connections using natural language
         </p>
       </div>
 
       {/* Search box */}
-      <form onSubmit={handleSubmit} className="mb-8">
+      <form onSubmit={handleSubmit} className="mb-10 animate-fade-in-up" style={{ animationDelay: "0.05s" }}>
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-warm-400" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={suggestedPrompts[promptIndex]}
-            className="w-full h-14 pl-12 pr-24 rounded-2xl border-2 border-border bg-white text-sm focus:outline-none focus:border-primary transition-colors"
+            className="w-full h-[56px] pl-13 pr-28 rounded-2xl border-2 border-border bg-surface text-sm font-medium text-foreground placeholder:text-warm-400 input-ring transition-all"
           />
           <button
             type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 h-[44px] px-6 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all duration-150 active:scale-[0.98]"
           >
             Search
           </button>
@@ -62,17 +63,17 @@ export default function QueryClient({ userId }: { userId: string }) {
       </form>
 
       {/* Suggested prompts */}
-      <div className="mb-8">
-        <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-gold" />
+      <div className="mb-10 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5 text-gold" />
           Try these queries
-        </h3>
-        <div className="flex flex-wrap gap-2">
+        </p>
+        <div className="flex flex-wrap gap-2 stagger-children">
           {suggestedPrompts.map((prompt) => (
             <button
               key={prompt}
               onClick={() => setQuery(prompt)}
-              className="text-xs px-4 py-2.5 rounded-full bg-white border hover:border-primary/30 hover:bg-muted transition-colors text-left"
+              className="text-xs font-medium px-4 py-2.5 min-h-[44px] rounded-full bg-surface border border-border hover:border-accent/30 hover:bg-accent-light hover:text-accent transition-all duration-200 text-warm-600 active:scale-[0.98]"
             >
               {prompt}
             </button>
@@ -81,21 +82,29 @@ export default function QueryClient({ userId }: { userId: string }) {
       </div>
 
       {/* Coming soon state */}
-      <div className="bg-white rounded-2xl border p-12 text-center">
-        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-          <Search className="w-8 h-8 text-muted-foreground" />
-        </div>
-        <h3 className="text-lg font-semibold">
-          Natural Language Query Engine
-        </h3>
-        <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-          Type questions like &quot;Indian CTOs at Series B+
-          healthcare companies&quot; or &quot;VCs who invest in fintech&quot;
-          and get instant results from your network.
-        </p>
-        <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-xs font-medium text-muted-foreground">
-          <Sparkles className="w-3 h-3" />
-          Coming in Phase 2
+      <div className="card-elevated p-10 sm:p-16 text-center relative overflow-hidden animate-fade-in-up" style={{ animationDelay: "0.15s" }}>
+        {/* Subtle decorative pattern */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, var(--color-foreground) 1px, transparent 0)",
+          backgroundSize: "24px 24px"
+        }} />
+
+        <div className="relative">
+          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-accent-light to-accent/10 flex items-center justify-center mx-auto mb-6">
+            <Sparkles className="w-9 h-9 text-accent" />
+          </div>
+          <h3 className="text-xl font-bold tracking-tight text-foreground">
+            Natural Language Query Engine
+          </h3>
+          <p className="text-sm text-warm-500 mt-3 max-w-md mx-auto leading-relaxed">
+            Type questions like &quot;Indian CTOs at Series B+
+            healthcare companies&quot; or &quot;VCs who invest in fintech&quot;
+            and get instant results from your network.
+          </p>
+          <div className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gold-light text-gold text-xs font-semibold border border-gold/15">
+            <Sparkles className="w-3.5 h-3.5" />
+            Coming in Phase 2
+          </div>
         </div>
       </div>
     </div>

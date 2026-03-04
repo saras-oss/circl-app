@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Database, Brain, Bell } from "lucide-react";
+import { Database, Brain, Bell, ArrowRight, PartyPopper } from "lucide-react";
 
 interface WhatHappensNextProps {
   userId: string;
@@ -49,50 +49,78 @@ export default function WhatHappensNext({
   }
 
   return (
-    <div className="flex flex-col items-center text-center space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          You&apos;re all set!
-        </h1>
-        <p className="mt-2 text-sm text-gray-500">
-          Here&apos;s what happens next while you wait.
-        </p>
+    <div className="animate-fade-in flex flex-col items-center text-center space-y-10">
+      {/* Header */}
+      <div className="space-y-4">
+        <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+          <PartyPopper className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            You&apos;re all set!
+          </h1>
+          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+            Here&apos;s what happens next while you wait.
+          </p>
+        </div>
       </div>
 
-      <div className="w-full space-y-4">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          return (
-            <div
-              key={index}
-              className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm flex items-start gap-4 text-left"
-            >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100">
-                <Icon className="h-5 w-5 text-gray-600" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-sm font-semibold text-gray-900">
-                    {step.title}
-                  </h3>
+      {/* Steps with connecting vertical line */}
+      <div className="w-full relative stagger-children">
+        {/* Vertical connecting line */}
+        <div
+          className="absolute left-7 sm:left-8 top-[72px] bottom-[72px] w-px bg-gradient-to-b from-accent/40 via-accent/20 to-accent/40 hidden sm:block"
+          aria-hidden="true"
+        />
+        <div
+          className="absolute left-7 top-[72px] bottom-[72px] w-px bg-gradient-to-b from-accent/40 via-accent/20 to-accent/40 sm:hidden"
+          aria-hidden="true"
+        />
+
+        <div className="space-y-4">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <div
+                key={index}
+                className="card-elevated p-5 sm:p-6 flex items-start gap-5 text-left relative"
+              >
+                {/* Number + icon column */}
+                <div className="flex flex-col items-center gap-2 shrink-0 relative z-10">
+                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-accent/10">
+                    <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-accent" strokeWidth={1.5} />
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500">{step.description}</p>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0 pt-1">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-white shrink-0">
+                      {index + 1}
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                      {step.title}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-warm-500 leading-relaxed">
+                    {step.description}
+                  </p>
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
+      {/* CTA */}
       <Button
         onClick={handleGoToDashboard}
         size="lg"
         loading={loading}
-        className="w-full rounded-xl"
+        className="w-full h-[56px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-accent/20"
       >
         Go to Dashboard
+        <ArrowRight className="h-4 w-4" />
       </Button>
     </div>
   );

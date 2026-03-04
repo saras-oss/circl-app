@@ -12,6 +12,8 @@ import {
   Mail,
   Upload,
   ArrowLeft,
+  CheckCircle,
+  LinkIcon,
 } from "lucide-react";
 
 interface ExportGuideStepProps {
@@ -130,37 +132,49 @@ export default function ExportGuideStep({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Export your LinkedIn connections
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Follow these steps to download your connections from LinkedIn.
-        </p>
+    <div className="animate-fade-in space-y-8">
+      {/* Header */}
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+          <LinkIcon className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Export your LinkedIn connections
+          </h1>
+          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+            Follow these steps to download your connections from LinkedIn.
+          </p>
+        </div>
       </div>
 
-      <div className="space-y-3">
+      {/* Guide steps with stagger animation */}
+      <div className="stagger-children space-y-3">
         {guideSteps.map((step) => {
           const Icon = step.icon;
           return (
             <div
               key={step.number}
-              className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm flex items-start gap-4"
+              className="card-elevated p-4 sm:p-5 flex items-start gap-4"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                <Icon className="h-5 w-5" />
+              {/* Accent-colored number */}
+              <div className="flex flex-col items-center gap-1 shrink-0">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
+                  {step.number}
+                </span>
               </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white">
-                    {step.number}
-                  </span>
-                  <h3 className="text-sm font-semibold text-gray-900">
+
+              {/* Icon + content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-1.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warm-100 text-warm-600">
+                    <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
+                  </div>
+                  <h3 className="text-sm sm:text-base font-semibold text-foreground">
                     {step.title}
                   </h3>
                 </div>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="text-sm text-warm-500 leading-relaxed pl-12">
                   {step.description}
                 </p>
               </div>
@@ -169,42 +183,53 @@ export default function ExportGuideStep({
         })}
       </div>
 
+      {/* Question: Have you requested? (initial state) */}
       {hasRequested === null && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <p className="text-sm font-medium text-gray-900">
+        <div className="card-elevated p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <p className="text-base font-semibold text-foreground text-center">
             Have you already requested the export from LinkedIn?
           </p>
-          <div className="flex gap-3">
-            <Button
+          <div className="grid grid-cols-2 gap-4">
+            {/* Yes card-button */}
+            <button
               onClick={handleYes}
-              size="lg"
-              className="flex-1 rounded-xl"
-              loading={saving}
+              disabled={saving}
+              className="card-interactive p-5 sm:p-6 flex flex-col items-center gap-3 cursor-pointer min-h-[44px] active:scale-[0.98] transition-all"
             >
-              Yes
-            </Button>
-            <Button
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+                <CheckCircle className="h-6 w-6 text-accent" strokeWidth={1.5} />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Yes, I have</span>
+              <span className="text-xs text-warm-400">Ready to continue</span>
+            </button>
+
+            {/* No card-button */}
+            <button
               onClick={() => setHasRequested(false)}
-              variant="outline"
-              size="lg"
-              className="flex-1 rounded-xl"
+              disabled={saving}
+              className="card-interactive p-5 sm:p-6 flex flex-col items-center gap-3 cursor-pointer min-h-[44px] active:scale-[0.98] transition-all"
             >
-              No
-            </Button>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warm-100">
+                <Download className="h-6 w-6 text-warm-500" strokeWidth={1.5} />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Not yet</span>
+              <span className="text-xs text-warm-400">I need to do this</span>
+            </button>
           </div>
         </div>
       )}
 
+      {/* Not yet requested */}
       {hasRequested === false && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <p className="text-sm text-gray-500">
+        <div className="card-elevated p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <p className="text-sm text-warm-500 leading-relaxed text-center">
             Follow the steps above to request your LinkedIn data export, then
             come back here.
           </p>
           <Button
             onClick={handleRequestedNow}
             size="lg"
-            className="w-full rounded-xl"
+            className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
             loading={saving}
           >
             I&apos;ve requested it
@@ -212,22 +237,24 @@ export default function ExportGuideStep({
         </div>
       )}
 
+      {/* Already requested - success + reminder options */}
       {hasRequested === true && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <div className="rounded-xl bg-green-50 border border-green-200 p-4">
-            <p className="text-sm font-medium text-green-800">
+        <div className="card-elevated p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-accent shrink-0" />
+            <p className="text-sm font-medium text-accent">
               Great! Your data should be ready soon.
             </p>
           </div>
 
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition-colors min-h-[44px]">
             <input
               type="checkbox"
               checked={emailReminder}
               onChange={(e) => setEmailReminder(e.target.checked)}
-              className="h-5 w-5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+              className="h-5 w-5 rounded border-border-strong text-accent focus:ring-accent accent-accent"
             />
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-warm-600">
               Email me a reminder when it&apos;s likely ready
             </span>
           </label>
@@ -239,13 +266,13 @@ export default function ExportGuideStep({
             value={mobileNumber}
             onChange={(e) => setMobileNumber(e.target.value)}
             helperText="We'll only use this to notify you when your export is ready"
-            className="h-12 rounded-xl"
+            className="h-[52px] rounded-2xl border-2 border-border input-ring"
           />
 
           <Button
             onClick={handleContinue}
             size="lg"
-            className="w-full rounded-xl"
+            className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
             loading={saving}
           >
             Continue to upload
@@ -254,18 +281,19 @@ export default function ExportGuideStep({
       )}
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
           {error}
         </div>
       )}
 
+      {/* Navigation */}
       {hasRequested === null && (
         <div className="flex gap-3">
           <Button
             onClick={onBack}
             variant="outline"
             size="lg"
-            className="rounded-xl"
+            className="h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -273,7 +301,7 @@ export default function ExportGuideStep({
           <Button
             onClick={onNext}
             size="lg"
-            className="flex-1 rounded-xl"
+            className="flex-1 h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >
             Continue
           </Button>
@@ -285,7 +313,7 @@ export default function ExportGuideStep({
           onClick={onBack}
           variant="ghost"
           size="lg"
-          className="rounded-xl"
+          className="h-[52px] rounded-2xl min-h-[44px]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back

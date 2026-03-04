@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
-import { Upload, CheckCircle, AlertCircle, ArrowLeft } from "lucide-react";
+import { Upload, CheckCircle, AlertCircle, ArrowLeft, FileSpreadsheet } from "lucide-react";
 
 interface CsvUploadStepProps {
   userId: string;
@@ -196,16 +196,23 @@ export default function CsvUploadStep({
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Upload your connections
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Upload the Connections.csv file you downloaded from LinkedIn.
-        </p>
+    <div className="animate-fade-in space-y-8">
+      {/* Header */}
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+          <Upload className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Upload your connections
+          </h1>
+          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+            Upload the Connections.csv file you downloaded from LinkedIn.
+          </p>
+        </div>
       </div>
 
+      {/* Drag-and-drop zone */}
       {!uploadComplete && (
         <div
           onClick={() => fileInputRef.current?.click()}
@@ -213,12 +220,12 @@ export default function CsvUploadStep({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer
-            transition-colors
+            relative rounded-2xl border-2 border-dashed p-10 sm:p-14 text-center cursor-pointer
+            transition-all duration-300 ease-out group
             ${
               isDragging
-                ? "border-gray-900 bg-gray-50"
-                : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50"
+                ? "border-accent bg-accent-light scale-[1.01] shadow-lg shadow-accent/10"
+                : "border-warm-300 bg-warm-50 hover:border-accent hover:bg-accent-light/50"
             }
           `}
         >
@@ -230,55 +237,76 @@ export default function CsvUploadStep({
             className="hidden"
           />
 
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100">
-              <Upload className="h-6 w-6 text-gray-500" />
+          <div className="flex flex-col items-center gap-4">
+            <div
+              className={`
+                flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300
+                ${isDragging ? "bg-accent/15 scale-110" : "bg-warm-100 group-hover:bg-accent/10"}
+              `}
+            >
+              <FileSpreadsheet
+                className={`h-7 w-7 transition-colors duration-300 ${
+                  isDragging ? "text-accent" : "text-warm-400 group-hover:text-accent"
+                }`}
+                strokeWidth={1.5}
+              />
             </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                Drop your Connections.csv here or click to browse
+            <div className="space-y-1.5">
+              <p className="text-sm sm:text-base font-semibold text-foreground">
+                Drop your Connections.csv here
               </p>
-              <p className="mt-1 text-xs text-gray-500">
-                CSV files only
+              <p className="text-sm text-warm-400">
+                or <span className="text-accent font-medium underline underline-offset-2">click to browse</span>
               </p>
             </div>
+            <span className="rounded-full bg-warm-100 px-3 py-1.5 text-xs font-medium text-warm-500">
+              CSV files only
+            </span>
           </div>
         </div>
       )}
 
+      {/* Parsing / uploading progress */}
       {(parsing || uploading) && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-gray-900" />
-            <p className="text-sm font-medium text-gray-900">
-              {parsing
-                ? "Parsing CSV file..."
-                : `Uploading ${connectionCount?.toLocaleString()} connections...`}
-            </p>
+        <div className="card-elevated p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 flex items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-warm-200 border-t-accent" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                {parsing
+                  ? "Parsing CSV file..."
+                  : `Uploading ${connectionCount?.toLocaleString()} connections...`}
+              </p>
+              {fileName && (
+                <p className="text-xs text-warm-400 mt-0.5">{fileName}</p>
+              )}
+            </div>
           </div>
           {uploading && (
-            <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+            <div className="h-2 rounded-full bg-warm-100 overflow-hidden">
               <div
-                className="h-full bg-gray-900 rounded-full transition-all duration-500"
+                className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${uploadProgress}%` }}
               />
             </div>
           )}
-          {fileName && (
-            <p className="text-xs text-gray-500">{fileName}</p>
-          )}
         </div>
       )}
 
+      {/* Success state */}
       {uploadComplete && connectionCount !== null && (
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-            <div>
-              <p className="text-sm font-semibold text-gray-900">
+        <div className="card-elevated p-6 sm:p-8 space-y-4 animate-scale-in">
+          <div className="flex flex-col items-center text-center gap-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 animate-scale-in">
+              <CheckCircle className="h-8 w-8 text-accent" strokeWidth={1.5} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xl font-bold text-foreground">
                 {connectionCount.toLocaleString()} connections found
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-sm text-warm-400">
                 Successfully uploaded from {fileName}
               </p>
             </div>
@@ -286,19 +314,21 @@ export default function CsvUploadStep({
         </div>
       )}
 
+      {/* Error state */}
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 flex items-start gap-3">
-          <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-red-700">{error}</p>
+        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 flex items-start gap-3 animate-fade-in">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <p className="text-sm text-destructive">{error}</p>
         </div>
       )}
 
+      {/* Navigation */}
       <div className="flex gap-3">
         <Button
           onClick={onBack}
           variant="outline"
           size="lg"
-          className="rounded-xl"
+          className="h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -307,7 +337,7 @@ export default function CsvUploadStep({
           <Button
             onClick={onNext}
             size="lg"
-            className="flex-1 rounded-xl"
+            className="flex-1 h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >
             Continue
           </Button>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Zap } from "lucide-react";
 
 interface ProcessingStatus {
   status: string;
@@ -52,32 +53,46 @@ export default function ProcessingBanner({ userId }: { userId: string }) {
   }
 
   const statusLabels: Record<string, string> = {
-    classifying: "Classifying your connections...",
-    enriching: "Enriching profiles with deep data...",
-    matching: "Finding your best matches...",
-    failed: "Processing encountered an error. Please try again.",
+    classifying: "Classifying your connections",
+    enriching: "Enriching profiles with deep data",
+    matching: "Finding your best matches",
+    failed: "Processing encountered an error",
+  };
+
+  const statusDescriptions: Record<string, string> = {
+    classifying: "Analyzing seniority, function, and decision-maker signals",
+    enriching: "Pulling work history, company details, and funding data",
+    matching: "Scoring connections against your ideal customer profile",
+    failed: "Please try again or contact support",
   };
 
   return (
-    <div className="bg-white rounded-2xl border p-4 mb-6">
-      <div className="flex items-center gap-3">
-        {status.status !== "failed" && (
-          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        )}
-        <div className="flex-1">
-          <p className="text-sm font-medium">
-            {statusLabels[status.status] || "Processing..."}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {status.progress}% complete
-          </p>
+    <div className="card-elevated p-5 mb-6 animate-fade-in border-accent/20">
+      <div className="flex items-start gap-4">
+        <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
+          {status.status !== "failed" ? (
+            <div className="w-5 h-5 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Zap className="w-5 h-5 text-destructive" />
+          )}
         </div>
-      </div>
-      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${status.progress}%` }}
-        />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-bold">
+              {statusLabels[status.status] || "Processing..."}
+            </p>
+            <span className="text-xs font-bold text-accent">{status.progress}%</span>
+          </div>
+          <p className="text-xs text-warm-500 mt-0.5">
+            {statusDescriptions[status.status]}
+          </p>
+          <div className="mt-3 h-1.5 bg-warm-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${status.progress}%` }}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

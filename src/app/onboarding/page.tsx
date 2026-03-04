@@ -10,6 +10,8 @@ import IcpStep from "@/components/onboarding/IcpStep";
 import PaymentStep from "@/components/onboarding/PaymentStep";
 import WhatHappensNext from "@/components/onboarding/WhatHappensNext";
 
+const stepLabels = ["Profile", "Export Guide", "Upload CSV", "Define ICP", "Payment"];
+
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [userId, setUserId] = useState<string>("");
@@ -71,81 +73,97 @@ export default function OnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse-slow text-muted-foreground">
-          Loading...
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3 animate-fade-in">
+          <div className="w-10 h-10 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-warm-500 font-medium">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-muted">
-      {/* Progress bar */}
+    <div className="min-h-screen bg-background">
+      {/* Progress header */}
       {step <= 5 && (
-        <div className="sticky top-0 z-50 bg-white border-b">
-          <div className="max-w-2xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Step {step} of 5</span>
-              <span className="text-xs text-muted-foreground">
-                {
-                  ["Profile", "Export Guide", "Upload CSV", "Define ICP", "Payment"][
-                    step - 1
-                  ]
-                }
-              </span>
+        <div className="sticky top-0 z-50 glass border-b border-border">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+                  <span className="text-white font-bold text-[10px]">C</span>
+                </div>
+                <span className="font-bold text-sm tracking-tight">Circl</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-warm-500">
+                  {step}/5
+                </span>
+                <span className="text-xs text-warm-400">
+                  {stepLabels[step - 1]}
+                </span>
+              </div>
             </div>
-            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary rounded-full transition-all duration-500"
-                style={{ width: `${(step / 5) * 100}%` }}
-              />
+            {/* Step indicators */}
+            <div className="flex gap-1.5">
+              {stepLabels.map((_, i) => (
+                <div key={i} className="flex-1 h-1 rounded-full overflow-hidden bg-warm-200">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      i + 1 <= step ? "bg-accent" : "bg-transparent"
+                    }`}
+                    style={{ width: i + 1 < step ? "100%" : i + 1 === step ? "50%" : "0%" }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {step === 1 && (
-          <ProfileStep
-            userId={userId}
-            userData={userData}
-            onNext={() => updateStep(2)}
-          />
-        )}
-        {step === 2 && (
-          <ExportGuideStep
-            userId={userId}
-            onNext={() => updateStep(3)}
-            onBack={() => updateStep(1)}
-          />
-        )}
-        {step === 3 && (
-          <CsvUploadStep
-            userId={userId}
-            onNext={() => updateStep(4)}
-            onBack={() => updateStep(2)}
-          />
-        )}
-        {step === 4 && (
-          <IcpStep
-            userId={userId}
-            userData={userData}
-            onNext={() => updateStep(5)}
-            onBack={() => updateStep(3)}
-          />
-        )}
-        {step === 5 && (
-          <PaymentStep
-            userId={userId}
-            userData={userData}
-            onComplete={completeOnboarding}
-            onBack={() => updateStep(4)}
-          />
-        )}
-        {step === 6 && (
-          <WhatHappensNext userId={userId} onContinue={finishOnboarding} />
-        )}
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8">
+        <div className="animate-fade-in">
+          {step === 1 && (
+            <ProfileStep
+              userId={userId}
+              userData={userData}
+              onNext={() => updateStep(2)}
+            />
+          )}
+          {step === 2 && (
+            <ExportGuideStep
+              userId={userId}
+              onNext={() => updateStep(3)}
+              onBack={() => updateStep(1)}
+            />
+          )}
+          {step === 3 && (
+            <CsvUploadStep
+              userId={userId}
+              onNext={() => updateStep(4)}
+              onBack={() => updateStep(2)}
+            />
+          )}
+          {step === 4 && (
+            <IcpStep
+              userId={userId}
+              userData={userData}
+              onNext={() => updateStep(5)}
+              onBack={() => updateStep(3)}
+            />
+          )}
+          {step === 5 && (
+            <PaymentStep
+              userId={userId}
+              userData={userData}
+              onComplete={completeOnboarding}
+              onBack={() => updateStep(4)}
+            />
+          )}
+          {step === 6 && (
+            <WhatHappensNext userId={userId} onContinue={finishOnboarding} />
+          )}
+        </div>
       </div>
     </div>
   );

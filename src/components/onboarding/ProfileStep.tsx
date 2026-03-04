@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { User, Briefcase } from "lucide-react";
 
 interface ProfileStepProps {
   userId: string;
@@ -95,67 +96,95 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
-          Tell us about yourself
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          We&apos;ll use this to personalize your experience and find the right
-          connections for you.
-        </p>
+    <div className="animate-fade-in space-y-8">
+      {/* Branded illustration header */}
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+          <User className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Tell us about yourself
+          </h1>
+          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+            We&apos;ll use this to personalize your experience and find the right
+            connections for you.
+          </p>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-4">
-          <Input
-            label="Full Name"
-            placeholder="Jane Smith"
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            error={fieldErrors.fullName}
-            className="h-12 rounded-xl"
-          />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Personal details card */}
+        <div className="card-elevated p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2 mb-2">
+            <User className="h-4 w-4 text-accent" strokeWidth={2} />
+            <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+              Personal Details
+            </span>
+          </div>
 
-          <Input
-            label="LinkedIn URL"
-            placeholder="https://linkedin.com/in/janesmith"
-            value={linkedinUrl}
-            onChange={(e) => setLinkedinUrl(e.target.value)}
-            error={fieldErrors.linkedinUrl}
-            className="h-12 rounded-xl"
-          />
+          <div className="space-y-5">
+            <Input
+              label="Full Name"
+              placeholder="Jane Smith"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              error={fieldErrors.fullName}
+              className="h-[52px] rounded-2xl border-2 border-border input-ring"
+            />
 
-          <Input
-            label="Company Name"
-            placeholder="Acme Inc."
-            value={companyName}
-            onChange={(e) => setCompanyName(e.target.value)}
-            error={fieldErrors.companyName}
-            className="h-12 rounded-xl"
-          />
+            <Input
+              label="LinkedIn URL"
+              placeholder="https://linkedin.com/in/janesmith"
+              value={linkedinUrl}
+              onChange={(e) => setLinkedinUrl(e.target.value)}
+              error={fieldErrors.linkedinUrl}
+              className="h-[52px] rounded-2xl border-2 border-border input-ring"
+            />
 
-          <Input
-            label="Company Website URL"
-            placeholder="https://acme.com"
-            value={companyWebsite}
-            onChange={(e) => setCompanyWebsite(e.target.value)}
-            helperText="Optional, but helps us understand your business"
-            className="h-12 rounded-xl"
-          />
+            <Input
+              label="Role / Title"
+              placeholder="Head of Business Development"
+              value={roleTitle}
+              onChange={(e) => setRoleTitle(e.target.value)}
+              error={fieldErrors.roleTitle}
+              className="h-[52px] rounded-2xl border-2 border-border input-ring"
+            />
+          </div>
+        </div>
 
-          <Input
-            label="Role / Title"
-            placeholder="Head of Business Development"
-            value={roleTitle}
-            onChange={(e) => setRoleTitle(e.target.value)}
-            error={fieldErrors.roleTitle}
-            className="h-12 rounded-xl"
-          />
+        {/* Company details card */}
+        <div className="card-elevated p-6 sm:p-8 space-y-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Briefcase className="h-4 w-4 text-accent" strokeWidth={2} />
+            <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+              Company Details
+            </span>
+          </div>
+
+          <div className="space-y-5">
+            <Input
+              label="Company Name"
+              placeholder="Acme Inc."
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              error={fieldErrors.companyName}
+              className="h-[52px] rounded-2xl border-2 border-border input-ring"
+            />
+
+            <Input
+              label="Company Website URL"
+              placeholder="https://acme.com"
+              value={companyWebsite}
+              onChange={(e) => setCompanyWebsite(e.target.value)}
+              helperText="Optional, but helps us understand your business"
+              className="h-[52px] rounded-2xl border-2 border-border input-ring"
+            />
+          </div>
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
             {error}
           </div>
         )}
@@ -164,7 +193,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
           type="submit"
           size="lg"
           loading={saving}
-          className="w-full rounded-xl"
+          className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
         >
           Continue
         </Button>

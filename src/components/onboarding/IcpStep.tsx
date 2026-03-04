@@ -10,6 +10,9 @@ import {
   Send,
   ChevronUp,
   ChevronDown,
+  Target,
+  Sparkles,
+  MessageSquare,
 } from "lucide-react";
 
 interface IcpStepProps {
@@ -145,20 +148,20 @@ function PillGroup({
   }
 
   return (
-    <div className="space-y-2">
-      <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+    <div className="space-y-2.5">
+      <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
         {label}
       </h4>
       <div className="flex flex-wrap gap-2">
         {pills.map((pill) => (
           <span
             key={pill}
-            className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700"
+            className="inline-flex items-center gap-1.5 rounded-full bg-warm-100 px-3 py-1.5 text-xs font-medium text-warm-700 border border-warm-200 transition-colors hover:bg-warm-200/60"
           >
             {pill}
             <button
               onClick={() => onRemove(pill)}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-gray-200 transition-colors"
+              className="ml-0.5 rounded-full p-0.5 hover:bg-warm-300/50 transition-colors min-w-[22px] min-h-[22px] flex items-center justify-center"
               aria-label={`Remove ${pill}`}
             >
               <X className="h-3 w-3" />
@@ -178,14 +181,14 @@ function PillGroup({
                   setNewValue("");
                 }
               }}
-              className="h-8 w-32 rounded-full border border-gray-300 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              className="h-8 w-32 rounded-full border-2 border-accent/30 bg-surface px-3 text-xs font-medium text-foreground input-ring focus:outline-none focus:border-accent"
               placeholder="Add..."
             />
           </div>
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors"
+            className="inline-flex items-center gap-1 rounded-full border-2 border-dashed border-warm-300 px-3 py-1.5 text-xs font-medium text-warm-400 hover:border-accent hover:text-accent transition-colors min-h-[32px]"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -220,7 +223,7 @@ function PillsPanel({
   }
 
   return (
-    <div className={`space-y-4 ${compact ? "text-sm" : ""}`}>
+    <div className={`space-y-5 ${compact ? "text-sm" : ""}`}>
       {PILL_CATEGORIES.map(({ key, label, condition }) => {
         if (condition && !condition(icp)) return null;
         const pills = icp[key] as string[];
@@ -327,25 +330,35 @@ export default function IcpStep({
     }
   }
 
+  /* ═══════════════════ PHASE 1: Review ICP ═══════════════════ */
   if (phase === 1) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            Define your Ideal Customer Profile
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Based on your website and customers, here&apos;s who we think
-            you&apos;re looking for.
-          </p>
+      <div className="animate-fade-in space-y-8">
+        {/* Header */}
+        <div className="flex flex-col items-center text-center space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+            <Target className="h-7 w-7 text-accent" strokeWidth={1.5} />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+              Define your Ideal Customer Profile
+            </h1>
+            <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+              Based on your website and customers, here&apos;s who we think
+              you&apos;re looking for.
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm space-y-6">
+        {/* Pills card */}
+        <div className="card-elevated p-6 sm:p-8 space-y-6">
           <PillsPanel icp={icp} setIcp={setIcp} />
 
-          <div className="space-y-3 border-t border-gray-100 pt-4">
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm font-medium text-gray-900">
+          {/* Toggles section */}
+          <div className="space-y-4 border-t border-border pt-6">
+            {/* Investors toggle */}
+            <label className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition-colors min-h-[44px]">
+              <span className="text-sm font-semibold text-foreground">
                 Looking for Investors?
               </span>
               <button
@@ -356,13 +369,13 @@ export default function IcpStep({
                   }))
                 }
                 className={`
-                  relative h-6 w-11 rounded-full transition-colors
-                  ${icp.lookingForInvestors ? "bg-gray-900" : "bg-gray-300"}
+                  relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px]
+                  ${icp.lookingForInvestors ? "bg-accent" : "bg-warm-300"}
                 `}
               >
                 <span
                   className={`
-                    absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform shadow-sm
+                    absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm
                     ${icp.lookingForInvestors ? "translate-x-5" : "translate-x-0"}
                   `}
                 />
@@ -370,7 +383,7 @@ export default function IcpStep({
             </label>
 
             {icp.lookingForInvestors && (
-              <div className="ml-4 space-y-3 border-l-2 border-gray-100 pl-4">
+              <div className="ml-4 space-y-4 border-l-2 border-accent/20 pl-5 animate-fade-in">
                 <PillGroup
                   label="Fund Types"
                   pills={icp.investorFundTypes}
@@ -434,8 +447,9 @@ export default function IcpStep({
               </div>
             )}
 
-            <label className="flex items-center justify-between cursor-pointer">
-              <span className="text-sm font-medium text-gray-900">
+            {/* Advisors toggle */}
+            <label className="flex items-center justify-between cursor-pointer p-3 rounded-xl hover:bg-warm-50 transition-colors min-h-[44px]">
+              <span className="text-sm font-semibold text-foreground">
                 Looking for Advisors?
               </span>
               <button
@@ -446,13 +460,13 @@ export default function IcpStep({
                   }))
                 }
                 className={`
-                  relative h-6 w-11 rounded-full transition-colors
-                  ${icp.lookingForAdvisors ? "bg-gray-900" : "bg-gray-300"}
+                  relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px]
+                  ${icp.lookingForAdvisors ? "bg-accent" : "bg-warm-300"}
                 `}
               >
                 <span
                   className={`
-                    absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform shadow-sm
+                    absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm
                     ${icp.lookingForAdvisors ? "translate-x-5" : "translate-x-0"}
                   `}
                 />
@@ -460,7 +474,7 @@ export default function IcpStep({
             </label>
 
             {icp.lookingForAdvisors && (
-              <div className="ml-4 space-y-3 border-l-2 border-gray-100 pl-4">
+              <div className="ml-4 space-y-4 border-l-2 border-accent/20 pl-5 animate-fade-in">
                 <PillGroup
                   label="Domain Expertise"
                   pills={icp.advisorExpertise}
@@ -507,26 +521,29 @@ export default function IcpStep({
         </div>
 
         {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+          <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
             {error}
           </div>
         )}
 
+        {/* Action buttons */}
         <div className="space-y-3">
           <Button
             onClick={confirmIcp}
             size="lg"
             loading={confirming}
-            className="w-full rounded-xl"
+            className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >
+            <Sparkles className="h-4 w-4" />
             Yes, this looks right &mdash; find my matches
           </Button>
           <Button
             onClick={() => setPhase(2)}
             variant="outline"
             size="lg"
-            className="w-full rounded-xl"
+            className="w-full h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
           >
+            <MessageSquare className="h-4 w-4" />
             I want to refine a few things
           </Button>
         </div>
@@ -535,7 +552,7 @@ export default function IcpStep({
           onClick={onBack}
           variant="ghost"
           size="lg"
-          className="rounded-xl"
+          className="h-[52px] rounded-2xl min-h-[44px]"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -544,13 +561,15 @@ export default function IcpStep({
     );
   }
 
+  /* ═══════════════════ PHASE 2: Chat + Refine ═══════════════════ */
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+    <div className="animate-fade-in space-y-5">
+      {/* Header */}
+      <div className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           Refine your ICP
         </h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <p className="text-sm sm:text-base text-warm-500 leading-relaxed">
           Chat with us to adjust your ideal customer profile.
         </p>
       </div>
@@ -558,8 +577,8 @@ export default function IcpStep({
       {/* Desktop: 70/30 split */}
       <div className="hidden md:flex gap-4 h-[60vh]">
         {/* Chat panel - 70% */}
-        <div className="w-[70%] rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col">
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="w-[70%] card-elevated flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-5 space-y-4">
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -568,10 +587,10 @@ export default function IcpStep({
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                  className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-900"
+                      ? "bg-accent text-white shadow-sm shadow-accent/20"
+                      : "bg-warm-100 text-foreground shadow-sm"
                   }`}
                 >
                   {msg.content}
@@ -580,11 +599,11 @@ export default function IcpStep({
             ))}
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl bg-gray-100 px-4 py-2.5">
-                  <div className="flex gap-1">
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" />
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0.1s]" />
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0.2s]" />
+                <div className="rounded-2xl bg-warm-100 px-5 py-3 shadow-sm">
+                  <div className="flex gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce" />
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.1s]" />
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.2s]" />
                   </div>
                 </div>
               </div>
@@ -592,8 +611,9 @@ export default function IcpStep({
             <div ref={chatEndRef} />
           </div>
 
-          <div className="border-t border-gray-100 p-3">
-            <div className="flex gap-2">
+          {/* Chat input */}
+          <div className="border-t border-border p-4 bg-warm-50/50">
+            <div className="flex gap-3">
               <Input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
@@ -604,13 +624,13 @@ export default function IcpStep({
                   }
                 }}
                 placeholder="Tell us what to change..."
-                className="h-12 rounded-xl"
+                className="h-[52px] rounded-2xl border-2 border-border input-ring"
               />
               <Button
                 onClick={sendChatMessage}
                 size="lg"
                 disabled={!chatInput.trim() || chatLoading}
-                className="rounded-xl shrink-0"
+                className="h-[52px] w-[52px] rounded-2xl bg-accent text-white hover:bg-accent/90 active:scale-[0.98] shrink-0 p-0 transition-all"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -618,17 +638,25 @@ export default function IcpStep({
           </div>
         </div>
 
+        {/* Divider line */}
+        <div className="w-px bg-border self-stretch" />
+
         {/* Pills panel - 30% */}
-        <div className="w-[30%] rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col">
+        <div className="w-[30%] card-elevated flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+              Your ICP
+            </span>
+          </div>
           <div className="flex-1 overflow-y-auto p-4">
             <PillsPanel icp={icp} setIcp={setIcp} compact />
           </div>
-          <div className="border-t border-gray-100 p-3">
+          <div className="border-t border-border p-4">
             <Button
               onClick={confirmIcp}
               size="lg"
               loading={confirming}
-              className="w-full rounded-xl"
+              className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
             >
               Confirm ICP
             </Button>
@@ -639,27 +667,30 @@ export default function IcpStep({
       {/* Mobile: Full-width chat + collapsible pills drawer */}
       <div className="md:hidden space-y-3">
         {/* Collapsible pills */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div className="card-elevated overflow-hidden">
           <button
             onClick={() => setMobilePillsOpen(!mobilePillsOpen)}
-            className="w-full flex items-center justify-between p-4 text-sm font-medium text-gray-900"
+            className="w-full flex items-center justify-between p-4 text-sm font-semibold text-foreground min-h-[44px]"
           >
-            <span>Your ICP</span>
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-accent" />
+              <span>Your ICP</span>
+            </div>
             {mobilePillsOpen ? (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4 text-warm-400" />
             ) : (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4 text-warm-400" />
             )}
           </button>
           {mobilePillsOpen && (
-            <div className="border-t border-gray-100 p-4">
+            <div className="border-t border-border p-4 animate-fade-in">
               <PillsPanel icp={icp} setIcp={setIcp} compact />
-              <div className="mt-4">
+              <div className="mt-5">
                 <Button
                   onClick={confirmIcp}
                   size="lg"
                   loading={confirming}
-                  className="w-full rounded-xl"
+                  className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
                 >
                   Confirm ICP
                 </Button>
@@ -669,7 +700,7 @@ export default function IcpStep({
         </div>
 
         {/* Chat panel */}
-        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col h-[50vh]">
+        <div className="card-elevated flex flex-col h-[50vh] overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.map((msg, i) => (
               <div
@@ -679,10 +710,10 @@ export default function IcpStep({
                 }`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                  className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                     msg.role === "user"
-                      ? "bg-gray-900 text-white"
-                      : "bg-gray-100 text-gray-900"
+                      ? "bg-accent text-white shadow-sm shadow-accent/20"
+                      : "bg-warm-100 text-foreground shadow-sm"
                   }`}
                 >
                   {msg.content}
@@ -691,11 +722,11 @@ export default function IcpStep({
             ))}
             {chatLoading && (
               <div className="flex justify-start">
-                <div className="rounded-2xl bg-gray-100 px-4 py-2.5">
-                  <div className="flex gap-1">
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce" />
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0.1s]" />
-                    <span className="h-2 w-2 rounded-full bg-gray-400 animate-bounce [animation-delay:0.2s]" />
+                <div className="rounded-2xl bg-warm-100 px-5 py-3 shadow-sm">
+                  <div className="flex gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce" />
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.1s]" />
+                    <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.2s]" />
                   </div>
                 </div>
               </div>
@@ -703,7 +734,7 @@ export default function IcpStep({
             <div ref={chatEndRef} />
           </div>
 
-          <div className="border-t border-gray-100 p-3">
+          <div className="border-t border-border p-3 bg-warm-50/50">
             <div className="flex gap-2">
               <Input
                 value={chatInput}
@@ -715,13 +746,13 @@ export default function IcpStep({
                   }
                 }}
                 placeholder="Tell us what to change..."
-                className="h-12 rounded-xl"
+                className="h-[52px] rounded-2xl border-2 border-border input-ring"
               />
               <Button
                 onClick={sendChatMessage}
                 size="lg"
                 disabled={!chatInput.trim() || chatLoading}
-                className="rounded-xl shrink-0"
+                className="h-[52px] w-[52px] rounded-2xl bg-accent text-white hover:bg-accent/90 active:scale-[0.98] shrink-0 p-0 transition-all"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -731,17 +762,18 @@ export default function IcpStep({
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
           {error}
         </div>
       )}
 
+      {/* Navigation */}
       <div className="flex gap-3">
         <Button
           onClick={() => setPhase(1)}
           variant="outline"
           size="lg"
-          className="rounded-xl"
+          className="h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to overview
@@ -752,7 +784,7 @@ export default function IcpStep({
         onClick={onBack}
         variant="ghost"
         size="lg"
-        className="rounded-xl"
+        className="h-[52px] rounded-2xl min-h-[44px]"
       >
         <ArrowLeft className="h-4 w-4" />
         Previous step

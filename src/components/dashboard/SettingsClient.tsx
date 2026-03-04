@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { User, CreditCard, Target, Upload } from "lucide-react";
+import { User, CreditCard, Target, Upload, Check, Sparkles } from "lucide-react";
 
 interface SettingsClientProps {
   userId: string;
@@ -57,137 +57,150 @@ export default function SettingsClient({
 
   const tierLabels: Record<string, string> = {
     free: "Free",
-    starter: "Starter — $100/year",
-    growth: "Growth — $300/year",
-    scale: "Scale — $500/year",
-    enterprise: "Enterprise — $700/year",
+    starter: "Starter \u2014 $100/year",
+    growth: "Growth \u2014 $300/year",
+    scale: "Scale \u2014 $500/year",
+    enterprise: "Enterprise \u2014 $700/year",
   };
 
+  const inputClasses =
+    "w-full h-[52px] px-4 rounded-2xl border-2 border-border bg-surface text-sm font-medium text-foreground placeholder:text-warm-400 input-ring transition-all";
+
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
+    <div className="animate-fade-in">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-6 stagger-children">
         {/* Profile */}
-        <div className="bg-white rounded-2xl border p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
-              <User className="w-5 h-5 text-muted-foreground" />
+        <div className="card-elevated p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-8">
+            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
+              <User className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold">Profile</h2>
-              <p className="text-xs text-muted-foreground">
+              <h2 className="font-semibold text-foreground">Profile</h2>
+              <p className="text-xs text-warm-400 font-medium">
                 Your personal and company details
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleSaveProfile} className="space-y-4">
+          <form onSubmit={handleSaveProfile} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
                 Full Name
               </label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                className={inputClasses}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
                 LinkedIn URL
               </label>
               <input
                 type="url"
                 value={linkedinUrl}
                 onChange={(e) => setLinkedinUrl(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                className={inputClasses}
               />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-medium mb-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
                   Company Name
                 </label>
                 <input
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  className={inputClasses}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1.5">
+                <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
                   Role / Title
                 </label>
                 <input
                   type="text"
                   value={roleTitle}
                   onChange={(e) => setRoleTitle(e.target.value)}
-                  className="w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                  className={inputClasses}
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">
+              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
                 Company Website
               </label>
               <input
                 type="url"
                 value={companyWebsite}
                 onChange={(e) => setCompanyWebsite(e.target.value)}
-                className="w-full h-12 px-4 rounded-xl border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                className={inputClasses}
               />
             </div>
             <button
               type="submit"
               disabled={saving}
-              className="h-12 px-6 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="h-[52px] px-8 rounded-2xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2 min-w-[140px] justify-center"
             >
-              {saving ? "Saving..." : saved ? "Saved!" : "Save Changes"}
+              {saving ? (
+                "Saving..."
+              ) : saved ? (
+                <>
+                  <Check className="w-4 h-4 text-white" />
+                  <span>Saved!</span>
+                </>
+              ) : (
+                "Save Changes"
+              )}
             </button>
           </form>
         </div>
 
         {/* Subscription */}
-        <div className="bg-white rounded-2xl border p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-muted-foreground" />
+        <div className="card-elevated p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-8">
+            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold">Subscription</h2>
-              <p className="text-xs text-muted-foreground">
+              <h2 className="font-semibold text-foreground">Subscription</h2>
+              <p className="text-xs text-warm-400 font-medium">
                 Your plan and billing details
               </p>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-muted-foreground">Plan</span>
-              <span className="text-sm font-medium">
+          <div className="space-y-0 divide-y divide-border/60">
+            <div className="flex items-center justify-between py-4 first:pt-0">
+              <span className="text-sm text-warm-500 font-medium">Plan</span>
+              <span className="text-sm font-semibold text-foreground">
                 {tierLabels[profile.subscription_tier as string] || "None"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-muted-foreground">Status</span>
+            <div className="flex items-center justify-between py-4">
+              <span className="text-sm text-warm-500 font-medium">Status</span>
               <span
-                className={`text-sm font-medium ${profile.subscription_status === "active" ? "text-green" : "text-muted-foreground"}`}
+                className={`text-sm font-semibold ${profile.subscription_status === "active" ? "text-green" : "text-warm-400"}`}
               >
                 {profile.subscription_status === "active"
                   ? "Active"
                   : "Inactive"}
               </span>
             </div>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between py-4">
+              <span className="text-sm text-warm-500 font-medium">
                 Connections Analyzed
               </span>
-              <span className="text-sm font-medium">
+              <span className="text-sm font-semibold text-foreground">
                 {(
                   (profile.enriched_connections as number) || 0
                 ).toLocaleString()}{" "}
@@ -198,11 +211,11 @@ export default function SettingsClient({
               </span>
             </div>
             {payment && (
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-muted-foreground">
+              <div className="flex items-center justify-between py-4 last:pb-0">
+                <span className="text-sm text-warm-500 font-medium">
                   Last Payment
                 </span>
-                <span className="text-sm font-medium">
+                <span className="text-sm font-semibold text-foreground">
                   ${((payment.amount as number) / 100).toFixed(0)} on{" "}
                   {new Date(payment.created_at as string).toLocaleDateString()}
                 </span>
@@ -211,9 +224,9 @@ export default function SettingsClient({
           </div>
 
           {profile.subscription_tier === "free" && (
-            <div className="mt-4 p-4 rounded-xl bg-muted">
-              <p className="text-sm font-medium">Upgrade your plan</p>
-              <p className="text-xs text-muted-foreground mt-1">
+            <div className="mt-6 p-5 rounded-2xl bg-gradient-to-br from-accent-light to-accent/5 border border-accent/10">
+              <p className="text-sm font-semibold text-foreground">Upgrade your plan</p>
+              <p className="text-xs text-warm-500 mt-1 leading-relaxed">
                 Analyze all{" "}
                 {(
                   (profile.total_connections as number) || 0
@@ -225,21 +238,21 @@ export default function SettingsClient({
         </div>
 
         {/* ICP */}
-        <div className="bg-white rounded-2xl border p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
-              <Target className="w-5 h-5 text-muted-foreground" />
+        <div className="card-elevated p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-6">
+            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
+              <Target className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold">Ideal Customer Profile</h2>
-              <p className="text-xs text-muted-foreground">
+              <h2 className="font-semibold text-foreground">Ideal Customer Profile</h2>
+              <p className="text-xs text-warm-400 font-medium">
                 Your targeting criteria for matches
               </p>
             </div>
           </div>
           {profile.icp_data &&
           Object.keys(profile.icp_data as object).length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-5">
               {Object.entries(profile.icp_data as Record<string, unknown>).map(
                 ([key, value]) => {
                   if (typeof value === "boolean" || !value) return null;
@@ -248,21 +261,21 @@ export default function SettingsClient({
                     .replace(/^./, (s) => s.toUpperCase());
                   return (
                     <div key={key}>
-                      <p className="text-xs text-muted-foreground mb-1">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3">
                         {label}
                       </p>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap gap-2">
                         {Array.isArray(value) ? (
                           value.map((v: string) => (
                             <span
                               key={v}
-                              className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground"
+                              className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
                             >
                               {v}
                             </span>
                           ))
                         ) : (
-                          <span className="text-xs px-2.5 py-1 rounded-full bg-muted text-foreground">
+                          <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10">
                             {String(value)}
                           </span>
                         )}
@@ -273,28 +286,31 @@ export default function SettingsClient({
               )}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No ICP defined yet</p>
+            <div className="py-6 text-center">
+              <p className="text-sm text-warm-400 font-medium">No ICP defined yet</p>
+            </div>
           )}
         </div>
 
         {/* Re-upload CSV */}
-        <div className="bg-white rounded-2xl border p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center">
-              <Upload className="w-5 h-5 text-muted-foreground" />
+        <div className="card-elevated p-6 sm:p-8">
+          <div className="flex items-center gap-3.5 mb-6">
+            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
+              <Upload className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold">Re-upload Connections</h2>
-              <p className="text-xs text-muted-foreground">
+              <h2 className="font-semibold text-foreground">Re-upload Connections</h2>
+              <p className="text-xs text-warm-400 font-medium">
                 Update your network with a new LinkedIn export
               </p>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground mb-3">
+          <p className="text-sm text-warm-500 mb-4 leading-relaxed">
             Export your latest connections from LinkedIn and upload them here.
             New connections will be added incrementally.
           </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted text-xs font-medium text-muted-foreground">
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gold-light text-gold text-xs font-semibold border border-gold/15">
+            <Sparkles className="w-3.5 h-3.5" />
             Coming in Phase 2
           </div>
         </div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { Lock, Users, TrendingUp, UserCheck } from "lucide-react";
+
 interface HitListCardProps {
   name: string;
   title: string;
@@ -12,22 +14,11 @@ interface HitListCardProps {
   blurred?: boolean;
 }
 
-function getScoreBadge(score: number) {
-  if (score >= 9)
-    return {
-      label: "Exceptional",
-      classes: "bg-gold-light text-amber-800 border-amber-200",
-    };
-  if (score >= 7)
-    return {
-      label: "Strong",
-      classes: "bg-green-light text-emerald-800 border-emerald-200",
-    };
-  return {
-    label: "Good",
-    classes: "bg-gray-100 text-gray-700 border-gray-200",
-  };
-}
+const typeConfig = {
+  customer: { icon: Users, color: "text-accent", bg: "bg-accent-light", label: "Customer" },
+  investor: { icon: TrendingUp, color: "text-purple", bg: "bg-purple-light", label: "Investor" },
+  advisor: { icon: UserCheck, color: "text-gold", bg: "bg-gold-light", label: "Advisor" },
+};
 
 export default function HitListCard({
   name,
@@ -40,66 +31,73 @@ export default function HitListCard({
   dataPoints,
   blurred = false,
 }: HitListCardProps) {
-  const badge = getScoreBadge(score);
+  const config = typeConfig[matchType];
+  const TypeIcon = config.icon;
 
   return (
-    <div
-      className={`bg-white rounded-2xl border p-4 transition-shadow hover:shadow-md ${
-        blurred ? "relative overflow-hidden" : ""
-      }`}
-    >
+    <div className={`card-elevated p-5 ${blurred ? "relative overflow-hidden" : ""}`}>
       {blurred && (
-        <div className="absolute inset-0 backdrop-blur-sm bg-white/60 z-10 flex items-center justify-center">
-          <div className="text-center px-4">
-            <p className="text-sm font-medium text-primary">
-              Upgrade to unlock
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              This match is available on the paid plan
+        <div className="absolute inset-0 backdrop-blur-md bg-surface/70 z-10 flex items-center justify-center">
+          <div className="text-center px-6">
+            <div className="w-10 h-10 bg-warm-100 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <Lock className="w-4 h-4 text-warm-400" />
+            </div>
+            <p className="text-sm font-semibold">Upgrade to unlock</p>
+            <p className="text-xs text-warm-500 mt-1">
+              Available on paid plans
             </p>
           </div>
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-4">
+        {/* Avatar / Type icon */}
+        <div className={`shrink-0 w-11 h-11 ${config.bg} rounded-xl flex items-center justify-center`}>
+          <TypeIcon className={`w-5 h-5 ${config.color}`} strokeWidth={1.8} />
+        </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold text-sm truncate">{name}</h3>
-            <span
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${badge.classes}`}
-            >
-              {score} — {badge.label}
+          {/* Top row: name + score */}
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="font-bold text-sm truncate">{name}</h3>
+            <span className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+              score >= 9 ? "badge-exceptional" : score >= 7 ? "badge-strong" : "bg-warm-100 text-warm-600 border border-warm-200"
+            }`}>
+              {score.toFixed(1)}
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mt-0.5 truncate">
-            {title} at {company}
+
+          {/* Subtitle */}
+          <p className="text-sm text-warm-500 mt-0.5 truncate">
+            {title}{company ? ` at ${company}` : ""}
           </p>
+
+          {/* Reason */}
+          <p className="text-[13px] text-warm-600 mt-2.5 leading-relaxed line-clamp-2">{reason}</p>
+
+          {/* Data pills + meta */}
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex flex-wrap gap-1.5">
+              {dataPoints && Object.entries(dataPoints).slice(0, 3).map(([key, value]) => (
+                <span
+                  key={key}
+                  className="text-[11px] px-2.5 py-1 rounded-full bg-warm-100 text-warm-600 font-medium"
+                >
+                  {value}
+                </span>
+              ))}
+              <span className={`text-[11px] px-2.5 py-1 rounded-full ${config.bg} ${config.color} font-medium`}>
+                {config.label}
+              </span>
+            </div>
+            {connectedOn && (
+              <span className="text-[11px] text-warm-400 shrink-0 ml-3">
+                {connectedOn}
+              </span>
+            )}
+          </div>
         </div>
-        <span className="shrink-0 text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground capitalize">
-          {matchType}
-        </span>
       </div>
-
-      <p className="text-sm text-foreground/80 mt-3 line-clamp-2">{reason}</p>
-
-      {dataPoints && Object.keys(dataPoints).length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-3">
-          {Object.entries(dataPoints).map(([key, value]) => (
-            <span
-              key={key}
-              className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground"
-            >
-              {value}
-            </span>
-          ))}
-        </div>
-      )}
-
-      {connectedOn && (
-        <p className="text-xs text-muted-foreground mt-3">
-          Connected {connectedOn}
-        </p>
-      )}
     </div>
   );
 }
