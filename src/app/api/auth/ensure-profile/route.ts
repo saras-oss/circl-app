@@ -13,6 +13,12 @@ export async function POST() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Verify user actually exists in auth.users (JWT may outlive a deleted user)
+    const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(user.id);
+    if (!authUser?.user) {
+      return NextResponse.json({ error: "User not found" }, { status: 401 });
+    }
+
     // Upsert: create row if missing, do nothing if it exists
     const { error } = await supabaseAdmin.from("users").upsert(
       {
