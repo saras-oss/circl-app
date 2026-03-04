@@ -10,7 +10,7 @@ const CACHE_FRESHNESS_DAYS = 60;
 const DEFAULT_BATCH_SIZE = 4;
 
 async function serperScrape(url: string): Promise<string | null> {
-  const response = await fetch("https://scraper.serper.dev", {
+  const response = await fetch("https://scrape.serper.dev", {
     method: "POST",
     headers: {
       "X-API-KEY": SERPER_API_KEY,
