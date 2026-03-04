@@ -273,7 +273,9 @@ export async function POST(request: Request) {
           .update({
             match_score: scoreResult.score,
             match_type: scoreResult.match_type,
-            match_reasons: scoreResult.reasons,
+            match_reasons: Array.isArray(scoreResult.reasons)
+              ? scoreResult.reasons
+              : [scoreResult.reasons],
             suggested_approach: scoreResult.suggested_approach,
             scored_at: new Date().toISOString(),
           })
