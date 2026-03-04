@@ -162,6 +162,9 @@ export async function POST(request: Request) {
       });
     }
 
+    console.log("SCORE_DEBUG: About to query connections. User:", userId);
+    console.log("SCORE_DEBUG: ICP industries:", icpData.industries?.length, "confirmed:", userData?.icp_confirmed);
+
     // Find unscored enriched connections — no subscription gate in V1
     const query = supabaseAdmin
       .from("user_connections")
@@ -176,16 +179,30 @@ export async function POST(request: Request) {
 
     const { data: connections, error: fetchError } = await query;
 
+    console.log("SCORE_DEBUG: Connections query returned:", connections?.length || 0, "Error:", fetchError?.message || "none");
+
     if (fetchError) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
-    console.log(`SCORE: Found ${connections?.length || 0} connections to score for user ${userId}`);
-
     if (!connections || connections.length === 0) {
-      console.log("SCORE: Zero connections found. Filters applied:", {
-        enrichment_status: "enriched or cached",
-        match_score: "IS NULL",
+      // Extra diagnostic: count total connections and their statuses
+      const { data: statusCheck } = await supabaseAdmin
+        .from("user_connections")
+        .select("enrichment_status, match_score")
+        .eq("user_id", userId);
+
+      const breakdown: Record<string, number> = {};
+      let alreadyScored = 0;
+      for (const c of statusCheck || []) {
+        breakdown[c.enrichment_status || "null"] = (breakdown[c.enrichment_status || "null"] || 0) + 1;
+        if (c.match_score !== null) alreadyScored++;
+      }
+
+      console.log("SCORE_DEBUG: ZERO connections to score. Full breakdown:", {
+        total: statusCheck?.length || 0,
+        enrichment_status_breakdown: breakdown,
+        already_scored: alreadyScored,
         userId,
       });
       return NextResponse.json({

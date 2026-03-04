@@ -461,11 +461,8 @@ export async function POST(request: Request) {
     }
 
     if (!connections || connections.length === 0) {
-      await supabaseAdmin
-        .from("users")
-        .update({ processing_status: "completed" })
-        .eq("id", userId);
-
+      // DO NOT set processing_status here — scoring still needs to run.
+      // Only /api/pipeline/complete should set processing_status = "completed".
       return NextResponse.json({
         processed: 0,
         remaining: 0,
