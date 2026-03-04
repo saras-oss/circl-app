@@ -8,7 +8,7 @@ const suggestedPrompts = [
   "Who are the founders in my network?",
   "Connections at companies that recently raised funding",
   "VCs and angel investors in my connections",
-  "Senior leaders who could be advisors",
+  "Senior leaders in my industry",
   "Marketing directors at companies with 500+ employees",
   "Indian CTOs at Series B+ companies",
   "People who previously worked at McKinsey",

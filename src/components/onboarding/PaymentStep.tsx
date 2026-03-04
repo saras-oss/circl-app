@@ -215,7 +215,7 @@ export default function PaymentStep({
           <div className="space-y-3">
             {[
               "AI-powered scoring of every connection",
-              "Identify hidden customers, investors & advisors",
+              "Identify hidden customers & investors in your network",
               "Priority enrichment and weekly insights",
             ].map((benefit) => (
               <div key={benefit} className="flex items-center gap-3">

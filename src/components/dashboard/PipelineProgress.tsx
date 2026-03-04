@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle, Loader2, Circle } from "lucide-react";
+import { CheckCircle, Loader2, Circle, RefreshCw } from "lucide-react";
 import {
   type PipelineState,
   type PipelineStep,
@@ -28,13 +28,14 @@ const pipelineSteps: StepConfig[] = [
       s.enriched > 0 ? `${s.enriched} enriched` : "Starting...",
   },
   {
-    key: "matching",
-    label: "Finding matches",
-    getDetail: () => "Starting...",
+    key: "scoring",
+    label: "Scoring matches",
+    getDetail: (s) =>
+      s.scored > 0 ? `${s.scored} scored` : "Starting...",
   },
 ];
 
-const stepOrder: PipelineStep[] = ["classifying", "enriching", "matching"];
+const stepOrder: PipelineStep[] = ["classifying", "enriching", "scoring"];
 
 function getStepIndex(step: PipelineStep): number {
   return stepOrder.indexOf(step);
@@ -49,20 +50,18 @@ function getOverallProgress(state: PipelineState): number {
   const currentIndex = getStepIndex(step);
   if (currentIndex === -1) return 0;
 
-  const portions = [45, 45, 10];
+  const portions = [35, 45, 20];
   let progress = 0;
 
-  // Completed steps
   for (let i = 0; i < currentIndex; i++) {
     progress += portions[i];
   }
 
-  // Current step's partial progress
   if (step === "classifying" && total > 0) {
     progress += (classified / total) * portions[0];
   } else if (step === "enriching") {
     progress += portions[1] * 0.5;
-  } else if (step === "matching") {
+  } else if (step === "scoring") {
     progress += portions[2] * 0.5;
   }
 
@@ -71,8 +70,10 @@ function getOverallProgress(state: PipelineState): number {
 
 export default function PipelineProgress({
   state,
+  onRefresh,
 }: {
   state: PipelineState;
+  onRefresh?: () => void;
 }) {
   if (state.step === "completed") return null;
 
@@ -94,9 +95,20 @@ export default function PipelineProgress({
 
   return (
     <div className="card-elevated p-6 mb-6 animate-fade-in border-accent/20">
-      <h3 className="text-base font-bold text-foreground mb-5">
-        Analyzing your network...
-      </h3>
+      <div className="flex items-center justify-between mb-5">
+        <h3 className="text-base font-bold text-foreground">
+          Analyzing your network...
+        </h3>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="flex items-center gap-1.5 text-xs font-medium text-warm-400 hover:text-foreground transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </button>
+        )}
+      </div>
 
       <div className="space-y-3.5 mb-5">
         {pipelineSteps.map((stepConfig, i) => {
@@ -146,7 +158,7 @@ export default function PipelineProgress({
       </div>
 
       <p className="text-xs text-warm-400 text-center">
-        This usually takes 2–5 minutes
+        This usually takes 2\u20135 minutes
       </p>
 
       {state.error && (

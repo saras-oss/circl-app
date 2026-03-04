@@ -93,7 +93,7 @@ For each person, determine:
 - seniority_tier: "C-suite" | "VP/Director" | "Manager" | "IC" | "Junior/Intern/Irrelevant"
 - function_category: e.g. "Engineering", "Sales", "Marketing", "Finance", "Operations", "HR", "Product", "Legal", "Investment", "Consulting", "General Management", "Other"
 - decision_maker_likelihood: "High" | "Medium" | "Low"
-- connection_type_signal: "Potential Customer" | "Potential Investor" | "Potential Advisor" | "General Professional"
+- connection_type_signal: "Potential Customer" | "Potential Investor" | "General Professional"
 
 People to classify:
 ${connectionsText}

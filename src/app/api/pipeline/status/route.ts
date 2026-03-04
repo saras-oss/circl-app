@@ -51,12 +51,20 @@ export async function GET(request: Request) {
       .eq("user_id", userId)
       .in("enrichment_status", ["enriched", "cached"]);
 
+    // Count scored connections
+    const { count: scored } = await supabaseAdmin
+      .from("user_connections")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .not("match_score", "is", null);
+
     return NextResponse.json({
       status: userData?.processing_status || "idle",
       progress: userData?.processing_progress || 0,
       total: total || 0,
       classified: classified || 0,
       enriched: enriched || 0,
+      scored: scored || 0,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";

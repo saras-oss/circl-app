@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Star,
   Users,
   Search,
   Settings,
@@ -14,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/hit-list", label: "Hit List", icon: Star },
   { href: "/dashboard/network", label: "My Network", icon: Users },
   { href: "/dashboard/query", label: "Query", icon: Search },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },

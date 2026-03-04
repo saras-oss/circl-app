@@ -6,32 +6,41 @@ import { Database, Brain, Bell, ArrowRight, PartyPopper } from "lucide-react";
 
 interface WhatHappensNextProps {
   userId: string;
+  connectionCount?: number;
   onContinue: () => void;
+}
+
+function getTimeEstimate(connectionCount: number): string {
+  if (connectionCount <= 100) return "1\u20132 minutes";
+  if (connectionCount <= 500) return "3\u20135 minutes";
+  if (connectionCount <= 1000) return "5\u201310 minutes";
+  return "10\u201315 minutes";
 }
 
 const steps = [
   {
     icon: Database,
-    title: "Enriching your data",
+    title: "Classifying & enriching",
     description:
-      "We're pulling deep data on your connections \u2014 work history, company details, funding, investor profiles, and more.",
+      "We're classifying your connections by seniority and pulling deep data \u2014 work history, company details, funding signals, and more.",
   },
   {
     icon: Brain,
-    title: "Matching against your ICP",
+    title: "Scoring against your ICP",
     description:
-      "Our AI is scoring every connection against your profile to find customers, investors, and advisors.",
+      "Our AI scores every connection against your ideal customer profile to surface your best potential customers and investors.",
   },
   {
     icon: Bell,
-    title: "Results on the way",
+    title: "Results ready on your dashboard",
     description:
-      "We'll email you when your results are ready. Usually 15\u201330 minutes.",
+      "Head to your dashboard to see results in real time. Your Hit List will populate as scoring completes.",
   },
 ];
 
 export default function WhatHappensNext({
   userId,
+  connectionCount = 0,
   onContinue,
 }: WhatHappensNextProps) {
   const [loading, setLoading] = useState(false);
@@ -54,7 +63,9 @@ export default function WhatHappensNext({
             You&apos;re all set!
           </h1>
           <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
-            Here&apos;s what happens next while you wait.
+            Here&apos;s what happens next.{connectionCount > 0 && (
+              <> Estimated time: <strong className="text-foreground">{getTimeEstimate(connectionCount)}</strong>.</>
+            )}
           </p>
         </div>
       </div>

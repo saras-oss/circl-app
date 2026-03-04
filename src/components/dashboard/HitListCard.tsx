@@ -1,13 +1,13 @@
 "use client";
 
-import { Lock, Users, TrendingUp, UserCheck } from "lucide-react";
+import { Lock, Users, TrendingUp } from "lucide-react";
 
 interface HitListCardProps {
   name: string;
   title: string;
   company: string;
   score: number;
-  matchType: "customer" | "investor" | "advisor";
+  matchType: "customer" | "investor";
   reason: string;
   connectedOn?: string;
   dataPoints?: Record<string, string>;
@@ -17,7 +17,6 @@ interface HitListCardProps {
 const typeConfig = {
   customer: { icon: Users, color: "text-accent", bg: "bg-accent-light", label: "Customer" },
   investor: { icon: TrendingUp, color: "text-purple", bg: "bg-purple-light", label: "Investor" },
-  advisor: { icon: UserCheck, color: "text-gold", bg: "bg-gold-light", label: "Advisor" },
 };
 
 export default function HitListCard({

@@ -70,7 +70,7 @@ export default function LoginPage() {
             </h1>
             <p className="mt-6 text-warm-400 text-base leading-relaxed">
               Turn thousands of LinkedIn connections into a scored pipeline of
-              customers, investors, and advisors — in minutes, not months.
+              customers and investors — in minutes, not months.
             </p>
 
             <div className="mt-10 space-y-4">

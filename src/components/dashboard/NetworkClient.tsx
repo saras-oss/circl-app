@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, ArrowUpDown, Users, ChevronDown, ChevronUp, MapPin, Star } from "lucide-react";
 
 interface Connection {
   id: string;
@@ -17,9 +17,18 @@ interface Connection {
   connection_type_signal: string | null;
   enrichment_status: string;
   classification_status: string;
+  match_score: number | null;
+  linkedin_url: string | null;
+  // Joined from enriched_profiles
+  enriched_profile?: {
+    city: string | null;
+    country: string | null;
+    total_experience_years: number | null;
+    connections_count: number | null;
+  } | null;
 }
 
-type SortField = "name" | "company" | "connected_on" | "seniority_tier" | "function_category";
+type SortField = "name" | "company" | "connected_on" | "seniority_tier" | "match_score";
 
 export default function NetworkClient({ userId }: { userId: string }) {
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -29,6 +38,7 @@ export default function NetworkClient({ userId }: { userId: string }) {
   const [sortField, setSortField] = useState<SortField>("connected_on");
   const [sortAsc, setSortAsc] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [profileMap, setProfileMap] = useState<Map<string, Connection["enriched_profile"]>>(new Map());
   const supabase = createClient();
   const pageSize = 50;
 
@@ -48,12 +58,39 @@ export default function NetworkClient({ userId }: { userId: string }) {
     const sortColumn =
       sortField === "name" ? "first_name" : sortField;
     query = query
-      .order(sortColumn, { ascending: sortAsc })
+      .order(sortColumn, { ascending: sortAsc, nullsFirst: false })
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
     const { data, count } = await query;
-    setConnections((data as Connection[]) || []);
+    const conns = (data as Connection[]) || [];
+    setConnections(conns);
     setTotal(count || 0);
+
+    // Fetch enriched profile data for these connections
+    const linkedinUrls = conns
+      .map((c) => c.linkedin_url)
+      .filter((url): url is string => !!url);
+
+    if (linkedinUrls.length > 0) {
+      const { data: profiles } = await supabase
+        .from("enriched_profiles")
+        .select("linkedin_url, city, country, total_experience_years, connections_count")
+        .in("linkedin_url", linkedinUrls);
+
+      const map = new Map<string, Connection["enriched_profile"]>();
+      for (const p of profiles || []) {
+        map.set(p.linkedin_url, {
+          city: p.city,
+          country: p.country,
+          total_experience_years: p.total_experience_years,
+          connections_count: p.connections_count,
+        });
+      }
+      setProfileMap(map);
+    } else {
+      setProfileMap(new Map());
+    }
+
     setLoading(false);
   }, [supabase, userId, search, sortField, sortAsc, page]);
 
@@ -70,7 +107,7 @@ export default function NetworkClient({ userId }: { userId: string }) {
       setSortAsc(!sortAsc);
     } else {
       setSortField(field);
-      setSortAsc(true);
+      setSortAsc(field === "name");
     }
   }
 
@@ -91,23 +128,11 @@ export default function NetworkClient({ userId }: { userId: string }) {
     }
   }
 
-  function getFunctionColor(fn: string | null) {
-    switch (fn) {
-      case "Engineering":
-        return "bg-blue-50 text-blue-700 border border-blue-200/60";
-      case "Sales":
-        return "bg-accent-light text-accent border border-accent/15";
-      case "Marketing":
-        return "bg-purple-light text-purple border border-purple/15";
-      case "Product":
-        return "bg-emerald-50 text-emerald-700 border border-emerald-200/60";
-      case "Finance":
-        return "bg-amber-50 text-amber-700 border border-amber-200/60";
-      case "Investment":
-        return "bg-gold-light text-gold border border-gold/15";
-      default:
-        return "bg-warm-50 text-warm-500 border border-warm-200/40";
-    }
+  function getScoreColor(score: number) {
+    if (score >= 85) return "bg-[#1B4332] text-white";
+    if (score >= 70) return "bg-[#2D6A4F] text-white";
+    if (score >= 50) return "bg-amber-100 text-amber-800 border border-amber-200/60";
+    return "bg-warm-100 text-warm-500 border border-warm-200/60";
   }
 
   function SortIcon({ field }: { field: SortField }) {
@@ -119,6 +144,16 @@ export default function NetworkClient({ userId }: { userId: string }) {
     ) : (
       <ChevronDown className="w-3.5 h-3.5 text-accent" />
     );
+  }
+
+  function getProfile(conn: Connection) {
+    return conn.linkedin_url ? profileMap.get(conn.linkedin_url) : null;
+  }
+
+  function formatLocation(profile: Connection["enriched_profile"]) {
+    if (!profile) return null;
+    const parts = [profile.city, profile.country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
   }
 
   return (
@@ -183,28 +218,24 @@ export default function NetworkClient({ userId }: { userId: string }) {
                     <SortIcon field="seniority_tier" />
                   </button>
                 </th>
-                <th className="text-left px-5 py-1 hidden lg:table-cell">
-                  <button
-                    onClick={() => handleSort("function_category")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
-                  >
-                    Function
-                    <SortIcon field="function_category" />
-                  </button>
+                <th className="text-left px-5 py-1 hidden xl:table-cell">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                    Location
+                  </span>
                 </th>
                 <th className="text-left px-5 py-1 hidden xl:table-cell">
-                  <button
-                    onClick={() => handleSort("connected_on")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
-                  >
-                    Connected
-                    <SortIcon field="connected_on" />
-                  </button>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                    Experience
+                  </span>
                 </th>
                 <th className="text-left px-5 py-1">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-                    Status
-                  </span>
+                  <button
+                    onClick={() => handleSort("match_score")}
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                  >
+                    Score
+                    <SortIcon field="match_score" />
+                  </button>
                 </th>
               </tr>
             </thead>
@@ -224,14 +255,14 @@ export default function NetworkClient({ userId }: { userId: string }) {
                     <td className="px-5 py-4 hidden lg:table-cell">
                       <div className="h-5 rounded-full w-16 animate-shimmer" />
                     </td>
-                    <td className="px-5 py-4 hidden lg:table-cell">
-                      <div className="h-5 rounded-full w-20 animate-shimmer" />
-                    </td>
                     <td className="px-5 py-4 hidden xl:table-cell">
                       <div className="h-4 rounded-lg w-20 animate-shimmer" />
                     </td>
+                    <td className="px-5 py-4 hidden xl:table-cell">
+                      <div className="h-4 rounded-lg w-12 animate-shimmer" />
+                    </td>
                     <td className="px-5 py-4">
-                      <div className="h-5 rounded-full w-16 animate-shimmer" />
+                      <div className="h-5 rounded-full w-10 animate-shimmer" />
                     </td>
                   </tr>
                 ))
@@ -256,70 +287,68 @@ export default function NetworkClient({ userId }: { userId: string }) {
                   </td>
                 </tr>
               ) : (
-                connections.map((conn) => (
-                  <tr
-                    key={conn.id}
-                    className="border-b border-border/40 last:border-0 hover:bg-warm-50 transition-colors duration-150"
-                  >
-                    <td className="px-5 py-3.5 font-semibold text-foreground">
-                      {conn.first_name} {conn.last_name}
-                    </td>
-                    <td className="px-5 py-3.5 text-warm-500 hidden sm:table-cell">
-                      {conn.company || "\u2014"}
-                    </td>
-                    <td className="px-5 py-3.5 text-warm-500 hidden md:table-cell truncate max-w-[200px]">
-                      {conn.position || "\u2014"}
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      {conn.seniority_tier ? (
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getSeniorityColor(conn.seniority_tier)}`}
-                        >
-                          {conn.seniority_tier}
-                        </span>
-                      ) : (
-                        <span className="text-warm-300">\u2014</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 hidden lg:table-cell">
-                      {conn.function_category ? (
-                        <span
-                          className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getFunctionColor(conn.function_category)}`}
-                        >
-                          {conn.function_category}
-                        </span>
-                      ) : (
-                        <span className="text-warm-300">\u2014</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3.5 text-warm-500 hidden xl:table-cell">
-                      {conn.connected_on || "\u2014"}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span
-                        className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                          conn.enrichment_status === "enriched" ||
-                          conn.enrichment_status === "cached"
-                            ? "bg-green-light text-green border border-green/15"
-                            : conn.enrichment_status === "skipped"
-                              ? "bg-warm-100 text-warm-500 border border-warm-200/60"
-                              : conn.classification_status === "classified"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200/60"
-                                : "bg-warm-50 text-warm-400 border border-warm-200/40"
-                        }`}
-                      >
-                        {conn.enrichment_status === "enriched" ||
-                        conn.enrichment_status === "cached"
-                          ? "Enriched"
-                          : conn.enrichment_status === "skipped"
-                            ? "Skipped"
-                            : conn.classification_status === "classified"
-                              ? "Classified"
-                              : "Pending"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                connections.map((conn) => {
+                  const profile = getProfile(conn);
+                  const location = formatLocation(profile);
+                  return (
+                    <tr
+                      key={conn.id}
+                      className="border-b border-border/40 last:border-0 hover:bg-warm-50 transition-colors duration-150"
+                    >
+                      <td className="px-5 py-3.5 font-semibold text-foreground">
+                        {conn.first_name} {conn.last_name}
+                      </td>
+                      <td className="px-5 py-3.5 text-warm-500 hidden sm:table-cell">
+                        {conn.company || "\u2014"}
+                      </td>
+                      <td className="px-5 py-3.5 text-warm-500 hidden md:table-cell truncate max-w-[200px]">
+                        {conn.position || "\u2014"}
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        {conn.seniority_tier ? (
+                          <span
+                            className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${getSeniorityColor(conn.seniority_tier)}`}
+                          >
+                            {conn.seniority_tier}
+                          </span>
+                        ) : (
+                          <span className="text-warm-300">{"\u2014"}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 hidden xl:table-cell">
+                        {location ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-warm-500">
+                            <MapPin className="w-3 h-3 shrink-0" />
+                            <span className="truncate max-w-[120px]">{location}</span>
+                          </span>
+                        ) : (
+                          <span className="text-warm-300">{"\u2014"}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 hidden xl:table-cell">
+                        {profile?.total_experience_years ? (
+                          <span className="text-xs text-warm-500">
+                            {profile.total_experience_years}y
+                          </span>
+                        ) : (
+                          <span className="text-warm-300">{"\u2014"}</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {conn.match_score != null ? (
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold ${getScoreColor(conn.match_score)}`}
+                          >
+                            <Star className="w-3 h-3" />
+                            {conn.match_score}
+                          </span>
+                        ) : (
+                          <span className="text-warm-300">{"\u2014"}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

@@ -195,7 +195,7 @@ export default function OnboardingPage() {
             />
           )}
           {step === 6 && (
-            <WhatHappensNext userId={userId} onContinue={finishOnboarding} />
+            <WhatHappensNext userId={userId} connectionCount={(userData.total_connections as number) || 0} onContinue={finishOnboarding} />
           )}
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import DashboardClient from "@/components/dashboard/DashboardClient";
+import HitListClient from "@/components/dashboard/HitListClient";
 
-export default async function DashboardPage() {
+export default async function HitListPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -12,18 +12,15 @@ export default async function DashboardPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("*")
+    .select("subscription_tier, processing_status")
     .eq("id", user.id)
     .single();
 
-  if (!profile || !profile.onboarding_completed) {
-    redirect("/onboarding");
-  }
+  if (!profile) redirect("/onboarding");
 
   return (
-    <DashboardClient
+    <HitListClient
       userId={user.id}
-      profile={profile}
       subscriptionTier={(profile.subscription_tier as string) || "free"}
       processingStatus={(profile.processing_status as string) || "idle"}
     />

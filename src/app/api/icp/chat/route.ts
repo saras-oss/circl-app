@@ -69,7 +69,7 @@ BEHAVIOR:
 - When the user says something that implies ICP changes, return structured updates.
 - Keep responses concise (2-3 sentences + a question).
 - Consider these dimensions: industries, geographies, titles/roles, company sizes, revenue ranges, triggers (buying signals)
-- Also consider: investor profiles (fund types, stages, sectors) and advisor profiles (expertise areas, seniority)
+- Also consider: investor profiles (fund types, stages, sectors)
 
 RESPONSE FORMAT (strict JSON, no other text):
 {
@@ -77,7 +77,7 @@ RESPONSE FORMAT (strict JSON, no other text):
   "icpUpdates": {
     // Include ONLY fields that should change based on this message. Omit unchanged fields.
     // Possible fields: industries, geographies, titles, companySizes, revenueRanges, triggers,
-    // investorFundTypes, investorStages, investorSectors, advisorExpertise, advisorSeniority
+    // investorFundTypes, investorStages, investorSectors
     // Each field should be an array of strings
   }
 }`;

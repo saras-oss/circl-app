@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Circl — Turn your LinkedIn network into a qualified pipeline",
   description:
-    "Discover potential customers, investors, and advisors in your existing LinkedIn connections.",
+    "Discover potential customers and investors in your existing LinkedIn connections.",
 };
 
 export default function RootLayout({
