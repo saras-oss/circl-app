@@ -9,8 +9,6 @@ import {
   XCircle,
   ChevronLeft,
   ChevronRight,
-  ExternalLink,
-  ClipboardList,
   X,
   Loader2,
   Copy,
@@ -24,6 +22,7 @@ import {
 
 interface Connection {
   id: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   position: string;
@@ -41,39 +40,17 @@ interface Connection {
   suggested_approach: string | null;
   scored_at: string | null;
   user_email: string;
+  user_name: string;
   user_company: string;
-  enriched_profile: {
-    headline: string | null;
-    current_title: string | null;
-    current_company: string | null;
-    location_str: string | null;
-    total_experience_years: number | null;
-    industry: string | null;
-    follower_count: number | null;
-    connections_count: number | null;
-  } | null;
-  enriched_company: {
-    name: string | null;
-    industry: string | null;
-    description: string | null;
-    company_size_min: number | null;
-    company_size_max: number | null;
-    hq_city: string | null;
-    hq_country: string | null;
-    latest_funding_type: string | null;
-    total_funding_amount: number | null;
-  } | null;
 }
 
 interface Stats {
-  total_connections: number;
-  classified: number;
+  total: number;
   enriched: number;
   scored: number;
-  hit_list: number;
-  by_user: { email: string; company: string; count: number }[];
-  by_status: { status: string; count: number }[];
-  by_tier: { tier: string; count: number }[];
+  hits: number;
+  misses: number;
+  by_user: { email: string; name: string; company: string; count: number }[];
 }
 
 interface PipelineResponse {
@@ -87,25 +64,20 @@ interface PipelineResponse {
   };
 }
 
-interface DetailData {
-  connection: Record<string, unknown>;
-  enriched_profile: Record<string, unknown> | null;
-  enriched_company: Record<string, unknown> | null;
-  prompt_runs: {
-    id: string;
-    prompt_type: string;
-    model: string;
-    user_prompt: string;
-    response: string;
-    input_tokens: number;
-    output_tokens: number;
-    duration_ms: number;
-    created_at: string;
-  }[];
+interface PromptRun {
+  id: string;
+  prompt_type: string;
+  model: string;
+  user_prompt: string;
+  response: string;
+  input_tokens: number;
+  output_tokens: number;
+  duration_ms: number;
+  created_at: string;
 }
 
 // ---------------------------------------------------------------------------
-// Helper components
+// Badge components
 // ---------------------------------------------------------------------------
 
 function SeniorityBadge({ tier }: { tier: string }) {
@@ -118,7 +90,23 @@ function SeniorityBadge({ tier }: { tier: string }) {
   };
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${styles[tier] || styles.Other}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium whitespace-nowrap ${styles[tier] || styles.Other}`}
+    >
+      {tier || "—"}
+    </span>
+  );
+}
+
+function TierPill({ tier }: { tier: string }) {
+  const styles: Record<string, string> = {
+    tier1: "bg-green-50 text-green-700",
+    tier2: "bg-blue-50 text-blue-700",
+    tier3: "bg-gray-100 text-gray-500",
+    tier4: "bg-gray-50 text-gray-400",
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[tier] || "bg-gray-50 text-gray-400"}`}
     >
       {tier || "—"}
     </span>
@@ -128,7 +116,7 @@ function SeniorityBadge({ tier }: { tier: string }) {
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     enriched: "bg-green-50 text-green-700 border-green-200",
-    cached: "bg-blue-50 text-blue-700 border-blue-200",
+    cached: "bg-green-50 text-green-700 border-green-200",
     pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
     failed: "bg-red-50 text-red-700 border-red-200",
     skipped: "bg-gray-50 text-gray-500 border-gray-200",
@@ -143,170 +131,68 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-gray-400">—</span>;
+  if (score === null) return <span className="text-gray-300 text-sm">—</span>;
   let color = "bg-gray-100 text-gray-600";
   if (score >= 9) color = "bg-[#1B4332] text-white";
   else if (score >= 7) color = "bg-[#2D6A4F] text-white";
   else if (score >= 5) color = "bg-amber-100 text-amber-800";
   return (
     <span
-      className={`inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-bold ${color}`}
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${color}`}
     >
       {score}
     </span>
   );
 }
 
-const TableRow = React.memo(function TableRow({
-  conn,
-  onViewDetails,
-}: {
-  conn: Connection;
-  onViewDetails: (conn: Connection) => void;
-}) {
-  const hitIcon =
-    conn.match_score !== null
-      ? conn.match_score >= 7
-        ? "text-green-600"
-        : "text-red-400"
-      : "text-gray-300";
-
-  return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
-      <td className="px-3 py-2.5 text-[12px] text-gray-500 truncate max-w-[120px]" title={conn.user_email}>
-        {conn.user_email.split("@")[0]}@...
-      </td>
-      <td className="px-3 py-2.5">
-        {conn.linkedin_url ? (
-          <a
-            href={conn.linkedin_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[13px] font-medium text-foreground hover:text-accent transition-colors"
-          >
-            {conn.first_name} {conn.last_name}
-          </a>
-        ) : (
-          <span className="text-[13px] font-medium">
-            {conn.first_name} {conn.last_name}
-          </span>
-        )}
-      </td>
-      <td className="px-3 py-2.5 text-[12px] text-gray-600 max-w-[140px] truncate" title={conn.company}>
-        {conn.company || "—"}
-      </td>
-      <td className="px-3 py-2.5 text-[12px] text-gray-500 max-w-[160px] truncate" title={conn.position}>
-        {conn.position || "—"}
-      </td>
-      <td className="px-3 py-2.5">
-        <SeniorityBadge tier={conn.seniority_tier} />
-      </td>
-      <td className="px-3 py-2.5 text-[11px] text-gray-500">{conn.enrichment_tier || "—"}</td>
-      <td className="px-3 py-2.5">
-        <StatusBadge status={conn.enrichment_status} />
-      </td>
-      <td className="px-3 py-2.5">
-        <ScoreBadge score={conn.match_score} />
-      </td>
-      <td className="px-3 py-2.5 text-center">
-        {conn.match_score !== null ? (
-          conn.match_score >= 7 ? (
-            <CheckCircle className={`w-4 h-4 ${hitIcon} inline`} />
-          ) : (
-            <XCircle className={`w-4 h-4 ${hitIcon} inline`} />
-          )
-        ) : (
-          <span className="text-gray-300 text-xs">...</span>
-        )}
-      </td>
-      <td className="px-3 py-2.5">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onViewDetails(conn)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-foreground transition-colors"
-            title="View Details"
-          >
-            <ClipboardList className="w-3.5 h-3.5" />
-          </button>
-          {conn.linkedin_url && (
-            <a
-              href={conn.linkedin_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-accent transition-colors"
-              title="Open LinkedIn"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-});
-
-// ---------------------------------------------------------------------------
-// Detail Panel
-// ---------------------------------------------------------------------------
-
-function DetailPanel({
-  conn,
-  onClose,
-}: {
-  conn: Connection;
-  onClose: () => void;
-}) {
-  const [tab, setTab] = useState<"profile" | "json" | "prompts">("profile");
-  const [detail, setDetail] = useState<DetailData | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const loadDetail = useCallback(async () => {
-    if (detail) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/admin/connection-detail?id=${conn.id}`);
-      if (res.ok) setDetail(await res.json());
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }, [conn.id, detail]);
-
-  useEffect(() => {
-    if (tab === "json" || tab === "prompts") loadDetail();
-  }, [tab, loadDetail]);
-
-  const jsonText = useMemo(() => {
-    if (!detail) return "";
-    return JSON.stringify(
-      {
-        connection: detail.connection,
-        enriched_profile: detail.enriched_profile,
-        enriched_company: detail.enriched_company,
-      },
-      null,
-      2
+function VerdictBadge({ conn }: { conn: Connection }) {
+  if (conn.enrichment_status === "failed") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600">
+        Failed
+      </span>
     );
-  }, [detail]);
-
-  function handleCopy() {
-    navigator.clipboard.writeText(jsonText);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   }
-
+  if (conn.match_score === null) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-50 text-gray-400">
+        Pending
+      </span>
+    );
+  }
+  if (conn.match_score >= 7) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700">
+        Hit
+      </span>
+    );
+  }
   return (
-    <div className="fixed inset-0 z-50 flex">
-      {/* Backdrop */}
-      <div className="flex-1 bg-black/20" onClick={onClose} />
-      {/* Panel */}
-      <div className="w-full max-w-[520px] bg-white shadow-2xl border-l border-gray-200 overflow-y-auto animate-slide-in-right">
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between z-10">
-          <h2 className="text-base font-semibold text-foreground">
-            {conn.first_name} {conn.last_name}
-          </h2>
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-500">
+      Miss
+    </span>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Modal component
+// ---------------------------------------------------------------------------
+
+function Modal({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-foreground transition-colors"
@@ -314,219 +200,261 @@ function DetailPanel({
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 px-5">
-          {(["profile", "json", "prompts"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-3 py-2.5 text-[13px] font-medium border-b-2 transition-colors ${
-                tab === t
-                  ? "border-[#1B4332] text-[#1B4332]"
-                  : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-            >
-              {t === "profile" ? "Profile" : t === "json" ? "Raw JSON" : "Prompt Log"}
-            </button>
-          ))}
-        </div>
-
-        <div className="px-5 py-5">
-          {tab === "profile" && <ProfileTab conn={conn} />}
-          {tab === "json" && (
-            <div>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-                </div>
-              ) : (
-                <>
-                  <button
-                    onClick={handleCopy}
-                    className="mb-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-[12px] font-medium text-gray-600 transition-colors"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copied" : "Copy JSON"}
-                  </button>
-                  <pre className="text-[11px] leading-relaxed bg-gray-50 rounded-xl p-4 overflow-auto max-h-[600px] border border-gray-100 font-mono whitespace-pre-wrap break-words">
-                    {jsonText}
-                  </pre>
-                </>
-              )}
-            </div>
-          )}
-          {tab === "prompts" && (
-            <PromptsTab detail={detail} loading={loading} />
-          )}
-        </div>
+        <div className="flex-1 overflow-auto p-5">{children}</div>
       </div>
     </div>
   );
 }
 
-function ProfileTab({ conn }: { conn: Connection }) {
-  const profile = conn.enriched_profile;
-  const company = conn.enriched_company;
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  function handleCopy() {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
   return (
-    <div className="space-y-5">
-      <div>
-        <h3 className="text-lg font-semibold text-foreground">
-          {conn.first_name} {conn.last_name}
-        </h3>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {profile?.current_title || conn.position}{" "}
-          {profile?.current_company ? `at ${profile.current_company}` : conn.company ? `at ${conn.company}` : ""}
-        </p>
-        <p className="text-xs text-gray-400 mt-1">
-          {profile?.location_str || ""}
-          {profile?.total_experience_years ? ` · ${profile.total_experience_years} years experience` : ""}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <InfoCard label="Seniority" value={conn.seniority_tier || "—"} />
-        <InfoCard label="Function" value={conn.function_category || "—"} />
-        <InfoCard label="Enrichment" value={conn.enrichment_status || "—"} />
-        <InfoCard label="Tier" value={conn.enrichment_tier || "—"} />
-      </div>
-
-      {conn.match_score !== null && (
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-3">
-            <ScoreBadge score={conn.match_score} />
-            <span className="text-sm font-medium text-foreground">
-              {conn.match_type || ""}
-            </span>
-            {conn.match_score >= 7 && (
-              <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
-                Hit List
-              </span>
-            )}
-          </div>
-          {conn.match_reasons && conn.match_reasons.length > 0 && (
-            <div className="space-y-1.5 mb-3">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Reasons</p>
-              {conn.match_reasons.map((r, i) => (
-                <p key={i} className="text-[13px] text-gray-600 leading-relaxed">
-                  &bull; {r}
-                </p>
-              ))}
-            </div>
-          )}
-          {conn.suggested_approach && (
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                Suggested Approach
-              </p>
-              <p className="text-[13px] text-gray-600 leading-relaxed">
-                {conn.suggested_approach}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {company && (
-        <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-            Company
-          </p>
-          <p className="text-sm font-medium text-foreground">{company.name}</p>
-          <p className="text-xs text-gray-500 mt-1">{company.industry || "No industry"}</p>
-          {company.description && (
-            <p className="text-xs text-gray-400 mt-1.5 leading-relaxed">
-              {company.description}
-            </p>
-          )}
-          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
-            {company.company_size_min && company.company_size_max && (
-              <span>{company.company_size_min}-{company.company_size_max} employees</span>
-            )}
-            {(company.hq_city || company.hq_country) && (
-              <span>{[company.hq_city, company.hq_country].filter(Boolean).join(", ")}</span>
-            )}
-            {company.latest_funding_type && <span>{company.latest_funding_type}</span>}
-          </div>
-        </div>
-      )}
-
-      {profile?.headline && (
-        <div>
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Headline</p>
-          <p className="text-[13px] text-gray-600">{profile.headline}</p>
-        </div>
-      )}
-    </div>
+    <button
+      onClick={handleCopy}
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-[12px] font-medium text-gray-600 transition-colors"
+    >
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      {copied ? "Copied" : "Copy"}
+    </button>
   );
 }
 
-function InfoCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
-      <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">{label}</p>
-      <p className="text-[13px] font-medium text-foreground mt-0.5">{value}</p>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// On-demand data loaders
+// ---------------------------------------------------------------------------
 
-function PromptsTab({
-  detail,
-  loading,
+function EnrichedDataModal({
+  conn,
+  onClose,
 }: {
-  detail: DetailData | null;
-  loading: boolean;
+  conn: Connection;
+  onClose: () => void;
 }) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
-      </div>
-    );
-  }
+  const [data, setData] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!detail || detail.prompt_runs.length === 0) {
-    return (
-      <p className="text-sm text-gray-400 py-8 text-center">
-        No prompt logs found for this connection.
-      </p>
-    );
-  }
+  useEffect(() => {
+    fetch(`/api/admin/connection-detail?connection_id=${conn.id}`)
+      .then((r) => r.json())
+      .then(setData)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [conn.id]);
+
+  const jsonText = useMemo(
+    () => (data ? JSON.stringify(data, null, 2) : ""),
+    [data]
+  );
 
   return (
-    <div className="space-y-6">
-      {detail.prompt_runs.map((run) => (
-        <div key={run.id} className="border border-gray-100 rounded-xl overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-100">
-            <p className="text-xs font-medium text-gray-600">
-              {run.prompt_type} &middot; {run.model}
-            </p>
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              {new Date(run.created_at).toLocaleString()} &middot;{" "}
-              {run.input_tokens} in / {run.output_tokens} out / {run.duration_ms}ms
-            </p>
-          </div>
-          <details className="group">
-            <summary className="px-4 py-2 text-[12px] font-medium text-gray-500 cursor-pointer hover:bg-gray-50">
-              Input Prompt
-            </summary>
-            <pre className="px-4 py-3 text-[11px] font-mono bg-white max-h-[400px] overflow-auto whitespace-pre-wrap break-words text-gray-600 border-t border-gray-50">
-              {run.user_prompt}
-            </pre>
-          </details>
-          <details className="group">
-            <summary className="px-4 py-2 text-[12px] font-medium text-gray-500 cursor-pointer hover:bg-gray-50 border-t border-gray-100">
-              Output Response
-            </summary>
-            <pre className="px-4 py-3 text-[11px] font-mono bg-white max-h-[400px] overflow-auto whitespace-pre-wrap break-words text-gray-600 border-t border-gray-50">
-              {run.response}
-            </pre>
-          </details>
+    <Modal
+      title={`Enriched Data — ${conn.first_name} ${conn.last_name}`}
+      onClose={onClose}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
         </div>
-      ))}
-    </div>
+      ) : (
+        <>
+          <div className="mb-3">
+            <CopyButton text={jsonText} />
+          </div>
+          <pre className="text-[11px] leading-relaxed bg-gray-50 rounded-xl p-4 overflow-auto max-h-[60vh] border border-gray-100 font-mono whitespace-pre-wrap break-words">
+            {jsonText || "No enrichment data found."}
+          </pre>
+        </>
+      )}
+    </Modal>
   );
 }
+
+function PromptModal({
+  conn,
+  type,
+  onClose,
+}: {
+  conn: Connection;
+  type: "input" | "output";
+  onClose: () => void;
+}) {
+  const [prompts, setPrompts] = useState<PromptRun[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams({
+      prompt_type: "matching",
+    });
+    if (conn.first_name) params.set("first_name", conn.first_name);
+    if (conn.company) params.set("company", conn.company);
+
+    fetch(`/api/admin/prompt-log?${params}`)
+      .then((r) => r.json())
+      .then((d) => setPrompts(d.prompts || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [conn.first_name, conn.company]);
+
+  const text = useMemo(() => {
+    if (!prompts || prompts.length === 0) return "";
+    const run = prompts[0];
+    return type === "input" ? run.user_prompt : run.response;
+  }, [prompts, type]);
+
+  const meta = prompts?.[0];
+
+  return (
+    <Modal
+      title={`Scoring ${type === "input" ? "Input" : "Output"} — ${conn.first_name} ${conn.last_name}`}
+      onClose={onClose}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+        </div>
+      ) : !text ? (
+        <p className="text-sm text-gray-400 py-8 text-center">
+          No prompt logs found for this connection.
+        </p>
+      ) : (
+        <>
+          {meta && (
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[11px] text-gray-400">
+                {meta.model} &middot; {meta.input_tokens} in / {meta.output_tokens} out / {meta.duration_ms}ms &middot;{" "}
+                {new Date(meta.created_at).toLocaleString()}
+              </p>
+              <CopyButton text={text} />
+            </div>
+          )}
+          <pre className="text-[11px] leading-relaxed bg-gray-50 rounded-xl p-4 overflow-auto max-h-[60vh] border border-gray-100 font-mono whitespace-pre-wrap break-words">
+            {text}
+          </pre>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Table Row
+// ---------------------------------------------------------------------------
+
+const TableRow = React.memo(function TableRow({
+  conn,
+  onViewJson,
+  onViewInput,
+  onViewOutput,
+}: {
+  conn: Connection;
+  onViewJson: (c: Connection) => void;
+  onViewInput: (c: Connection) => void;
+  onViewOutput: (c: Connection) => void;
+}) {
+  const isEnriched =
+    conn.enrichment_status === "enriched" || conn.enrichment_status === "cached";
+  const isScored = conn.match_score !== null;
+
+  return (
+    <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors even:bg-gray-50/30">
+      {/* User */}
+      <td className="px-3 py-2.5">
+        <div className="text-[12px] font-medium text-foreground truncate max-w-[120px]" title={conn.user_name}>
+          {conn.user_name?.split(" ")[0] || conn.user_email.split("@")[0]}
+        </div>
+        <div className="text-[10px] text-gray-400 truncate max-w-[120px]">{conn.user_company}</div>
+      </td>
+      {/* Connection */}
+      <td className="px-3 py-2.5">
+        <div className="text-[13px] font-semibold text-foreground">
+          {conn.first_name} {conn.last_name}
+        </div>
+        {conn.linkedin_url && (
+          <a
+            href={conn.linkedin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] text-accent hover:underline"
+          >
+            LinkedIn &#8599;
+          </a>
+        )}
+      </td>
+      {/* Title */}
+      <td className="px-3 py-2.5 text-[12px] text-gray-500 max-w-[160px] truncate" title={conn.position}>
+        {conn.position || "—"}
+      </td>
+      {/* Company */}
+      <td className="px-3 py-2.5 text-[12px] text-gray-600 max-w-[140px] truncate" title={conn.company}>
+        {conn.company || "—"}
+      </td>
+      {/* Seniority */}
+      <td className="px-3 py-2.5">
+        <SeniorityBadge tier={conn.seniority_tier} />
+      </td>
+      {/* Tier */}
+      <td className="px-3 py-2.5">
+        <TierPill tier={conn.enrichment_tier} />
+      </td>
+      {/* Enrichment Status */}
+      <td className="px-3 py-2.5">
+        <StatusBadge status={conn.enrichment_status} />
+      </td>
+      {/* Enriched Data */}
+      <td className="px-3 py-2.5">
+        {isEnriched ? (
+          <button
+            onClick={() => onViewJson(conn)}
+            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+          >
+            View JSON
+          </button>
+        ) : (
+          <span className="text-gray-300 text-[12px]">—</span>
+        )}
+      </td>
+      {/* Scoring Input */}
+      <td className="px-3 py-2.5">
+        {isScored ? (
+          <button
+            onClick={() => onViewInput(conn)}
+            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+          >
+            Input
+          </button>
+        ) : (
+          <span className="text-gray-300 text-[11px]">...</span>
+        )}
+      </td>
+      {/* Scoring Output */}
+      <td className="px-3 py-2.5">
+        {isScored ? (
+          <button
+            onClick={() => onViewOutput(conn)}
+            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+          >
+            Output
+          </button>
+        ) : (
+          <span className="text-gray-300 text-[11px]">...</span>
+        )}
+      </td>
+      {/* Score */}
+      <td className="px-3 py-2.5">
+        <ScoreBadge score={conn.match_score} />
+      </td>
+      {/* Verdict */}
+      <td className="px-3 py-2.5">
+        <VerdictBadge conn={conn} />
+      </td>
+    </tr>
+  );
+});
 
 // ---------------------------------------------------------------------------
 // Main Dashboard
@@ -541,9 +469,15 @@ export default function AdminDashboard() {
   const [userFilter, setUserFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [seniorityFilter, setSeniorityFilter] = useState("");
+  const [tierFilter, setTierFilter] = useState("");
   const [scoredOnly, setScoredOnly] = useState(false);
   const [hitListOnly, setHitListOnly] = useState(false);
-  const [selectedConn, setSelectedConn] = useState<Connection | null>(null);
+  const [enrichedOnly, setEnrichedOnly] = useState(false);
+
+  // Modal states
+  const [jsonConn, setJsonConn] = useState<Connection | null>(null);
+  const [inputConn, setInputConn] = useState<Connection | null>(null);
+  const [outputConn, setOutputConn] = useState<Connection | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -554,7 +488,7 @@ export default function AdminDashboard() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, userFilter, statusFilter, seniorityFilter, scoredOnly, hitListOnly]);
+  }, [debouncedSearch, userFilter, statusFilter, seniorityFilter, tierFilter, scoredOnly, hitListOnly, enrichedOnly]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -563,8 +497,10 @@ export default function AdminDashboard() {
     if (userFilter) params.set("user_email", userFilter);
     if (statusFilter) params.set("enrichment_status", statusFilter);
     if (seniorityFilter) params.set("seniority_tier", seniorityFilter);
+    if (tierFilter) params.set("enrichment_tier", tierFilter);
     if (scoredOnly) params.set("scored_only", "true");
     if (hitListOnly) params.set("hit_list_only", "true");
+    if (enrichedOnly) params.set("enriched_only", "true");
 
     try {
       const res = await fetch(`/api/admin/pipeline-data?${params}`);
@@ -574,7 +510,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, userFilter, statusFilter, seniorityFilter, scoredOnly, hitListOnly]);
+  }, [page, debouncedSearch, userFilter, statusFilter, seniorityFilter, tierFilter, scoredOnly, hitListOnly, enrichedOnly]);
 
   useEffect(() => {
     fetchData();
@@ -583,28 +519,36 @@ export default function AdminDashboard() {
   const stats = data?.stats;
   const pagination = data?.pagination;
 
+  const columns = [
+    "User",
+    "Connection",
+    "Title",
+    "Company",
+    "Seniority",
+    "Tier",
+    "Status",
+    "Enriched",
+    "Input",
+    "Output",
+    "Score",
+    "Verdict",
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">Admin Pipeline Monitor</h1>
-        <p className="text-sm text-gray-400 mt-1">Full pipeline visibility across all users</p>
-      </div>
+      <h1 className="text-xl font-bold text-foreground">Admin Pipeline Monitor</h1>
 
       {/* Stats Bar */}
       {stats && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
-          <div className="flex flex-wrap gap-4 mb-4">
+          <div className="flex flex-wrap gap-3 mb-4">
             <StatPill icon={<Users className="w-4 h-4" />} label="Users" value={stats.by_user.length} />
-            <StatPill icon={<ListFilter className="w-4 h-4" />} label="Connections" value={stats.total_connections} />
+            <StatPill icon={<ListFilter className="w-4 h-4" />} label="Connections" value={stats.total} />
             <StatPill icon={<CheckCircle className="w-4 h-4" />} label="Enriched" value={stats.enriched} />
             <StatPill icon={<Target className="w-4 h-4" />} label="Scored" value={stats.scored} />
-            <StatPill icon={<Flame className="w-4 h-4" />} label="Hit List" value={stats.hit_list} />
-            <StatPill
-              icon={<XCircle className="w-4 h-4" />}
-              label="Failed"
-              value={stats.by_status.find((s) => s.status === "failed")?.count || 0}
-            />
+            <StatPill icon={<Flame className="w-4 h-4" />} label="Hits" value={stats.hits} />
+            <StatPill icon={<XCircle className="w-4 h-4" />} label="Misses" value={stats.misses} />
           </div>
           <div className="flex flex-wrap gap-2">
             {stats.by_user.map((u) => (
@@ -617,7 +561,7 @@ export default function AdminDashboard() {
                     : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
                 }`}
               >
-                {u.email} ({u.count})
+                {u.name?.split(" ")[0] || u.email.split("@")[0]} &middot; {u.company || "—"} ({u.count})
               </button>
             ))}
           </div>
@@ -629,23 +573,11 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-3 items-center">
           <input
             type="text"
-            placeholder="Search name, company, position..."
+            placeholder="Search name, company, title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 min-w-[200px] h-9 px-3 rounded-lg border border-gray-200 text-[13px] placeholder:text-gray-300 focus:outline-none focus:border-[#1B4332] focus:ring-1 focus:ring-[#1B4332]/20"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
-          >
-            <option value="">All Statuses</option>
-            <option value="enriched">Enriched</option>
-            <option value="cached">Cached</option>
-            <option value="pending">Pending</option>
-            <option value="failed">Failed</option>
-            <option value="skipped">Skipped</option>
-          </select>
           <select
             value={seniorityFilter}
             onChange={(e) => setSeniorityFilter(e.target.value)}
@@ -658,24 +590,33 @@ export default function AdminDashboard() {
             <option value="IC">IC</option>
             <option value="Other">Other</option>
           </select>
-          <label className="flex items-center gap-1.5 text-[12px] text-gray-500 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={scoredOnly}
-              onChange={(e) => setScoredOnly(e.target.checked)}
-              className="rounded border-gray-300 text-[#1B4332] focus:ring-[#1B4332]"
-            />
-            Scored only
-          </label>
-          <label className="flex items-center gap-1.5 text-[12px] text-gray-500 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={hitListOnly}
-              onChange={(e) => setHitListOnly(e.target.checked)}
-              className="rounded border-gray-300 text-[#1B4332] focus:ring-[#1B4332]"
-            />
-            Hit List only
-          </label>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
+          >
+            <option value="">All Statuses</option>
+            <option value="enriched">Enriched</option>
+            <option value="cached">Cached</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+          </select>
+          <select
+            value={tierFilter}
+            onChange={(e) => setTierFilter(e.target.value)}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
+          >
+            <option value="">All Tiers</option>
+            <option value="tier1">Tier 1</option>
+            <option value="tier2">Tier 2</option>
+            <option value="tier3">Tier 3</option>
+            <option value="tier4">Tier 4</option>
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-4 mt-3">
+          <TogglePill label="Scored only" checked={scoredOnly} onChange={setScoredOnly} />
+          <TogglePill label="Hits only" checked={hitListOnly} onChange={setHitListOnly} />
+          <TogglePill label="Enriched only" checked={enrichedOnly} onChange={setEnrichedOnly} />
         </div>
       </div>
 
@@ -688,18 +629,16 @@ export default function AdminDashboard() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/50">
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">User</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Name</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Company</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Position</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Seniority</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Tier</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Score</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider text-center">Hit?</th>
-                  <th className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Actions</th>
+              <thead className="sticky top-0 z-10">
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  {columns.map((col) => (
+                    <th
+                      key={col}
+                      className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap"
+                    >
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -707,12 +646,14 @@ export default function AdminDashboard() {
                   <TableRow
                     key={conn.id}
                     conn={conn}
-                    onViewDetails={setSelectedConn}
+                    onViewJson={setJsonConn}
+                    onViewInput={setInputConn}
+                    onViewOutput={setOutputConn}
                   />
                 ))}
                 {data?.connections.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-3 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={12} className="px-3 py-12 text-center text-sm text-gray-400">
                       No connections found.
                     </td>
                   </tr>
@@ -726,35 +667,58 @@ export default function AdminDashboard() {
         {pagination && pagination.total_pages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
             <p className="text-[12px] text-gray-400">
-              {pagination.total} results &middot; Page {pagination.page} of {pagination.total_pages}
+              {pagination.total} results &middot; Page {pagination.page} of{" "}
+              {pagination.total_pages}
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Previous
               </button>
               <button
-                onClick={() => setPage((p) => Math.min(pagination.total_pages, p + 1))}
+                onClick={() =>
+                  setPage((p) => Math.min(pagination.total_pages, p + 1))
+                }
                 disabled={page >= pagination.total_pages}
-                className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight className="w-4 h-4" />
+                Next
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Detail Panel */}
-      {selectedConn && (
-        <DetailPanel conn={selectedConn} onClose={() => setSelectedConn(null)} />
+      {/* Modals */}
+      {jsonConn && (
+        <EnrichedDataModal conn={jsonConn} onClose={() => setJsonConn(null)} />
+      )}
+      {inputConn && (
+        <PromptModal
+          conn={inputConn}
+          type="input"
+          onClose={() => setInputConn(null)}
+        />
+      )}
+      {outputConn && (
+        <PromptModal
+          conn={outputConn}
+          type="output"
+          onClose={() => setOutputConn(null)}
+        />
       )}
     </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Small UI components
+// ---------------------------------------------------------------------------
 
 function StatPill({
   icon,
@@ -771,5 +735,27 @@ function StatPill({
       <span className="text-[13px] font-semibold text-foreground">{value}</span>
       <span className="text-[12px] text-gray-400">{label}</span>
     </div>
+  );
+}
+
+function TogglePill({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-1.5 text-[12px] text-gray-500 cursor-pointer select-none">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="rounded border-gray-300 text-[#1B4332] focus:ring-[#1B4332] w-3.5 h-3.5"
+      />
+      {label}
+    </label>
   );
 }
