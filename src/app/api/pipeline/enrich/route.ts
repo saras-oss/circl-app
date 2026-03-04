@@ -496,6 +496,22 @@ export async function POST(request: Request) {
           .single();
 
         if (existingProfile && isFresh(existingProfile.enriched_at)) {
+          // Profile is cached — still enrich the company if needed
+          const { data: cachedProfile } = await supabaseAdmin
+            .from("enriched_profiles")
+            .select("current_company_linkedin")
+            .eq("linkedin_url", linkedinUrl)
+            .single();
+
+          const cachedCompanyUrl = cachedProfile?.current_company_linkedin;
+          if (cachedCompanyUrl) {
+            try {
+              await enrichCompany(cachedCompanyUrl);
+            } catch (err) {
+              console.error("ENRICH: Company enrichment failed (cached path):", cachedCompanyUrl, err instanceof Error ? err.message : err);
+            }
+          }
+
           await supabaseAdmin
             .from("user_connections")
             .update({ enrichment_status: "cached" })
