@@ -196,70 +196,114 @@ export async function POST(request: Request) {
         }
       }
 
-      // Step 5: Send to Claude Haiku for extraction
+      // Step 5: Send to Claude Haiku for extraction (3 separate prompts)
       const allContent = pageContents
         .map((p) => `--- PAGE: ${p.url} ---\n${p.content.slice(0, 8000)}`)
         .join("\n\n");
 
       const anthropic = new Anthropic();
-      const startTime = Date.now();
+      const websiteContext = `Website: ${domain}\n\n${allContent}`;
 
-      const aiResponse = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        messages: [
-          {
-            role: "user",
-            content: `Analyze the following website content and extract structured information about this company. Return ONLY valid JSON with no additional text.
+      // Helper to call Haiku and parse JSON
+      async function callHaiku(prompt: string, promptType: string) {
+        const start = Date.now();
+        const response = await anthropic.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 4096,
+          messages: [{ role: "user", content: prompt }],
+        });
+        const duration = Date.now() - start;
+        const text = response.content[0].type === "text" ? response.content[0].text : "";
+        const match = text.match(/\{[\s\S]*\}/);
+        const parsed = match ? JSON.parse(match[0]) : null;
 
-Website: ${domain}
+        // Log to prompt_runs
+        await supabaseAdmin.from("prompt_runs").insert({
+          user_id: userId,
+          prompt_type: promptType,
+          model: "claude-haiku-4-5-20251001",
+          input_tokens: response.usage?.input_tokens || 0,
+          output_tokens: response.usage?.output_tokens || 0,
+          duration_ms: duration,
+          status: parsed ? "completed" : "failed",
+        });
 
-${allContent}
+        return parsed;
+      }
+
+      // Run all 3 prompts in parallel
+      const [icpResult, customerResult, triggerResult] = await Promise.all([
+        // Prompt 1: ICP Extraction
+        callHaiku(
+          `Based on this company's website content, determine their ideal customer profile. Infer from their product descriptions, pricing pages, and messaging who they sell to. Return ONLY valid JSON with no additional text.
+
+${websiteContext}
 
 Return this exact JSON structure:
 {
   "description": "company description",
   "products_services": ["list of products/services"],
   "target_market": "who they sell to",
-  "customer_names": ["known customer names"],
-  "industries": ["industries they serve"],
-  "company_size_signals": "size indicators",
-  "tech_stack": ["technologies mentioned"],
-  "geography": ["regions they operate in"],
-  "icp_suggestions": {
-    "industries": ["suggested target industries for the user"],
-    "geographies": ["suggested geographies"],
-    "titles": ["suggested target titles"],
-    "companySizes": ["suggested company sizes"],
-    "triggers": ["suggested triggers"]
-  }
+  "target_industries": ["specific industries they serve or should target"],
+  "target_geographies": ["regions they operate in or should target"],
+  "target_titles": ["job titles of their ideal buyers"],
+  "company_sizes": ["target company size ranges"],
+  "revenue_ranges": ["target revenue ranges"],
+  "funding_stages": ["target funding stages"]
 }`,
-          },
-        ],
-      });
+          "website_icp_extraction"
+        ),
 
-      const durationMs = Date.now() - startTime;
-      const responseText =
-        aiResponse.content[0].type === "text" ? aiResponse.content[0].text : "";
+        // Prompt 2: Customer List Extraction
+        callHaiku(
+          `Extract any customer, client, or partner names mentioned on this website. Look for: logo sections, case studies, testimonials, partner pages, "trusted by" sections. Return ONLY valid JSON with no additional text.
 
-      // Parse the JSON from the response
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      const extractedData = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+${websiteContext}
 
-      if (!extractedData) {
-        throw new Error("Failed to parse extraction response");
+Return this exact JSON structure:
+{
+  "customers": ["list of customer/client company names found"],
+  "source": "logos | case_studies | testimonials | partner_page | mixed"
+}`,
+          "website_customer_extraction"
+        ),
+
+        // Prompt 3: Sales Trigger Identification
+        callHaiku(
+          `Based on this company's market and offerings, identify high-intent buying signals that would indicate a potential customer is ready to buy from them. Return ONLY valid JSON with no additional text.
+
+${websiteContext}
+
+Return this exact JSON structure:
+{
+  "triggers": ["list of specific, actionable buying triggers"]
+}
+
+Examples of good triggers: "Recently raised Series B+", "Expanding engineering team", "Migrating from legacy systems", "Opening new geographic markets", "Hiring for relevant roles", "Published RFP for relevant category"`,
+          "website_trigger_extraction"
+        ),
+      ]);
+
+      if (!icpResult) {
+        throw new Error("Failed to parse ICP extraction response");
       }
 
-      // Log to prompt_runs
-      await supabaseAdmin.from("prompt_runs").insert({
-        user_id: userId,
-        prompt_type: "website_extraction",
-        model: "claude-haiku-4-5-20251001",
-        input_tokens: aiResponse.usage?.input_tokens || 0,
-        output_tokens: aiResponse.usage?.output_tokens || 0,
-        duration_ms: durationMs,
-        status: "completed",
-      });
+      // Combine all results into final scrape data
+      const extractedData = {
+        description: icpResult.description || "",
+        products_services: icpResult.products_services || [],
+        target_market: icpResult.target_market || "",
+        icp_suggestions: {
+          target_industries: icpResult.target_industries || [],
+          target_geographies: icpResult.target_geographies || [],
+          target_titles: icpResult.target_titles || [],
+          company_sizes: icpResult.company_sizes || [],
+          revenue_ranges: icpResult.revenue_ranges || [],
+          funding_stages: icpResult.funding_stages || [],
+        },
+        customer_list: customerResult || { customers: [], source: "mixed" },
+        sales_triggers: triggerResult || { triggers: [] },
+      };
 
       // Update user with extracted data
       await supabaseAdmin

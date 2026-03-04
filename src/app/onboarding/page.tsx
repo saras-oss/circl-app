@@ -51,7 +51,23 @@ export default function OnboardingPage() {
     loadUser();
   }, [loadUser]);
 
+  async function refreshUserData() {
+    const { data: profile } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", userId)
+      .single();
+    if (profile) {
+      setUserData(profile);
+    }
+    return profile;
+  }
+
   async function updateStep(newStep: number) {
+    // Re-fetch user data before entering ICP step (step 4) so website_scrape_data is fresh
+    if (newStep === 4) {
+      await refreshUserData();
+    }
     setStep(newStep);
     await supabase
       .from("users")
