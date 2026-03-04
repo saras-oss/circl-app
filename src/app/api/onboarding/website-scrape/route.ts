@@ -27,28 +27,25 @@ const SKIP_PATTERNS = [
   /sign-in/i,
 ];
 
-const PRIORITY_CATEGORIES: Record<string, RegExp[]> = {
-  customers: [
-    /customer/i, /case.?stud/i, /success.?stor/i, /testimonial/i, /client/i,
-    /our-customers/i, /our-clients/i, /client-stories/i, /who-we-serve/i,
-    /portfolio/i, /our-work/i, /reviews/i, /industries-served/i,
-  ],
-  partners: [/partner/i, /integrat/i, /ecosystem/i],
-  product: [/product/i, /solution/i, /feature/i, /platform/i, /service/i, /offering/i],
-  about: [/about/i, /team/i, /leadership/i, /company/i, /who.?we/i, /our.?story/i],
-  pricing: [/pricing/i, /plans/i, /packages/i],
-};
+const PRIORITY_PATTERNS: RegExp[] = [
+  /customer/i, /case.?stud/i, /success.?stor/i, /testimonial/i, /client/i,
+  /our-customers/i, /our-clients/i, /client-stories/i, /who-we-serve/i,
+  /portfolio/i, /our-work/i, /reviews/i, /industries-served/i,
+  /partner/i, /integrat/i, /ecosystem/i,
+  /about/i, /team/i, /company/i, /who.?we/i,
+  /product/i, /solution/i, /feature/i, /platform/i, /service/i,
+];
 
-function categorizeLink(href: string): string | null {
-  for (const pattern of SKIP_PATTERNS) {
-    if (pattern.test(href)) return null;
+function shouldSkip(href: string): boolean {
+  return SKIP_PATTERNS.some((p) => p.test(href));
+}
+
+function getPriority(href: string): number {
+  if (shouldSkip(href)) return -1;
+  for (let i = 0; i < PRIORITY_PATTERNS.length; i++) {
+    if (PRIORITY_PATTERNS[i].test(href)) return i;
   }
-  for (const [category, patterns] of Object.entries(PRIORITY_CATEGORIES)) {
-    for (const pattern of patterns) {
-      if (pattern.test(href)) return category;
-    }
-  }
-  return null;
+  return 999;
 }
 
 function extractInternalLinks(html: string, baseDomain: string): string[] {
@@ -82,28 +79,10 @@ function extractInternalLinks(html: string, baseDomain: string): string[] {
 }
 
 function prioritizeLinks(links: string[]): string[] {
-  const categorized: Record<string, string[]> = {
-    product: [],
-    customers: [],
-    about: [],
-    pricing: [],
-    partners: [],
-  };
-
-  for (const link of links) {
-    const category = categorizeLink(link);
-    if (category && categorized[category]) {
-      categorized[category].push(link);
-    }
-  }
-
-  const prioritized: string[] = [];
-  const order = ["customers", "partners", "product", "about", "pricing"];
-  for (const cat of order) {
-    prioritized.push(...categorized[cat]);
-  }
-
-  return prioritized.slice(0, 10);
+  return links
+    .filter((l) => !shouldSkip(l))
+    .sort((a, b) => getPriority(a) - getPriority(b))
+    .slice(0, 3); // Max 3 subpages to fit in 60s budget
 }
 
 async function serperSearch(query: string): Promise<string | null> {
@@ -141,6 +120,55 @@ async function serperScrape(url: string): Promise<string | null> {
   return data.text || data.html || data.content || null;
 }
 
+const EXTRACTION_PROMPT = `You are analyzing a company's website. Extract THREE things in a single JSON response.
+
+TASK 1 — IDEAL CUSTOMER PROFILE (who does this company SELL TO?):
+- What TYPES of companies would buy this product/service?
+- What industries do their CUSTOMERS operate in? (not the company's own industry)
+- Look at case studies, customer logos, testimonials, product descriptions
+- Include ALL plausible industries (minimum 3)
+
+TASK 2 — CUSTOMER NAMES:
+- Extract REAL company/brand names of customers, clients, or partners
+- Look for: logo sections, "trusted by" banners, case studies, testimonials, partner pages
+- ONLY real names (e.g. "Stripe", "Deloitte") — NEVER placeholders like "a fintech company"
+- If you can't find real names, return an empty array
+
+TASK 3 — SALES TRIGGERS:
+- Identify 5 organizational events at a potential customer that would create urgency to buy from this company
+- Think: funding rounds, leadership changes, hiring patterns, tech migrations, expansion plans
+- Make them SPECIFIC to what this company sells
+
+Return ONLY valid JSON with no additional text. Use ONLY values from the valid options for ICP fields:
+
+{
+  "icp_suggestions": {
+    "target_industries": ["..."],
+    "target_geographies": ["..."],
+    "target_titles": ["..."],
+    "company_sizes": ["..."],
+    "revenue_ranges": ["..."],
+    "funding_stages": ["..."]
+  },
+  "customer_list": {
+    "customers": ["..."],
+    "source": "logos | case_studies | testimonials | partner_page | mixed"
+  },
+  "sales_triggers": {
+    "triggers": ["trigger 1", "trigger 2", "trigger 3", "trigger 4", "trigger 5"]
+  }
+}
+
+VALID OPTIONS:
+Industries: SaaS, AI / ML, Cybersecurity, Developer Tools, Data & Analytics, Enterprise Software, Cloud & Infrastructure, Internet & Web Services, Hardware & Semiconductors, Telecommunications & Networking, Robotics & Automation, Blockchain & Web3, Fintech, Banking & Lending, Insurance / Insurtech, Payments & Processing, Investment & Wealth Management, Capital Markets, HealthTech / Digital Health, Biotech & Pharma, Medical Devices, Healthcare Services, Clinical Research, E-commerce, D2C Brands, Marketplace, Food & Beverage, Consumer Electronics, Manufacturing, Logistics & Supply Chain, Energy & Oil, Cleantech / Climate, Construction & Real Estate, IT Services Consulting, IT Outsourcing / Managed Services, Systems Integration, Staffing & Recruitment, Legal Tech, HR Tech, Media & Publishing, EdTech / E-Learning, Gaming, Advertising & MarTech, Real Estate / PropTech, Commercial Real Estate, Construction Tech
+Company sizes: 1–10 employees, 11–50 employees, 51–200 employees, 201–500 employees, 501–1,000 employees, 1,001–5,000 employees, 5,001–10,000 employees, 10,000+ employees
+Revenue: Pre-revenue, $0–$1M ARR, $1M–$5M ARR, $5M–$20M ARR, $20M–$100M ARR, $100M+ ARR
+Funding: Pre-seed, Seed, Series A, Series B, Series C+, PE-backed, Public, Bootstrapped
+Geography: North America, Europe, UK, APAC, MENA, LATAM, India, Global
+Titles: CEO, CTO, CFO, COO, CISO, CIO, VP Engineering, VP Product, VP Sales, VP Marketing, Head of IT, Head of Data, Head of Engineering, Director of Engineering, Director of Product, General Manager, Managing Director`;
+
+const STUCK_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient();
@@ -158,10 +186,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Fix C: Reset stuck "scraping" status
+    const { data: existingUser } = await supabaseAdmin
+      .from("users")
+      .select("website_scrape_status, updated_at")
+      .eq("id", userId)
+      .single();
+
+    if (existingUser?.website_scrape_status === "scraping") {
+      const updatedAt = new Date(existingUser.updated_at).getTime();
+      if (Date.now() - updatedAt > STUCK_THRESHOLD_MS) {
+        await supabaseAdmin
+          .from("users")
+          .update({
+            website_scrape_status: "pending",
+            website_scrape_error: null,
+          })
+          .eq("id", userId);
+      }
+    }
+
     await supabaseAdmin
       .from("users")
-      .update({ website_scrape_status: "scraping" })
+      .update({ website_scrape_status: "scraping", website_scrape_error: null })
       .eq("id", userId);
+
+    let scrapeError: string | null = null;
 
     try {
       const domain = extractDomain(websiteUrl);
@@ -179,12 +229,12 @@ export async function POST(request: Request) {
         throw new Error("Failed to scrape homepage");
       }
 
-      // Step 3: Extract and categorize internal links
+      // Step 3: Extract and prioritize internal links (max 3)
       const internalLinks = extractInternalLinks(homepageContent, domain);
       const prioritizedLinks = prioritizeLinks(internalLinks);
-      console.log("SCRAPE: Found", internalLinks.length, "internal links, prioritized", prioritizedLinks.length);
+      console.log("SCRAPE: Found", internalLinks.length, "links, scraping top", prioritizedLinks.length);
 
-      // Step 4: Scrape subpages (up to 5)
+      // Step 4: Scrape subpages (max 3)
       const pageContents: { url: string; content: string }[] = [
         { url: homepageUrl, content: homepageContent },
       ];
@@ -203,167 +253,59 @@ export async function POST(request: Request) {
       }
       console.log("SCRAPE: Scraped", pageContents.length - 1, "subpages");
 
-      // Step 5: Send to Claude Haiku for extraction (3 separate prompts)
+      // Step 5: Single combined LLM call for all extraction
       const allContent = pageContents
         .map((p) => `--- PAGE: ${p.url} ---\n${p.content.slice(0, 8000)}`)
         .join("\n\n");
 
       const anthropic = new Anthropic();
-      const websiteContext = `Website: ${domain}\n\n${allContent}`;
+      const userMessage = `Website: ${domain}\n\n${allContent}`;
 
-      // Helper to call Haiku and parse JSON
-      async function callHaiku(prompt: string, promptType: string) {
-        const start = Date.now();
-        const response = await callAnthropicWithRetry(() =>
-          anthropic.messages.create({
-            model: "claude-haiku-4-5-20251001",
-            max_tokens: 4096,
-            messages: [{ role: "user", content: prompt }],
-          })
-        );
-        const duration = Date.now() - start;
-        const text = response.content[0].type === "text" ? response.content[0].text : "";
-        const match = text.match(/\{[\s\S]*\}/);
-        const parsed = match ? JSON.parse(match[0]) : null;
+      console.log("SCRAPE: Running single extraction prompt...");
+      const start = Date.now();
 
-        // Log to prompt_runs
-        await supabaseAdmin.from("prompt_runs").insert({
-          user_id: userId,
-          prompt_type: "website_extraction",
-          model: "claude-haiku-4-5-20251001",
-          system_prompt: `Type: ${promptType}`,
-          user_prompt: prompt.slice(0, 10000),
-          response: text,
-          structured_output: parsed,
-          input_tokens: response.usage?.input_tokens || 0,
-          output_tokens: response.usage?.output_tokens || 0,
-          duration_ms: duration,
-        });
+      let extractedData: {
+        icp_suggestions: Record<string, unknown>;
+        customer_list: Record<string, unknown>;
+        sales_triggers: Record<string, unknown>;
+      } | null = null;
 
-        return parsed;
+      // Try with full content first
+      try {
+        extractedData = await runExtraction(anthropic, userMessage, userId);
+      } catch (fullError) {
+        console.warn("SCRAPE: Full extraction failed, retrying with homepage only:", fullError);
+        // Fallback: retry with just homepage content
+        const fallbackMessage = `Website: ${domain}\n\n--- PAGE: ${homepageUrl} ---\n${homepageContent.slice(0, 12000)}`;
+        extractedData = await runExtraction(anthropic, fallbackMessage, userId);
       }
 
-      // Run all 3 prompts in parallel
-      console.log("SCRAPE: Running 3 Haiku prompts...");
-      const [icpResult, customerResult, triggerResult] = await Promise.all([
-        // Prompt 1: ICP Extraction
-        callHaiku(
-          `You are analyzing a company's website to determine their Ideal Customer Profile — meaning WHO DOES THIS COMPANY SELL TO, not what industry the company itself is in.
-
-${websiteContext}
-
-Think carefully:
-- What TYPES of companies would buy this product/service?
-- What industries do their customers operate in? (not the company's own industry)
-- A company can sell to MULTIPLE industries — a tech consultancy sells to healthcare, finance, manufacturing, etc.
-- Look at case studies, customer logos, testimonials, and product descriptions for clues
-- If they mention specific verticals they serve, include ALL of them
-- Consider adjacent industries — if they sell to "tech companies" they likely also sell to fintech, healthtech, edtech, etc.
-
-Return ONLY valid JSON with no additional text. Use ONLY values from the valid options listed below:
-
-{
-  "target_industries": ["..."],
-  "target_geographies": ["..."],
-  "target_titles": ["..."],
-  "company_sizes": ["..."],
-  "revenue_ranges": ["..."],
-  "funding_stages": ["..."]
-}
-
-VALID OPTIONS:
-Industries: SaaS, AI / ML, Cybersecurity, Developer Tools, Data & Analytics, Enterprise Software, Cloud & Infrastructure, Internet & Web Services, Hardware & Semiconductors, Telecommunications & Networking, Robotics & Automation, Blockchain & Web3, Fintech, Banking & Lending, Insurance / Insurtech, Payments & Processing, Investment & Wealth Management, Capital Markets, HealthTech / Digital Health, Biotech & Pharma, Medical Devices, Healthcare Services, Clinical Research, E-commerce, D2C Brands, Marketplace, Food & Beverage, Consumer Electronics, Manufacturing, Logistics & Supply Chain, Energy & Oil, Cleantech / Climate, Construction & Real Estate, IT Services Consulting, IT Outsourcing / Managed Services, Systems Integration, Staffing & Recruitment, Legal Tech, HR Tech, Media & Publishing, EdTech / E-Learning, Gaming, Advertising & MarTech, Real Estate / PropTech, Commercial Real Estate, Construction Tech
-Company sizes: 1–10 employees, 11–50 employees, 51–200 employees, 201–500 employees, 501–1,000 employees, 1,001–5,000 employees, 5,001–10,000 employees, 10,000+ employees
-Revenue: Pre-revenue, $0–$1M ARR, $1M–$5M ARR, $5M–$20M ARR, $20M–$100M ARR, $100M+ ARR
-Funding: Pre-seed, Seed, Series A, Series B, Series C+, PE-backed, Public, Bootstrapped
-Geography: North America, Europe, UK, APAC, MENA, LATAM, India, Global
-Titles: CEO, CTO, CFO, COO, CISO, CIO, VP Engineering, VP Product, VP Sales, VP Marketing, Head of IT, Head of Data, Head of Engineering, Director of Engineering, Director of Product, General Manager, Managing Director
-
-Include at minimum 3 industries. Be generous — include all plausible industries.`,
-          "website_icp_extraction"
-        ),
-
-        // Prompt 2: Customer List Extraction
-        callHaiku(
-          `Extract ACTUAL company/brand names of customers, clients, or partners mentioned on this website.
-
-Look for: logo sections, "trusted by" banners, case studies, testimonials, partner pages, client lists, success stories, portfolio pages.
-
-CRITICAL RULES:
-- Extract REAL company/brand names ONLY (e.g. "Stripe", "Deloitte", "NHS")
-- NEVER use placeholders like "a fintech company" or "a healthcare startup" or "leading enterprise"
-- If you can't find a real company name, skip it — do not fabricate or generalize
-- Include partner/integration names if they appear prominently (they indicate who uses the product)
-- Aim for at least 5 names if the website mentions that many
-
-${websiteContext}
-
-Return ONLY valid JSON with no additional text:
-{
-  "customers": ["list of ACTUAL customer/client company names found"],
-  "source": "logos | case_studies | testimonials | partner_page | mixed"
-}`,
-          "website_customer_extraction"
-        ),
-
-        // Prompt 3: Sales Trigger Identification
-        callHaiku(
-          `You are analyzing a company's website to identify HIGH-INTENT BUYING SIGNALS — organizational events or changes at a potential customer company that would make them likely to buy from this company RIGHT NOW.
-
-${websiteContext}
-
-Think about ORGANIZATIONAL TRIGGERS — things that happen at a company that create urgency to buy:
-
-Categories to consider:
-1. FUNDING & GROWTH: "Recently raised Series B+", "IPO preparation", "Rapid headcount growth (50%+ YoY)"
-2. LEADERSHIP CHANGES: "New CTO/CIO/CISO hired in last 6 months", "New VP Engineering appointed"
-3. STRATEGIC INITIATIVES: "Announced digital transformation initiative", "Opening new geographic office", "Launching new product line"
-4. TECHNOLOGY SIGNALS: "Migrating from legacy systems", "Evaluating new vendors (RFP published)", "Tech stack modernization"
-5. HIRING PATTERNS: "Hiring 10+ engineers in India", "Posting for relevant roles", "Building out security team"
-6. MARKET EVENTS: "Industry regulation change requiring compliance", "Competitor acquisition creating uncertainty"
-7. EXPANSION: "Expanding to India/APAC", "Setting up GCC/offshore center", "M&A activity"
-
-Return EXACTLY 5 triggers. Make them SPECIFIC to what this company sells — not generic. Each trigger should be a clear sentence that a sales rep could use to identify a hot prospect.
-
-Return ONLY valid JSON with no additional text:
-{
-  "triggers": [
-    "Recently raised Series B or later funding and scaling engineering team",
-    "Hired a new CTO or VP Engineering in the last 6 months",
-    "Posted 10+ open engineering roles in India on LinkedIn",
-    "Announced plans to set up or expand a Global Capability Center",
-    "Published RFP or vendor evaluation for relevant category"
-  ]
-}`,
-          "website_trigger_extraction"
-        ),
-      ]);
-
-      console.log("SCRAPE: All prompts complete. ICP:", !!icpResult, "Customers:", !!customerResult, "Triggers:", !!triggerResult);
-
-      if (!icpResult) {
-        throw new Error("Failed to parse ICP extraction response");
+      if (!extractedData?.icp_suggestions) {
+        throw new Error("Failed to extract ICP data from website");
       }
 
-      // Combine all results into final scrape data
-      const extractedData = {
+      // Normalize the extracted data
+      const normalizedData = {
         icp_suggestions: {
-          target_industries: icpResult.target_industries || [],
-          target_geographies: icpResult.target_geographies || [],
-          target_titles: icpResult.target_titles || [],
-          company_sizes: icpResult.company_sizes || [],
-          revenue_ranges: icpResult.revenue_ranges || [],
-          funding_stages: icpResult.funding_stages || [],
+          target_industries: (extractedData.icp_suggestions.target_industries as string[]) || [],
+          target_geographies: (extractedData.icp_suggestions.target_geographies as string[]) || [],
+          target_titles: (extractedData.icp_suggestions.target_titles as string[]) || [],
+          company_sizes: (extractedData.icp_suggestions.company_sizes as string[]) || [],
+          revenue_ranges: (extractedData.icp_suggestions.revenue_ranges as string[]) || [],
+          funding_stages: (extractedData.icp_suggestions.funding_stages as string[]) || [],
         },
-        customer_list: customerResult || { customers: [], source: "mixed" },
-        sales_triggers: triggerResult || { triggers: [] },
+        customer_list: extractedData.customer_list || { customers: [], source: "mixed" },
+        sales_triggers: extractedData.sales_triggers || { triggers: [] },
       };
 
-      // Update user with extracted data
+      const duration = Date.now() - start;
+      console.log("SCRAPE: Extraction complete in", duration, "ms");
+
+      // Save to DB
       const { error: saveError } = await supabaseAdmin
         .from("users")
         .update({
-          website_scrape_data: extractedData,
+          website_scrape_data: normalizedData,
           website_scrape_status: "completed",
         })
         .eq("id", userId);
@@ -375,18 +317,61 @@ Return ONLY valid JSON with no additional text:
       console.log("SCRAPE: Saved successfully for user", userId);
     } catch (error) {
       console.error("SCRAPE PIPELINE ERROR:", error);
+      scrapeError = error instanceof Error ? error.message : String(error);
       await supabaseAdmin
         .from("users")
         .update({
           website_scrape_status: "failed",
-          website_scrape_error: error instanceof Error ? error.message : String(error),
+          website_scrape_error: scrapeError,
         })
         .eq("id", userId);
     }
 
+    // Fix D: Return actual error status to frontend
+    if (scrapeError) {
+      return NextResponse.json({ success: false, error: scrapeError });
+    }
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+async function runExtraction(
+  anthropic: Anthropic,
+  content: string,
+  userId: string
+) {
+  const response = await callAnthropicWithRetry(
+    () =>
+      anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        system: EXTRACTION_PROMPT,
+        messages: [{ role: "user", content }],
+      }),
+    3 // Max 3 retries for scrape endpoint
+  );
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+  const match = text.match(/\{[\s\S]*\}/);
+  const parsed = match ? JSON.parse(match[0]) : null;
+
+  // Log to prompt_runs
+  await supabaseAdmin.from("prompt_runs").insert({
+    user_id: userId,
+    prompt_type: "website_extraction",
+    model: "claude-haiku-4-5-20251001",
+    system_prompt: EXTRACTION_PROMPT.slice(0, 5000),
+    user_prompt: content.slice(0, 10000),
+    response: text,
+    structured_output: parsed,
+    input_tokens: response.usage?.input_tokens || 0,
+    output_tokens: response.usage?.output_tokens || 0,
+    duration_ms: 0,
+  });
+
+  return parsed;
 }

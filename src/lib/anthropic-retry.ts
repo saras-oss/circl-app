@@ -17,7 +17,7 @@ export async function callAnthropicWithRetry<T>(
         (status === 529 || status === 429 || status === 503) &&
         attempt < maxRetries - 1
       ) {
-        const waitTime = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s, 16s
+        const waitTime = Math.pow(2, attempt) * 500; // 0.5s, 1s, 2s, 4s
         console.log(
           `Anthropic ${status}, retrying in ${waitTime}ms (attempt ${attempt + 1}/${maxRetries})`
         );
