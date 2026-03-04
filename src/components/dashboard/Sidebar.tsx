@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Star,
@@ -9,9 +10,12 @@ import {
   Search,
   Settings,
   LogOut,
+  Shield,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+
+const ADMIN_EMAILS = ["saras@incommon.ai", "piyush@incommon.ai"];
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -25,6 +29,15 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.email && ADMIN_EMAILS.includes(user.email)) {
+        setIsAdmin(true);
+      }
+    });
+  }, [supabase.auth]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -64,6 +77,19 @@ export default function Sidebar() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/dashboard/admin"
+              className={`flex items-center gap-3 px-3 h-11 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                pathname === "/dashboard/admin"
+                  ? "bg-foreground text-white shadow-sm"
+                  : "text-warm-500 hover:text-foreground hover:bg-warm-100"
+              }`}
+            >
+              <Shield className="w-[18px] h-[18px]" strokeWidth={pathname === "/dashboard/admin" ? 2.2 : 1.8} />
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="px-3 py-4 border-t border-border">
