@@ -165,21 +165,17 @@ export async function POST(request: Request) {
     console.log("SCORE_DEBUG: About to query connections. User:", userId);
     console.log("SCORE_DEBUG: ICP industries:", icpData.industries?.length, "confirmed:", userData?.icp_confirmed);
 
-    // Find unscored enriched connections — no subscription gate in V1
-    const query = supabaseAdmin
+    // Find unscored enriched connections — score ALL, no tier/subscription gate
+    const { data: connections, error: fetchError } = await supabaseAdmin
       .from("user_connections")
-      .select(
-        "id, first_name, last_name, company, position, linkedin_url, seniority_tier, function_category, connection_type_signal, connected_on"
-      )
+      .select("*")
       .eq("user_id", userId)
-      .is("match_score", null)
       .in("enrichment_status", ["enriched", "cached"])
-      .order("id", { ascending: true })
+      .is("match_score", null)
+      .order("created_at", { ascending: true })
       .limit(BATCH_SIZE);
 
-    const { data: connections, error: fetchError } = await query;
-
-    console.log("SCORE_DEBUG: Connections query returned:", connections?.length || 0, "Error:", fetchError?.message || "none");
+    console.log("SCORE: Query returned", connections?.length, "connections. Error:", fetchError?.message || "none");
 
     if (fetchError) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
@@ -412,16 +408,16 @@ Score each connection. Return ONLY a valid JSON array (no other text). One objec
       rows_processed: connections.length,
     });
 
-    // Count remaining unscored — no subscription gate in V1
+    // Count remaining unscored
     const { count: remaining } = await supabaseAdmin
       .from("user_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .is("match_score", null)
-      .in("enrichment_status", ["enriched", "cached"]);
+      .in("enrichment_status", ["enriched", "cached"])
+      .is("match_score", null);
 
     return NextResponse.json({
-      scored: scores.length,
+      scored: connections.length,
       remaining: remaining || 0,
       hasMore: (remaining || 0) > 0,
     });
