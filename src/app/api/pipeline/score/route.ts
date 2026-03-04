@@ -32,7 +32,13 @@ The company is in a broadly related space but not a specific or adjacent match.
 NO MATCH (score 1-3):
 Company industry is completely unrelated to any target industry.
 
-Don't rely only on the industry label. The company description is more revealing. Let description override label when they conflict.
+When evaluating industry fit:
+1. COMPANY DESCRIPTION is your primary signal. A company labeled "Information Technology & Services" that "builds AI-powered compliance tools for banks" is a fintech/regtech company, not generic IT.
+2. COMPANY SPECIALITIES AND CATEGORIES provide additional context.
+3. INDUSTRY LABEL is a secondary signal — often too broad or wrong on LinkedIn.
+4. COMPANY NAME: For well-known companies (Kotak Mahindra Bank, Tech Mahindra, Axis Bank, Mimecast, JLL), use your existing knowledge of what they do.
+5. PERSON HEADLINE: If no company data exists, the person's headline often reveals the company's domain ("VP Engineering at AI-powered lending platform").
+6. NEVER say "unable to assess" or "cannot be validated." You always have enough signal from the company name and person's profile to make a judgment. Score every connection.
 
 2. SENIORITY AND TITLE REFINE THE SCORE.
 After industry fit, adjust based on whether this person can make or influence buying decisions:
@@ -128,17 +134,26 @@ export async function POST(request: Request) {
     // Get user's ICP data + company info
     const { data: userData } = await supabaseAdmin
       .from("users")
-      .select("icp_data, icp_confirmed, company_name, website_url, subscription_tier")
+      .select("icp_data, icp_confirmed, company_name, website_url")
       .eq("id", userId)
       .single();
 
-    const icpData = (userData?.icp_data || {}) as IcpData;
+    // Safety parse: handle icp_data as string or object
+    const rawIcp = userData?.icp_data;
+    const icpData = (
+      typeof rawIcp === "string" ? JSON.parse(rawIcp) : rawIcp || {}
+    ) as IcpData;
     const companyName = userData?.company_name || "Unknown";
     const websiteUrl = userData?.website_url || "";
-    const subscriptionTier = userData?.subscription_tier || "free";
 
     // HARD GUARD: Do not score without ICP
     if (!icpData.industries || icpData.industries.length === 0) {
+      console.log("SCORE: ICP guard triggered — no industries found.", {
+        userId,
+        icpDataType: typeof rawIcp,
+        icpDataKeys: rawIcp ? Object.keys(typeof rawIcp === "string" ? JSON.parse(rawIcp) : rawIcp) : [],
+        icp_confirmed: userData?.icp_confirmed,
+      });
       return NextResponse.json({
         scored: 0,
         remaining: 0,
@@ -147,8 +162,8 @@ export async function POST(request: Request) {
       });
     }
 
-    // Find unscored enriched connections (tier1+tier2)
-    let query = supabaseAdmin
+    // Find unscored enriched connections — no subscription gate in V1
+    const query = supabaseAdmin
       .from("user_connections")
       .select(
         "id, first_name, last_name, company, position, linkedin_url, seniority_tier, function_category, connection_type_signal, connected_on"
@@ -159,19 +174,20 @@ export async function POST(request: Request) {
       .order("id", { ascending: true })
       .limit(BATCH_SIZE);
 
-    if (subscriptionTier === "free") {
-      query = query.eq("is_free_tier_selection", true);
-    } else {
-      query = query.in("enrichment_tier", ["tier1", "tier2"]);
-    }
-
     const { data: connections, error: fetchError } = await query;
 
     if (fetchError) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
     }
 
+    console.log(`SCORE: Found ${connections?.length || 0} connections to score for user ${userId}`);
+
     if (!connections || connections.length === 0) {
+      console.log("SCORE: Zero connections found. Filters applied:", {
+        enrichment_status: "enriched or cached",
+        match_score: "IS NULL",
+        userId,
+      });
       return NextResponse.json({
         scored: 0,
         remaining: 0,
@@ -205,7 +221,7 @@ export async function POST(request: Request) {
         ? await supabaseAdmin
             .from("enriched_companies")
             .select(
-              "linkedin_url, name, industry, hq_city, hq_country, company_size_min, company_size_max, company_type, latest_funding_type, latest_funding_amount, latest_funding_date, total_funding_amount, description, founded_year"
+              "linkedin_url, name, industry, hq_city, hq_country, company_size_min, company_size_max, company_type, latest_funding_type, latest_funding_amount, latest_funding_date, total_funding_amount, description, founded_year, specialities, website"
             )
             .in("linkedin_url", companyLinkedInUrls)
         : { data: [] };
@@ -213,6 +229,50 @@ export async function POST(request: Request) {
     const companyMap = new Map(
       (companies || []).map((c) => [c.linkedin_url, c])
     );
+
+    console.log(`SCORE: ${profiles?.length || 0} enriched profiles, ${companies?.length || 0} enriched companies`);
+
+    // Build company context from best available source
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    function buildCompanyContext(conn: any, enrichedProfile: any, enrichedCompany: any): string {
+      if (enrichedCompany?.description || enrichedCompany?.industry) {
+        let text = `\nCompany Details:\n`;
+        text += `Company: ${enrichedCompany.name || conn.company}\n`;
+        text += `Industry: ${enrichedCompany.industry || "Unknown"}\n`;
+        text += `Description: ${(enrichedCompany.description as string)?.slice(0, 300) || "Not available"}\n`;
+        if (enrichedCompany.specialities) {
+          text += `Specialities: ${JSON.stringify(enrichedCompany.specialities)}\n`;
+        }
+        text += `HQ: ${[enrichedCompany.hq_city, enrichedCompany.hq_country].filter(Boolean).join(", ") || "Unknown"}\n`;
+        text += `Employees: ${enrichedCompany.company_size_min && enrichedCompany.company_size_max ? enrichedCompany.company_size_min + "-" + enrichedCompany.company_size_max : "Unknown"}\n`;
+        text += `Type: ${enrichedCompany.company_type || "Unknown"}\n`;
+        text += `Funding: ${enrichedCompany.latest_funding_type || "N/A"}`;
+        if (enrichedCompany.latest_funding_amount) {
+          text += ` — $${enrichedCompany.latest_funding_amount}`;
+        }
+        if (enrichedCompany.latest_funding_date) {
+          text += ` (${enrichedCompany.latest_funding_date})`;
+        }
+        text += `\n`;
+        if (enrichedCompany.total_funding_amount) {
+          text += `Total Raised: $${enrichedCompany.total_funding_amount}\n`;
+        }
+        text += `Founded: ${enrichedCompany.founded_year || "Unknown"}\n`;
+        if (enrichedCompany.website) {
+          text += `Website: ${enrichedCompany.website}\n`;
+        }
+        return text;
+      }
+
+      // Fallback: use enriched profile + CSV data
+      let text = `\nCompany Context:\n`;
+      text += `Company: ${enrichedProfile?.current_company || conn.company || "Unknown"}\n`;
+      text += `Industry: ${enrichedProfile?.industry || "Unknown — assess from company name and person headline"}\n`;
+      text += `Person Headline: ${enrichedProfile?.headline || conn.position || "Unknown"}\n`;
+      text += `(No detailed company data — use your knowledge of this company to assess industry fit)\n`;
+      return text;
+    }
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // Build structured user message with explicit ICP fields
     const connectionsText = connections
@@ -235,27 +295,7 @@ export async function POST(request: Request) {
         text += `Summary: ${(profile?.summary as string)?.slice(0, 200) || "Not available"}\n`;
         text += `LinkedIn Active: ${profile?.is_linkedin_active ? "Yes" : "Unknown"}\n`;
         text += `Follower Count: ${profile?.follower_count || "Unknown"}\n`;
-
-        if (company) {
-          text += `\nCompany Details:\n`;
-          text += `Industry: ${company.industry || "Unknown"}\n`;
-          text += `Description: ${(company.description as string)?.slice(0, 200) || "Not available"}\n`;
-          text += `HQ: ${company.hq_city || ""}${company.hq_city && company.hq_country ? ", " : ""}${company.hq_country || "Unknown"}\n`;
-          text += `Employees: ${company.company_size_min || "?"}-${company.company_size_max || "?"}\n`;
-          text += `Company Type: ${company.company_type || "Unknown"}\n`;
-          text += `Funding: ${company.latest_funding_type || "Unknown"}`;
-          if (company.latest_funding_amount) {
-            text += ` — $${company.latest_funding_amount}`;
-          }
-          if (company.latest_funding_date) {
-            text += ` (${company.latest_funding_date})`;
-          }
-          text += `\n`;
-          if (company.total_funding_amount) {
-            text += `Total Raised: $${company.total_funding_amount}\n`;
-          }
-          text += `Founded: ${company.founded_year || "Unknown"}\n`;
-        }
+        text += buildCompanyContext(conn, profile, company);
 
         return text;
       })
@@ -355,21 +395,13 @@ Score each connection. Return ONLY a valid JSON array (no other text). One objec
       rows_processed: connections.length,
     });
 
-    // Count remaining unscored
-    let remainingQuery = supabaseAdmin
+    // Count remaining unscored — no subscription gate in V1
+    const { count: remaining } = await supabaseAdmin
       .from("user_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .is("match_score", null)
       .in("enrichment_status", ["enriched", "cached"]);
-
-    if (subscriptionTier === "free") {
-      remainingQuery = remainingQuery.eq("is_free_tier_selection", true);
-    } else {
-      remainingQuery = remainingQuery.in("enrichment_tier", ["tier1", "tier2"]);
-    }
-
-    const { count: remaining } = await remainingQuery;
 
     return NextResponse.json({
       scored: scores.length,

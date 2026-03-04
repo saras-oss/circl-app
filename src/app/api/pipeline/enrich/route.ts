@@ -335,9 +335,20 @@ async function enrichCompany(
     enrichment_source: "enrichlayer",
   };
 
-  await supabaseAdmin
+  const { error: upsertError } = await supabaseAdmin
     .from("enriched_companies")
     .upsert(companyData, { onConflict: "linkedin_url" });
+
+  if (upsertError) {
+    console.error("ENRICH: Company upsert failed:", {
+      companyLinkedInUrl,
+      name: r.name,
+      error: upsertError.message,
+      code: upsertError.code,
+    });
+  } else {
+    console.log("ENRICH: Company saved:", r.name, companyLinkedInUrl);
+  }
 
   return companyData;
 }
@@ -510,16 +521,23 @@ export async function POST(request: Request) {
           .upsert(profileRow, { onConflict: "linkedin_url" });
 
         // Company enrichment via EnrichLayer (dedup via cache)
-        const companyUrl =
-          getCurrentRole(enrichedData.experiences as any[])
-            ?.company_linkedin_profile_url;
+        const currentRole = getCurrentRole(enrichedData.experiences as any[]);
+        const companyUrl = currentRole?.company_linkedin_profile_url;
+        console.log("ENRICH: Company enrichment check —", {
+          connectionId: conn.id,
+          company: currentRole?.company,
+          companyUrl: companyUrl || "NONE",
+          hasExperiences: !!(enrichedData.experiences as any[])?.length,
+        });
         if (companyUrl) {
           try {
             await enrichCompany(companyUrl);
           } catch (err) {
-            console.error("Company enrichment failed:", companyUrl, err);
+            console.error("ENRICH: Company enrichment failed:", companyUrl, err instanceof Error ? (err as Error).message : err);
             // Non-fatal — don't block person enrichment
           }
+        } else {
+          console.log("ENRICH: No company LinkedIn URL for", conn.first_name, conn.last_name);
         }
 
         await supabaseAdmin
