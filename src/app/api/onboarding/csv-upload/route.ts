@@ -40,6 +40,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure public.users row exists before inserting connections
+    const { data: userExists } = await supabaseAdmin
+      .from("users")
+      .select("id")
+      .eq("id", userId)
+      .single();
+
+    if (!userExists) {
+      await supabaseAdmin.from("users").upsert(
+        { id: userId, email: user.email },
+        { onConflict: "id", ignoreDuplicates: true }
+      );
+    }
+
     const rows = connections.map((c) => ({
       user_id: userId,
       first_name: c.firstName || "",
@@ -63,7 +77,15 @@ export async function POST(request: Request) {
         .select("id");
 
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        const isFkError = error.message.includes("foreign key constraint");
+        return NextResponse.json(
+          {
+            error: isFkError
+              ? "Something went wrong with your account. Please try logging out and back in."
+              : error.message,
+          },
+          { status: isFkError ? 400 : 500 }
+        );
       }
 
       totalInserted += data?.length || 0;

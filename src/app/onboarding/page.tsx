@@ -30,11 +30,22 @@ export default function OnboardingPage() {
     }
     setUserId(user.id);
 
-    const { data: profile } = await supabase
+    let { data: profile } = await supabase
       .from("users")
       .select("*")
       .eq("id", user.id)
       .single();
+
+    // If no public.users row exists, create it (handles deleted users or missing trigger)
+    if (!profile) {
+      await fetch("/api/auth/ensure-profile", { method: "POST" });
+      const { data: newProfile } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+      profile = newProfile;
+    }
 
     if (profile) {
       setUserData(profile);
