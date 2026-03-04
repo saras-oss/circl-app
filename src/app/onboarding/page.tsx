@@ -47,6 +47,13 @@ export default function OnboardingPage() {
       profile = newProfile;
     }
 
+    // If still no profile (user was fully deleted via SQL), sign out and redirect
+    if (!profile) {
+      await supabase.auth.signOut();
+      router.push("/login");
+      return;
+    }
+
     if (profile) {
       setUserData(profile);
       if (profile.onboarding_completed) {

@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { extractDomain } from "@/lib/utils";
 import Anthropic from "@anthropic-ai/sdk";
 
+export const maxDuration = 60; // seconds — requires Vercel Pro plan
+
 const SERPER_API_KEY = process.env.SERPER_API_KEY!;
 
 const SKIP_PATTERNS = [
@@ -96,7 +98,7 @@ function prioritizeLinks(links: string[]): string[] {
     prioritized.push(...categorized[cat]);
   }
 
-  return prioritized.slice(0, 10);
+  return prioritized.slice(0, 5);
 }
 
 async function serperSearch(query: string): Promise<string | null> {
@@ -156,12 +158,9 @@ export async function POST(request: Request) {
       .update({ website_scrape_status: "scraping" })
       .eq("id", userId);
 
-    // Fire-and-forget: return immediately, but run the pipeline
-    // We use waitUntil-style approach by not awaiting the main pipeline
-    // but since Next.js API routes need to complete, we run it inline
-    // and return 200 regardless of outcome
     try {
       const domain = extractDomain(websiteUrl);
+      console.log("SCRAPE: Starting for", websiteUrl, "domain:", domain);
 
       // Step 1: Search for homepage URL
       const homepageUrl =
@@ -169,6 +168,7 @@ export async function POST(request: Request) {
 
       // Step 2: Scrape homepage
       const homepageContent = await serperScrape(homepageUrl);
+      console.log("SCRAPE: Homepage scraped, got content:", !!homepageContent);
 
       if (!homepageContent) {
         throw new Error("Failed to scrape homepage");
@@ -177,8 +177,9 @@ export async function POST(request: Request) {
       // Step 3: Extract and categorize internal links
       const internalLinks = extractInternalLinks(homepageContent, domain);
       const prioritizedLinks = prioritizeLinks(internalLinks);
+      console.log("SCRAPE: Found", internalLinks.length, "internal links, prioritized", prioritizedLinks.length);
 
-      // Step 4: Scrape subpages (up to 10)
+      // Step 4: Scrape subpages (up to 5)
       const pageContents: { url: string; content: string }[] = [
         { url: homepageUrl, content: homepageContent },
       ];
@@ -195,6 +196,7 @@ export async function POST(request: Request) {
           pageContents.push(result.value);
         }
       }
+      console.log("SCRAPE: Scraped", pageContents.length - 1, "subpages");
 
       // Step 5: Send to Claude Haiku for extraction (3 separate prompts)
       const allContent = pageContents
@@ -232,6 +234,7 @@ export async function POST(request: Request) {
       }
 
       // Run all 3 prompts in parallel
+      console.log("SCRAPE: Running 3 Haiku prompts...");
       const [icpResult, customerResult, triggerResult] = await Promise.all([
         // Prompt 1: ICP Extraction
         callHaiku(
@@ -284,6 +287,8 @@ Examples of good triggers: "Recently raised Series B+", "Expanding engineering t
         ),
       ]);
 
+      console.log("SCRAPE: All prompts complete. ICP:", !!icpResult, "Customers:", !!customerResult, "Triggers:", !!triggerResult);
+
       if (!icpResult) {
         throw new Error("Failed to parse ICP extraction response");
       }
@@ -306,18 +311,27 @@ Examples of good triggers: "Recently raised Series B+", "Expanding engineering t
       };
 
       // Update user with extracted data
-      await supabaseAdmin
+      const { error: saveError } = await supabaseAdmin
         .from("users")
         .update({
           website_scrape_data: extractedData,
           website_scrape_status: "completed",
         })
         .eq("id", userId);
-    } catch {
-      // Fire-and-forget: mark as failed but don't error the response
+
+      if (saveError) {
+        console.error("SCRAPE: Failed to save to DB:", saveError.message);
+        throw new Error(`DB save failed: ${saveError.message}`);
+      }
+      console.log("SCRAPE: Saved successfully for user", userId);
+    } catch (error) {
+      console.error("SCRAPE PIPELINE ERROR:", error);
       await supabaseAdmin
         .from("users")
-        .update({ website_scrape_status: "failed" })
+        .update({
+          website_scrape_status: "failed",
+          website_scrape_error: error instanceof Error ? error.message : String(error),
+        })
         .eq("id", userId);
     }
 
