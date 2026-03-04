@@ -363,13 +363,13 @@ export default function ExportGuideStep({
 
       {/* ─── Reminder Modal ─── */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0, 0, 0, 0.5)" }}>
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            className="absolute inset-0"
             onClick={() => !reminderSaved && setShowModal(false)}
           />
 
-          <div className="relative w-full min-w-0 sm:min-w-[480px] max-w-lg mx-4 rounded-2xl bg-surface shadow-2xl overflow-hidden">
+          <div className="relative w-[90vw] sm:min-w-[480px] max-w-lg rounded-2xl bg-white overflow-hidden" style={{ boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
             {/* Modal header */}
             <div className="flex items-center justify-between px-8 pt-8 pb-0">
               <h2 className="text-base font-bold text-foreground">

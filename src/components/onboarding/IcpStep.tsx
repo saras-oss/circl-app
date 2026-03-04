@@ -8,8 +8,8 @@ import {
   X,
   Plus,
   ArrowLeft,
+  ArrowRight,
   Send,
-  Target,
   Sparkles,
   Loader2,
   Check,
@@ -43,9 +43,6 @@ interface IcpState {
   investorFundTypes: string[];
   investorStages: string[];
   investorSectors: string[];
-  lookingForAdvisors: boolean;
-  advisorExpertise: string[];
-  advisorSeniority: string[];
 }
 
 interface ChatMessage {
@@ -65,9 +62,6 @@ const DEFAULT_ICP: IcpState = {
   investorFundTypes: [],
   investorStages: [],
   investorSectors: [],
-  lookingForAdvisors: false,
-  advisorExpertise: [],
-  advisorSeniority: [],
 };
 
 const CHAT_SUGGESTION_CHIPS = [
@@ -135,9 +129,6 @@ function buildInitialIcp(userData: Record<string, unknown>): {
       investorFundTypes: [],
       investorStages: [],
       investorSectors: [],
-      lookingForAdvisors: false,
-      advisorExpertise: [],
-      advisorSeniority: [],
     },
     scrapeTriggers: triggers,
     scrapeCustomers: customers,
@@ -154,7 +145,7 @@ function getSelectedThemes(selectedIndustries: string[]): Set<string> {
   return themes;
 }
 
-/* ─────────────── Selectable Pill (toggle on/off) ─────────────── */
+/* ─────────────── Selectable Pill ─────────────── */
 function TogglePill({
   label,
   selected,
@@ -167,10 +158,10 @@ function TogglePill({
   return (
     <button
       onClick={onToggle}
-      className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-medium transition-all duration-200 min-h-[36px] ${
+      className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 h-[38px] ${
         selected
-          ? "bg-accent text-white shadow-sm shadow-accent/20"
-          : "bg-warm-50 text-warm-600 border border-warm-200 hover:border-accent/40 hover:text-foreground"
+          ? "bg-[#1B4332] text-white"
+          : "bg-white text-foreground border border-[#E0E0E0] hover:bg-warm-50"
       }`}
     >
       {selected && <Check className="h-3 w-3" />}
@@ -218,7 +209,7 @@ function PillGroupEditable({
         {pills.map((pill) => (
           <span
             key={pill}
-            className="inline-flex items-center gap-1.5 rounded-full bg-accent text-white px-3 py-1.5 text-xs font-medium shadow-sm shadow-accent/20"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#1B4332] text-white px-3.5 py-1.5 text-xs font-medium"
           >
             {pill}
             <button
@@ -248,13 +239,13 @@ function PillGroupEditable({
                 setNewValue("");
               }
             }}
-            className="h-9 w-36 rounded-full border-2 border-accent/30 bg-surface px-3 text-xs font-medium text-foreground input-ring focus:outline-none focus:border-accent"
+            className="h-9 w-36 rounded-full border border-[#E0E0E0] bg-white px-3 text-xs font-medium text-foreground focus:outline-none focus:border-[#1B4332]"
             placeholder="Type and press Enter"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-full border-2 border-dashed border-warm-300 px-3.5 py-1.5 text-xs font-medium text-warm-400 hover:border-accent hover:text-accent transition-colors min-h-[36px]"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-warm-300 px-3.5 py-1.5 text-xs font-medium text-warm-400 hover:border-[#1B4332] hover:text-[#1B4332] transition-colors h-[38px]"
           >
             <Plus className="h-3 w-3" />
             Add
@@ -291,7 +282,7 @@ function IcpSummaryReadOnly({ icp }: { icp: IcpState }) {
               {pills.map((pill) => (
                 <span
                   key={pill}
-                  className="inline-flex items-center rounded-full bg-accent/10 text-accent px-2.5 py-1 text-[11px] font-medium"
+                  className="inline-flex items-center rounded-full bg-[#1B4332]/10 text-[#1B4332] px-2.5 py-1 text-[11px] font-medium"
                 >
                   {pill}
                 </span>
@@ -507,43 +498,60 @@ export default function IcpStep({
     !scrapeLoading && (icp.industries.length > 0 || icp.titles.length > 0);
   const hasCustomers = scrapeCustomers.length > 0;
 
-  let headerSubtext =
-    "Select who you\u2019re looking to find in your network.";
+  let heroHeading = "Here\u2019s who we think you should be targeting.";
+  let heroSubtext =
+    "Select who you\u2019re looking to find in your network. Edit anything below.";
+
   if (scrapeLoading) {
-    headerSubtext = "Analyzing your website to pre-fill suggestions...";
+    heroHeading = "Analyzing your website...";
+    heroSubtext = "We\u2019re building a target profile based on your company data.";
   } else if (hasScrapedData && hasCustomers) {
-    const custNames = scrapeCustomers.slice(0, 3).join(", ");
-    headerSubtext = `Hey ${firstName || "there"}, we went through your website, found customers like ${custNames}, and built a target profile for you. Feel free to edit.`;
+    const custNames = scrapeCustomers.slice(0, 3);
+    heroHeading = `Hey ${firstName || "there"}, here\u2019s who we think you should be targeting.`;
+    heroSubtext = `We analyzed your website, found customers like ${custNames.map((n) => `**${n}**`).join(", ")}, and built this profile for you. Edit anything below.`;
   } else if (hasScrapedData) {
-    headerSubtext = `Hey ${firstName || "there"}, based on your website, here\u2019s who we think you should be targeting. Feel free to edit.`;
+    heroHeading = `Hey ${firstName || "there"}, here\u2019s who we think you should be targeting.`;
+    heroSubtext = "Based on your website, here\u2019s your target profile. Edit anything below.";
+  }
+
+  // Parse bold text in subtext (** markers)
+  function renderSubtext(text: string) {
+    const parts = text.split(/\*\*(.*?)\*\*/g);
+    return parts.map((part, i) =>
+      i % 2 === 1 ? (
+        <span key={i} className="font-semibold text-foreground">
+          {part}
+        </span>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
   }
 
   return (
-    <div className="animate-fade-in space-y-8">
-      {/* Header */}
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
-          <Target className="h-7 w-7 text-accent" strokeWidth={1.5} />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Define your Ideal Customer Profile
-          </h1>
-          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
-            {headerSubtext}
-          </p>
-        </div>
+    <div className="animate-fade-in">
+      {/* ─── Hero Section ─── */}
+      <div className="pt-8 pb-10 text-center">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400 mb-4">
+          Your Ideal Customer Profile
+        </p>
+        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-foreground leading-tight max-w-lg mx-auto">
+          {heroHeading}
+        </h1>
+        <p className="text-base sm:text-lg text-warm-500 max-w-lg mx-auto leading-relaxed mt-4">
+          {renderSubtext(heroSubtext)}
+        </p>
       </div>
 
       {/* Scrape loading indicator */}
       {scrapeLoading && (
-        <div className="card-elevated p-5 border-accent/20 animate-fade-in">
+        <div className="rounded-2xl border border-accent/20 bg-accent/5 p-5 mb-10">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-accent-light rounded-xl flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 bg-accent/10 rounded-xl flex items-center justify-center shrink-0">
               <Loader2 className="w-5 h-5 text-accent animate-spin" />
             </div>
             <div>
-              <p className="text-sm font-bold">Analyzing your website...</p>
+              <p className="text-sm font-semibold text-foreground">Analyzing your website...</p>
               <p className="text-xs text-warm-500 mt-0.5">
                 Pre-filling your ICP based on your company data
               </p>
@@ -552,396 +560,342 @@ export default function IcpStep({
         </div>
       )}
 
-      {/* ─── TARGET INDUSTRIES ─── */}
-      <div className="space-y-4">
-        <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-          <Target className="h-4 w-4 text-accent" />
-          Target Industries
-        </h3>
+      <div className="space-y-10">
+        {/* ─── TARGET INDUSTRIES ─── */}
+        <div className="space-y-4">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Target Industries
+          </h3>
 
-        {/* Industry search */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400" />
-          <input
-            value={industrySearch}
-            onChange={(e) => setIndustrySearch(e.target.value)}
-            placeholder="Search industries..."
-            className="w-full h-11 pl-10 pr-4 rounded-xl border-2 border-border bg-surface text-sm input-ring focus:outline-none focus:border-accent"
-          />
-        </div>
-
-        {/* Theme cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {filteredThemes.map((theme) => {
-            const isSelected = selectedThemes.has(theme.theme);
-            return (
-              <button
-                key={theme.theme}
-                onClick={() => toggleTheme(theme)}
-                className={`text-left p-4 rounded-2xl border-2 transition-all duration-200 min-h-[44px] ${
-                  isSelected
-                    ? "bg-accent text-white border-accent shadow-md shadow-accent/15"
-                    : "bg-surface border-border hover:border-accent/40"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span
-                    className={`text-sm font-bold ${isSelected ? "text-white" : "text-foreground"}`}
-                  >
-                    {theme.theme}
-                  </span>
-                  {isSelected && (
-                    <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
-                      <Check className="h-3 w-3 text-white" />
-                    </div>
-                  )}
-                </div>
-                <p
-                  className={`text-xs leading-relaxed ${isSelected ? "text-white/70" : "text-warm-400"}`}
+          {/* Theme cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {filteredThemes.map((theme) => {
+              const isSelected = selectedThemes.has(theme.theme);
+              return (
+                <button
+                  key={theme.theme}
+                  onClick={() => toggleTheme(theme)}
+                  className={`text-left p-4 rounded-xl border transition-all duration-200 ${
+                    isSelected
+                      ? "bg-[#1B4332] text-white border-[#1B4332] shadow-lg shadow-[#1B4332]/15"
+                      : "bg-white border-[#E0E0E0] hover:border-warm-400 hover:shadow-sm"
+                  }`}
                 >
-                  {theme.description}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Selected sub-industries */}
-        {icp.industries.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-              Selected Sub-Industries
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {INDUSTRY_TAXONOMY.filter((t) =>
-                selectedThemes.has(t.theme)
-              ).flatMap((t) =>
-                t.subIndustries.map((sub) => (
-                  <TogglePill
-                    key={sub}
-                    label={sub}
-                    selected={icp.industries.includes(sub)}
-                    onToggle={() => toggleIndustry(sub)}
-                  />
-                ))
-              )}
-            </div>
+                  <div className="flex items-center justify-between mb-1">
+                    <span
+                      className={`text-sm font-semibold ${isSelected ? "text-white" : "text-foreground"}`}
+                    >
+                      {theme.theme}
+                    </span>
+                    {isSelected && (
+                      <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                        <Check className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </div>
+                  <p
+                    className={`text-[13px] leading-relaxed ${isSelected ? "text-white/70" : "text-warm-400"}`}
+                  >
+                    {theme.description}
+                  </p>
+                </button>
+              );
+            })}
           </div>
-        )}
-      </div>
 
-      {/* ─── COMPANY HEADCOUNT ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Company Headcount
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {COMPANY_HEADCOUNT.map((size) => (
-            <TogglePill
-              key={size}
-              label={size}
-              selected={icp.companySizes.includes(size)}
-              onToggle={() => toggleItem("companySizes", size)}
+          {/* Selected sub-industries */}
+          {icp.industries.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="h-px bg-warm-200" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+                Selected Sub-Industries
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {INDUSTRY_TAXONOMY.filter((t) =>
+                  selectedThemes.has(t.theme)
+                ).flatMap((t) =>
+                  t.subIndustries.map((sub) => (
+                    <TogglePill
+                      key={sub}
+                      label={sub}
+                      selected={icp.industries.includes(sub)}
+                      onToggle={() => toggleIndustry(sub)}
+                    />
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Industry search */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400" />
+            <input
+              value={industrySearch}
+              onChange={(e) => setIndustrySearch(e.target.value)}
+              placeholder="Search more industries..."
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E0E0E0] bg-white text-sm focus:outline-none focus:border-[#1B4332]"
             />
-          ))}
+          </div>
         </div>
-      </div>
 
-      {/* ─── REVENUE RANGE ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Revenue Range
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {REVENUE_RANGES.map((rev) => (
-            <TogglePill
-              key={rev}
-              label={rev}
-              selected={icp.revenueRanges.includes(rev)}
-              onToggle={() => toggleItem("revenueRanges", rev)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ─── FUNDING STAGE ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Funding Stage{" "}
-          <span className="text-warm-300 normal-case">(optional)</span>
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {FUNDING_STAGES.map((stage) => (
-            <TogglePill
-              key={stage}
-              label={stage}
-              selected={icp.fundingStages.includes(stage)}
-              onToggle={() => toggleItem("fundingStages", stage)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ─── GEOGRAPHY ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Geography
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {GEOGRAPHIES.map((geo) => (
-            <TogglePill
-              key={geo}
-              label={geo}
-              selected={icp.geographies.includes(geo)}
-              onToggle={() => toggleItem("geographies", geo)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* ─── TARGET TITLES ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          Target Titles / Roles
-        </h4>
-        <div className="flex flex-wrap gap-2">
-          {DEFAULT_TITLES.map((title) => (
-            <TogglePill
-              key={title}
-              label={title}
-              selected={icp.titles.includes(title)}
-              onToggle={() => toggleItem("titles", title)}
-            />
-          ))}
-        </div>
-        <PillGroupEditable
-          label=""
-          pills={icp.titles.filter((t) => !DEFAULT_TITLES.includes(t))}
-          onRemove={(v) =>
-            setIcp((prev) => ({
-              ...prev,
-              titles: prev.titles.filter((t) => t !== v),
-            }))
-          }
-          onAdd={(v) =>
-            setIcp((prev) => ({
-              ...prev,
-              titles: prev.titles.includes(v)
-                ? prev.titles
-                : [...prev.titles, v],
-            }))
-          }
-        />
-      </div>
-
-      {/* ─── HIGH-INTENT TRIGGERS ─── */}
-      <div className="space-y-3">
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
-          High-Intent Triggers
-        </h4>
-        {scrapeTriggers.length > 0 && (
+        {/* ─── COMPANY HEADCOUNT ─── */}
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Company Headcount
+          </h4>
           <div className="flex flex-wrap gap-2">
-            {scrapeTriggers.map((trigger) => (
+            {COMPANY_HEADCOUNT.map((size) => (
               <TogglePill
-                key={trigger}
-                label={trigger}
-                selected={icp.triggers.includes(trigger)}
-                onToggle={() => toggleItem("triggers", trigger)}
+                key={size}
+                label={size}
+                selected={icp.companySizes.includes(size)}
+                onToggle={() => toggleItem("companySizes", size)}
               />
             ))}
           </div>
-        )}
-        <PillGroupEditable
-          label=""
-          pills={icp.triggers.filter((t) => !scrapeTriggers.includes(t))}
-          onRemove={(v) =>
-            setIcp((prev) => ({
-              ...prev,
-              triggers: prev.triggers.filter((t) => t !== v),
-            }))
-          }
-          onAdd={(v) =>
-            setIcp((prev) => ({
-              ...prev,
-              triggers: prev.triggers.includes(v)
-                ? prev.triggers
-                : [...prev.triggers, v],
-            }))
-          }
-        />
-      </div>
-
-      {/* ─── TOGGLES: Investors & Advisors ─── */}
-      <div className="card-elevated p-6 space-y-4">
-        {/* Investors toggle */}
-        <div className="flex items-center justify-between p-3 rounded-xl hover:bg-warm-50 transition-colors min-h-[44px]">
-          <span className="text-sm font-semibold text-foreground">
-            Looking for Investors?
-          </span>
-          <button
-            onClick={() =>
-              setIcp((prev) => ({
-                ...prev,
-                lookingForInvestors: !prev.lookingForInvestors,
-              }))
-            }
-            className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-accent" : "bg-warm-300"}`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm ${icp.lookingForInvestors ? "translate-x-5" : "translate-x-0"}`}
-            />
-          </button>
         </div>
 
-        {icp.lookingForInvestors && (
-          <div className="ml-4 space-y-4 border-l-2 border-accent/20 pl-5 animate-fade-in">
-            <PillGroupEditable
-              label="Fund Types"
-              pills={icp.investorFundTypes}
-              onRemove={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorFundTypes: prev.investorFundTypes.filter(
-                    (x) => x !== v
-                  ),
-                }))
-              }
-              onAdd={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorFundTypes: prev.investorFundTypes.includes(v)
-                    ? prev.investorFundTypes
-                    : [...prev.investorFundTypes, v],
-                }))
-              }
-            />
-            <PillGroupEditable
-              label="Investment Stage"
-              pills={icp.investorStages}
-              onRemove={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorStages: prev.investorStages.filter((x) => x !== v),
-                }))
-              }
-              onAdd={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorStages: prev.investorStages.includes(v)
-                    ? prev.investorStages
-                    : [...prev.investorStages, v],
-                }))
-              }
-            />
-            <PillGroupEditable
-              label="Sector Focus"
-              pills={icp.investorSectors}
-              onRemove={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorSectors: prev.investorSectors.filter(
-                    (x) => x !== v
-                  ),
-                }))
-              }
-              onAdd={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  investorSectors: prev.investorSectors.includes(v)
-                    ? prev.investorSectors
-                    : [...prev.investorSectors, v],
-                }))
-              }
-            />
+        {/* ─── REVENUE RANGE ─── */}
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Revenue Range
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {REVENUE_RANGES.map((rev) => (
+              <TogglePill
+                key={rev}
+                label={rev}
+                selected={icp.revenueRanges.includes(rev)}
+                onToggle={() => toggleItem("revenueRanges", rev)}
+              />
+            ))}
           </div>
-        )}
-
-        {/* Advisors toggle */}
-        <div className="flex items-center justify-between p-3 rounded-xl hover:bg-warm-50 transition-colors min-h-[44px]">
-          <span className="text-sm font-semibold text-foreground">
-            Looking for Advisors?
-          </span>
-          <button
-            onClick={() =>
-              setIcp((prev) => ({
-                ...prev,
-                lookingForAdvisors: !prev.lookingForAdvisors,
-              }))
-            }
-            className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForAdvisors ? "bg-accent" : "bg-warm-300"}`}
-          >
-            <span
-              className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm ${icp.lookingForAdvisors ? "translate-x-5" : "translate-x-0"}`}
-            />
-          </button>
         </div>
 
-        {icp.lookingForAdvisors && (
-          <div className="ml-4 space-y-4 border-l-2 border-accent/20 pl-5 animate-fade-in">
-            <PillGroupEditable
-              label="Domain Expertise"
-              pills={icp.advisorExpertise}
-              onRemove={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  advisorExpertise: prev.advisorExpertise.filter(
-                    (x) => x !== v
-                  ),
-                }))
-              }
-              onAdd={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  advisorExpertise: prev.advisorExpertise.includes(v)
-                    ? prev.advisorExpertise
-                    : [...prev.advisorExpertise, v],
-                }))
-              }
-            />
-            <PillGroupEditable
-              label="Seniority Preference"
-              pills={icp.advisorSeniority}
-              onRemove={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  advisorSeniority: prev.advisorSeniority.filter(
-                    (x) => x !== v
-                  ),
-                }))
-              }
-              onAdd={(v) =>
-                setIcp((prev) => ({
-                  ...prev,
-                  advisorSeniority: prev.advisorSeniority.includes(v)
-                    ? prev.advisorSeniority
-                    : [...prev.advisorSeniority, v],
-                }))
-              }
-            />
+        {/* ─── FUNDING STAGE ─── */}
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Funding Stage
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {FUNDING_STAGES.map((stage) => (
+              <TogglePill
+                key={stage}
+                label={stage}
+                selected={icp.fundingStages.includes(stage)}
+                onToggle={() => toggleItem("fundingStages", stage)}
+              />
+            ))}
           </div>
-        )}
+        </div>
+
+        {/* ─── GEOGRAPHY ─── */}
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Geography
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {GEOGRAPHIES.map((geo) => (
+              <TogglePill
+                key={geo}
+                label={geo}
+                selected={icp.geographies.includes(geo)}
+                onToggle={() => toggleItem("geographies", geo)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* ─── TARGET TITLES ─── */}
+        <div className="space-y-3">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            Target Titles / Roles
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {DEFAULT_TITLES.map((title) => (
+              <TogglePill
+                key={title}
+                label={title}
+                selected={icp.titles.includes(title)}
+                onToggle={() => toggleItem("titles", title)}
+              />
+            ))}
+          </div>
+          <PillGroupEditable
+            label=""
+            pills={icp.titles.filter((t) => !DEFAULT_TITLES.includes(t))}
+            onRemove={(v) =>
+              setIcp((prev) => ({
+                ...prev,
+                titles: prev.titles.filter((t) => t !== v),
+              }))
+            }
+            onAdd={(v) =>
+              setIcp((prev) => ({
+                ...prev,
+                titles: prev.titles.includes(v)
+                  ? prev.titles
+                  : [...prev.titles, v],
+              }))
+            }
+          />
+        </div>
+
+        {/* ─── HIGH-INTENT TRIGGERS ─── */}
+        <div className="space-y-3">
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+              High-Intent Triggers
+            </h4>
+            <p className="text-xs text-warm-400 mt-1">
+              Signals that indicate a company is ready to buy from you
+            </p>
+          </div>
+          {scrapeTriggers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {scrapeTriggers.map((trigger) => (
+                <button
+                  key={trigger}
+                  onClick={() => toggleItem("triggers", trigger)}
+                  className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-medium transition-all duration-200 text-left ${
+                    icp.triggers.includes(trigger)
+                      ? "bg-[#1B4332] text-white"
+                      : "bg-white text-foreground border border-[#E0E0E0] hover:bg-warm-50"
+                  }`}
+                >
+                  {icp.triggers.includes(trigger) && <Check className="h-3 w-3 shrink-0" />}
+                  {trigger}
+                </button>
+              ))}
+            </div>
+          )}
+          <PillGroupEditable
+            label=""
+            pills={icp.triggers.filter((t) => !scrapeTriggers.includes(t))}
+            onRemove={(v) =>
+              setIcp((prev) => ({
+                ...prev,
+                triggers: prev.triggers.filter((t) => t !== v),
+              }))
+            }
+            onAdd={(v) =>
+              setIcp((prev) => ({
+                ...prev,
+                triggers: prev.triggers.includes(v)
+                  ? prev.triggers
+                  : [...prev.triggers, v],
+              }))
+            }
+          />
+        </div>
+
+        {/* ─── INVESTOR TOGGLE ─── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between py-3 px-1">
+            <span className="text-sm font-semibold text-foreground">
+              Also highlight connections who are investors
+            </span>
+            <button
+              onClick={() =>
+                setIcp((prev) => ({
+                  ...prev,
+                  lookingForInvestors: !prev.lookingForInvestors,
+                }))
+              }
+              className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-[#1B4332]" : "bg-warm-300"}`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm ${icp.lookingForInvestors ? "translate-x-5" : "translate-x-0"}`}
+              />
+            </button>
+          </div>
+
+          {icp.lookingForInvestors && (
+            <div className="ml-4 space-y-4 border-l-2 border-[#1B4332]/20 pl-5 animate-fade-in">
+              <PillGroupEditable
+                label="Fund Types"
+                pills={icp.investorFundTypes}
+                onRemove={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorFundTypes: prev.investorFundTypes.filter(
+                      (x) => x !== v
+                    ),
+                  }))
+                }
+                onAdd={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorFundTypes: prev.investorFundTypes.includes(v)
+                      ? prev.investorFundTypes
+                      : [...prev.investorFundTypes, v],
+                  }))
+                }
+              />
+              <PillGroupEditable
+                label="Investment Stage"
+                pills={icp.investorStages}
+                onRemove={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorStages: prev.investorStages.filter((x) => x !== v),
+                  }))
+                }
+                onAdd={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorStages: prev.investorStages.includes(v)
+                      ? prev.investorStages
+                      : [...prev.investorStages, v],
+                  }))
+                }
+              />
+              <PillGroupEditable
+                label="Sector Focus"
+                pills={icp.investorSectors}
+                onRemove={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorSectors: prev.investorSectors.filter(
+                      (x) => x !== v
+                    ),
+                  }))
+                }
+                onAdd={(v) =>
+                  setIcp((prev) => ({
+                    ...prev,
+                    investorSectors: prev.investorSectors.includes(v)
+                      ? prev.investorSectors
+                      : [...prev.investorSectors, v],
+                  }))
+                }
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (
-        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
+        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in mt-10">
           {error}
         </div>
       )}
 
       {/* ─── Action buttons ─── */}
-      <div className="space-y-3">
+      <div className="mt-12 space-y-4">
         <Button
           onClick={confirmIcp}
           size="lg"
           loading={confirming}
-          className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
+          className="w-full sm:w-auto sm:min-w-[280px] sm:mx-auto sm:flex h-12 rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all shadow-sm"
         >
-          <Sparkles className="h-4 w-4" />
-          Yes, this looks right &mdash; find my matches
+          Find my matches
+          <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
         <button
           onClick={() => setShowChatModal(true)}
-          className="w-full text-center text-sm font-medium text-accent hover:text-accent/80 transition-colors py-2"
+          className="w-full text-center text-sm font-medium text-warm-500 hover:text-foreground transition-colors py-2"
         >
           <span className="inline-flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
@@ -950,31 +904,30 @@ export default function IcpStep({
         </button>
       </div>
 
-      <Button
-        onClick={onBack}
-        variant="ghost"
-        size="lg"
-        className="h-[52px] rounded-2xl min-h-[44px]"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back
-      </Button>
+      <div className="mt-6">
+        <Button
+          onClick={onBack}
+          variant="ghost"
+          size="lg"
+          className="h-12 rounded-xl"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </div>
 
       {/* ─── Chat Modal ─── */}
       {showChatModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setShowChatModal(false)}
           />
 
-          {/* Modal */}
           <div className="relative w-full h-full md:h-auto md:max-h-[85vh] md:max-w-[600px] md:mx-4 md:rounded-2xl bg-surface shadow-2xl flex flex-col overflow-hidden">
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-accent" />
+                <Sparkles className="h-4 w-4 text-[#1B4332]" />
                 <h2 className="text-sm font-bold text-foreground">
                   Refine your ICP
                 </h2>
@@ -987,7 +940,6 @@ export default function IcpStep({
               </button>
             </div>
 
-            {/* ICP Summary */}
             <div className="border-b border-border p-4 max-h-[200px] overflow-y-auto shrink-0 bg-warm-50/50">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-warm-400 mb-2">
                 Current ICP
@@ -995,7 +947,6 @@ export default function IcpStep({
               <IcpSummaryReadOnly icp={icp} />
             </div>
 
-            {/* Chat messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
               {messages.map((msg, i) => (
                 <div
@@ -1005,8 +956,8 @@ export default function IcpStep({
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-accent text-white shadow-sm shadow-accent/20"
-                        : "bg-warm-100 text-foreground shadow-sm"
+                        ? "bg-[#1B4332] text-white"
+                        : "bg-warm-100 text-foreground"
                     }`}
                   >
                     {msg.content}
@@ -1015,7 +966,7 @@ export default function IcpStep({
               ))}
               {chatLoading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl bg-warm-100 px-5 py-3 shadow-sm">
+                  <div className="rounded-2xl bg-warm-100 px-5 py-3">
                     <div className="flex gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce" />
                       <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.1s]" />
@@ -1027,14 +978,13 @@ export default function IcpStep({
               <div ref={chatEndRef} />
             </div>
 
-            {/* Suggestion chips */}
             {showSuggestionChips && messages.length <= 1 && (
               <div className="px-4 pb-2 flex flex-wrap gap-2 shrink-0">
                 {CHAT_SUGGESTION_CHIPS.map((chip) => (
                   <button
                     key={chip}
                     onClick={() => sendChatMessage(chip)}
-                    className="text-xs px-3.5 py-2 rounded-full bg-accent/10 text-accent hover:bg-accent/20 transition-all font-medium"
+                    className="text-xs px-3.5 py-2 rounded-full bg-[#1B4332]/10 text-[#1B4332] hover:bg-[#1B4332]/20 transition-all font-medium"
                   >
                     {chip}
                   </button>
@@ -1042,7 +992,6 @@ export default function IcpStep({
               </div>
             )}
 
-            {/* Chat input */}
             <div className="border-t border-border p-4 bg-warm-50/50 shrink-0">
               <div className="flex gap-3">
                 <Input
@@ -1055,25 +1004,24 @@ export default function IcpStep({
                     }
                   }}
                   placeholder="Tell us what to change..."
-                  className="h-[44px] rounded-xl border-2 border-border input-ring"
+                  className="h-[44px] rounded-xl border border-[#E0E0E0]"
                 />
                 <Button
                   onClick={() => sendChatMessage()}
                   size="lg"
                   disabled={!chatInput.trim() || chatLoading}
-                  className="h-[44px] w-[44px] rounded-xl bg-accent text-white hover:bg-accent/90 shrink-0 p-0"
+                  className="h-[44px] w-[44px] rounded-xl bg-[#1B4332] text-white hover:bg-[#1B4332]/90 shrink-0 p-0"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            {/* Modal footer */}
             <div className="border-t border-border p-4 shrink-0">
               <Button
                 onClick={() => setShowChatModal(false)}
                 size="lg"
-                className="w-full h-[44px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
+                className="w-full h-[44px] rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all"
               >
                 Apply changes
               </Button>
