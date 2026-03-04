@@ -1,0 +1,84 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { createClient } from "@/lib/supabase/client";
+
+interface ProcessingStatus {
+  status: string;
+  progress: number;
+  total: number;
+  classified: number;
+  enriched: number;
+}
+
+export default function ProcessingBanner({ userId }: { userId: string }) {
+  const [status, setStatus] = useState<ProcessingStatus | null>(null);
+  const supabase = createClient();
+
+  const fetchStatus = useCallback(async () => {
+    const { data } = await supabase
+      .from("users")
+      .select(
+        "processing_status, processing_progress, total_connections, enriched_connections"
+      )
+      .eq("id", userId)
+      .single();
+
+    if (data) {
+      const { data: classifiedCount } = await supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("classification_status", "classified");
+
+      setStatus({
+        status: data.processing_status,
+        progress: data.processing_progress,
+        total: data.total_connections,
+        classified: classifiedCount?.length ?? 0,
+        enriched: data.enriched_connections,
+      });
+    }
+  }, [supabase, userId]);
+
+  useEffect(() => {
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 3000);
+    return () => clearInterval(interval);
+  }, [fetchStatus]);
+
+  if (!status || status.status === "idle" || status.status === "completed") {
+    return null;
+  }
+
+  const statusLabels: Record<string, string> = {
+    classifying: "Classifying your connections...",
+    enriching: "Enriching profiles with deep data...",
+    matching: "Finding your best matches...",
+    failed: "Processing encountered an error. Please try again.",
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border p-4 mb-6">
+      <div className="flex items-center gap-3">
+        {status.status !== "failed" && (
+          <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        )}
+        <div className="flex-1">
+          <p className="text-sm font-medium">
+            {statusLabels[status.status] || "Processing..."}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {status.progress}% complete
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-primary rounded-full transition-all duration-500"
+          style={{ width: `${status.progress}%` }}
+        />
+      </div>
+    </div>
+  );
+}
