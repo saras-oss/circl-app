@@ -129,9 +129,9 @@ export default function NetworkClient({ userId }: { userId: string }) {
   }
 
   function getScoreColor(score: number) {
-    if (score >= 85) return "bg-[#1B4332] text-white";
-    if (score >= 70) return "bg-[#2D6A4F] text-white";
-    if (score >= 50) return "bg-amber-100 text-amber-800 border border-amber-200/60";
+    if (score >= 9) return "bg-[#1B4332] text-white";
+    if (score >= 7) return "bg-[#2D6A4F] text-white";
+    if (score >= 5) return "bg-amber-100 text-amber-800 border border-amber-200/60";
     return "bg-warm-100 text-warm-500 border border-warm-200/60";
   }
 

@@ -22,6 +22,8 @@ export interface PipelineState {
 
 const DELAY_MS = 1000;
 const MAX_CONSECUTIVE_ERRORS = 3;
+const ICP_POLL_INTERVAL = 5000;
+const ICP_MAX_RETRIES = 12; // 60 seconds max wait
 
 function wait(ms: number) {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -88,13 +90,21 @@ export function usePipelineOrchestrator(
             body: JSON.stringify({ userId, offset: 0 }),
           });
           if (!res.ok) {
-            const errData = await res.json().catch(() => ({ error: "Unknown error" }));
-            throw new Error(errData.error || `Classify failed: ${res.status}`);
+            const errData = await res
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            throw new Error(
+              errData.error || `Classify failed: ${res.status}`
+            );
           }
           const result = await res.json();
           consecutiveErrors = 0;
           const status = await fetchStatus();
-          setState((prev) => ({ ...prev, classified: status.classified, total: status.total }));
+          setState((prev) => ({
+            ...prev,
+            classified: status.classified,
+            total: status.total,
+          }));
           if (!result.hasMore) break;
           await wait(DELAY_MS);
         } catch (err) {
@@ -116,8 +126,12 @@ export function usePipelineOrchestrator(
             body: JSON.stringify({ userId }),
           });
           if (!res.ok) {
-            const errData = await res.json().catch(() => ({ error: "Unknown error" }));
-            throw new Error(errData.error || `Enrich failed: ${res.status}`);
+            const errData = await res
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            throw new Error(
+              errData.error || `Enrich failed: ${res.status}`
+            );
           }
           const result = await res.json();
           consecutiveErrors = 0;
@@ -144,10 +158,30 @@ export function usePipelineOrchestrator(
             body: JSON.stringify({ userId }),
           });
           if (!res.ok) {
-            const errData = await res.json().catch(() => ({ error: "Unknown error" }));
-            throw new Error(errData.error || `Score failed: ${res.status}`);
+            const errData = await res
+              .json()
+              .catch(() => ({ error: "Unknown error" }));
+            throw new Error(
+              errData.error || `Score failed: ${res.status}`
+            );
           }
           const result = await res.json();
+
+          // Handle ICP not ready — wait and retry
+          if (result.skipReason === "icp_empty") {
+            console.log("ICP not ready yet, waiting...");
+            await wait(ICP_POLL_INTERVAL);
+            consecutiveErrors++;
+            if (consecutiveErrors >= ICP_MAX_RETRIES) {
+              setState((prev) => ({
+                ...prev,
+                error: "Please confirm your ICP before scoring can begin.",
+              }));
+              return;
+            }
+            continue;
+          }
+
           consecutiveErrors = 0;
           const status = await fetchStatus();
           setState((prev) => ({ ...prev, scored: status.scored || 0 }));
@@ -175,11 +209,19 @@ export function usePipelineOrchestrator(
         }));
 
         if (status.status === "completed") {
-          setState((prev) => ({ ...prev, step: "completed", isRunning: false }));
+          setState((prev) => ({
+            ...prev,
+            step: "completed",
+            isRunning: false,
+          }));
           return;
         }
         if (status.total === 0) {
-          setState((prev) => ({ ...prev, step: "completed", isRunning: false }));
+          setState((prev) => ({
+            ...prev,
+            step: "completed",
+            isRunning: false,
+          }));
           return;
         }
 
@@ -207,7 +249,11 @@ export function usePipelineOrchestrator(
           body: JSON.stringify({ userId }),
         });
 
-        setState((prev) => ({ ...prev, step: "completed", isRunning: false }));
+        setState((prev) => ({
+          ...prev,
+          step: "completed",
+          isRunning: false,
+        }));
       } catch (err) {
         console.error("Pipeline orchestrator error:", err);
         setState((prev) => ({
@@ -220,7 +266,9 @@ export function usePipelineOrchestrator(
     }
 
     runPipeline();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, [userId, initialProcessingStatus, fetchStatus]);
 
   return { ...state, refresh };

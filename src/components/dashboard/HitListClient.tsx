@@ -13,8 +13,12 @@ import {
   Loader2,
   Sparkles,
   ArrowRight,
+  Lock,
+  CheckCircle,
+  Circle,
 } from "lucide-react";
 import Link from "next/link";
+import { LINKEDIN_INDUSTRIES } from "@/lib/data/linkedin-industries";
 
 interface HitListConnection {
   id: string;
@@ -60,16 +64,29 @@ interface EnrichedCompany {
   latest_funding_amount: number | null;
 }
 
-type SortOption = "score" | "seniority" | "company_size" | "connected_on" | "experience";
+type SortOption =
+  | "score"
+  | "seniority"
+  | "company_size"
+  | "connected_on"
+  | "experience";
 type MatchFilter = "all" | "customer" | "investor";
 type SeniorityFilter = "all" | "C-suite" | "VP/Director" | "Manager";
 
 const SENIORITY_ORDER: Record<string, number> = {
   "C-suite": 0,
   "VP/Director": 1,
-  "Manager": 2,
-  "IC": 3,
+  Manager: 2,
+  IC: 3,
 };
+
+interface PipelineStatus {
+  status: string;
+  total: number;
+  classified: number;
+  enriched: number;
+  scored: number;
+}
 
 export default function HitListClient({
   userId,
@@ -80,24 +97,62 @@ export default function HitListClient({
   processingStatus: string;
 }) {
   const [connections, setConnections] = useState<HitListConnection[]>([]);
-  const [profiles, setProfiles] = useState<Map<string, EnrichedProfile>>(new Map());
-  const [companies, setCompanies] = useState<Map<string, EnrichedCompany>>(new Map());
+  const [profiles, setProfiles] = useState<Map<string, EnrichedProfile>>(
+    new Map()
+  );
+  const [companies, setCompanies] = useState<Map<string, EnrichedCompany>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>("score");
   const [matchFilter, setMatchFilter] = useState<MatchFilter>("all");
-  const [seniorityFilter, setSeniorityFilter] = useState<SeniorityFilter>("all");
+  const [seniorityFilter, setSeniorityFilter] =
+    useState<SeniorityFilter>("all");
+  const [industryFilter, setIndustryFilter] = useState<string>("all");
+  const [industrySearch, setIndustrySearch] = useState("");
+  const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
+  const [pipelineStatus, setPipelineStatus] =
+    useState<PipelineStatus | null>(null);
+  const [pipelineLocked, setPipelineLocked] = useState(
+    processingStatus !== "completed"
+  );
   const supabase = createClient();
+
+  // Poll pipeline status when locked
+  useEffect(() => {
+    if (!pipelineLocked) return;
+
+    async function checkPipeline() {
+      try {
+        const res = await fetch(`/api/pipeline/status?userId=${userId}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as PipelineStatus;
+        setPipelineStatus(data);
+        if (data.status === "completed") {
+          setPipelineLocked(false);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    checkPipeline();
+    const interval = setInterval(checkPipeline, 5000);
+    return () => clearInterval(interval);
+  }, [pipelineLocked, userId]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
 
-    // Fetch tier1+tier2 enriched connections
+    // Fetch only score >= 7 for Hit List (1-10 scale)
     const { data: conns } = await supabase
       .from("user_connections")
-      .select("id, first_name, last_name, company, position, linkedin_url, seniority_tier, function_category, connected_on, match_score, match_type, match_reasons, suggested_approach, enrichment_status")
+      .select(
+        "id, first_name, last_name, company, position, linkedin_url, seniority_tier, function_category, connected_on, match_score, match_type, match_reasons, suggested_approach, enrichment_status"
+      )
       .eq("user_id", userId)
       .in("enrichment_status", ["enriched", "cached"])
-      .in("enrichment_tier", ["tier1", "tier2"])
+      .gte("match_score", 7)
       .order("match_score", { ascending: false, nullsFirst: false });
 
     const connList = (conns || []) as HitListConnection[];
@@ -108,35 +163,81 @@ export default function HitListClient({
     if (linkedinUrls.length > 0) {
       const { data: profs } = await supabase
         .from("enriched_profiles")
-        .select("linkedin_url, full_name, headline, current_title, current_company, current_company_linkedin, location_str, country_full_name, total_experience_years, companies_worked_at, profile_pic_url")
+        .select(
+          "linkedin_url, full_name, headline, current_title, current_company, current_company_linkedin, location_str, country_full_name, total_experience_years, companies_worked_at, profile_pic_url"
+        )
         .in("linkedin_url", linkedinUrls);
 
-      const profileMap = new Map((profs || []).map((p) => [p.linkedin_url, p as EnrichedProfile]));
+      const profileMap = new Map(
+        (profs || []).map((p) => [p.linkedin_url, p as EnrichedProfile])
+      );
       setProfiles(profileMap);
 
       // Fetch enriched companies
-      const companyUrls = (profs || []).map((p) => p.current_company_linkedin).filter(Boolean) as string[];
+      const companyUrls = (profs || [])
+        .map((p) => p.current_company_linkedin)
+        .filter(Boolean) as string[];
       if (companyUrls.length > 0) {
         const { data: comps } = await supabase
           .from("enriched_companies")
-          .select("linkedin_url, name, industry, hq_city, hq_country, company_size_min, company_size_max, company_type, latest_funding_type, latest_funding_amount")
+          .select(
+            "linkedin_url, name, industry, hq_city, hq_country, company_size_min, company_size_max, company_type, latest_funding_type, latest_funding_amount"
+          )
           .in("linkedin_url", companyUrls);
 
-        setCompanies(new Map((comps || []).map((c) => [c.linkedin_url, c as EnrichedCompany])));
+        setCompanies(
+          new Map(
+            (comps || []).map((c) => [c.linkedin_url, c as EnrichedCompany])
+          )
+        );
       }
     }
 
     setLoading(false);
   }, [supabase, userId]);
 
+  // Fetch data when unlocked
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!pipelineLocked) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+  }, [pipelineLocked, fetchData]);
+
+  // Build unique industry list from enriched companies
+  const availableIndustries = Array.from(
+    new Set(
+      connections
+        .map((c) => {
+          const p = profiles.get(c.linkedin_url);
+          const co = p?.current_company_linkedin
+            ? companies.get(p.current_company_linkedin)
+            : null;
+          return co?.industry;
+        })
+        .filter(Boolean) as string[]
+    )
+  ).sort();
+
+  const filteredIndustryOptions = industrySearch.trim()
+    ? LINKEDIN_INDUSTRIES.filter((ind) =>
+        ind.toLowerCase().includes(industrySearch.toLowerCase())
+      )
+    : availableIndustries;
 
   // Filter and sort
   const filtered = connections.filter((c) => {
     if (matchFilter !== "all" && c.match_type !== matchFilter) return false;
-    if (seniorityFilter !== "all" && c.seniority_tier !== seniorityFilter) return false;
+    if (seniorityFilter !== "all" && c.seniority_tier !== seniorityFilter)
+      return false;
+    if (industryFilter !== "all") {
+      const p = profiles.get(c.linkedin_url);
+      const co = p?.current_company_linkedin
+        ? companies.get(p.current_company_linkedin)
+        : null;
+      if (co?.industry !== industryFilter) return false;
+    }
     return true;
   });
 
@@ -145,19 +246,28 @@ export default function HitListClient({
       case "score":
         return (b.match_score || 0) - (a.match_score || 0);
       case "seniority":
-        return (SENIORITY_ORDER[a.seniority_tier || ""] ?? 99) - (SENIORITY_ORDER[b.seniority_tier || ""] ?? 99);
+        return (
+          (SENIORITY_ORDER[a.seniority_tier || ""] ?? 99) -
+          (SENIORITY_ORDER[b.seniority_tier || ""] ?? 99)
+        );
       case "company_size": {
         const pa = profiles.get(a.linkedin_url);
         const pb = profiles.get(b.linkedin_url);
-        const ca = pa?.current_company_linkedin ? companies.get(pa.current_company_linkedin) : null;
-        const cb = pb?.current_company_linkedin ? companies.get(pb.current_company_linkedin) : null;
+        const ca = pa?.current_company_linkedin
+          ? companies.get(pa.current_company_linkedin)
+          : null;
+        const cb = pb?.current_company_linkedin
+          ? companies.get(pb.current_company_linkedin)
+          : null;
         return (cb?.company_size_min || 0) - (ca?.company_size_min || 0);
       }
       case "connected_on":
         return (b.connected_on || "").localeCompare(a.connected_on || "");
       case "experience": {
-        const ea = profiles.get(a.linkedin_url)?.total_experience_years || 0;
-        const eb = profiles.get(b.linkedin_url)?.total_experience_years || 0;
+        const ea =
+          profiles.get(a.linkedin_url)?.total_experience_years || 0;
+        const eb =
+          profiles.get(b.linkedin_url)?.total_experience_years || 0;
         return eb - ea;
       }
       default:
@@ -167,19 +277,110 @@ export default function HitListClient({
 
   function getScoreColor(score: number | null) {
     if (!score) return "bg-warm-100 text-warm-500";
-    if (score >= 85) return "bg-[#1B4332] text-white";
-    if (score >= 70) return "bg-[#2D6A4F] text-white";
-    if (score >= 50) return "bg-amber-500 text-white";
+    if (score >= 9) return "bg-[#1B4332] text-white";
+    if (score >= 7) return "bg-[#2D6A4F] text-white";
+    if (score >= 5) return "bg-amber-500 text-white";
     return "bg-warm-200 text-warm-600";
+  }
+
+  function getScoreLabel(score: number | null) {
+    if (!score) return "";
+    if (score >= 9) return "Excellent";
+    if (score >= 7) return "Strong";
+    if (score >= 5) return "Moderate";
+    return "Weak";
   }
 
   function getSeniorityColor(tier: string | null) {
     switch (tier) {
-      case "C-suite": return "bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800 border border-amber-200/60";
-      case "VP/Director": return "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border border-blue-200/60";
-      case "Manager": return "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 border border-emerald-200/60";
-      default: return "bg-warm-100 text-warm-600 border border-warm-200/60";
+      case "C-suite":
+        return "bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800 border border-amber-200/60";
+      case "VP/Director":
+        return "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border border-blue-200/60";
+      case "Manager":
+        return "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 border border-emerald-200/60";
+      default:
+        return "bg-warm-100 text-warm-600 border border-warm-200/60";
     }
+  }
+
+  // Pipeline lock screen
+  if (pipelineLocked) {
+    const ps = pipelineStatus;
+    const steps = [
+      {
+        label: "Classified connections",
+        done: ps ? ps.classified >= ps.total && ps.total > 0 : false,
+        active: ps ? ps.classified < ps.total && ps.total > 0 : false,
+        detail: ps && ps.total > 0 ? `${ps.classified}/${ps.total}` : "",
+      },
+      {
+        label: "Enriching profiles",
+        done: ps
+          ? ps.classified >= ps.total && ps.enriched > 0 && ps.status !== "classifying"
+          : false,
+        active: ps ? ps.status === "enriching" || (ps.classified >= ps.total && ps.enriched > 0 && ps.scored === 0) : false,
+        detail: ps && ps.enriched > 0 ? `${ps.enriched} enriched` : "",
+      },
+      {
+        label: "Scoring matches",
+        done: ps ? ps.status === "completed" : false,
+        active: ps ? ps.scored > 0 && ps.status !== "completed" : false,
+        detail: ps && ps.scored > 0 ? `${ps.scored} scored` : "",
+      },
+    ];
+
+    return (
+      <div className="animate-fade-in">
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
+        </div>
+        <div className="card-elevated p-10 text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <Lock className="w-7 h-7 text-accent" strokeWidth={1.5} />
+          </div>
+          <h3 className="text-lg font-bold tracking-tight">
+            Building your hit list...
+          </h3>
+          <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
+            We&apos;re analyzing your connections against your ICP. Your scored
+            matches will appear here when ready.
+          </p>
+
+          <div className="mt-6 space-y-3 text-left max-w-xs mx-auto">
+            {steps.map((step) => (
+              <div key={step.label} className="flex items-center gap-3">
+                {step.done ? (
+                  <CheckCircle className="w-5 h-5 text-accent shrink-0" />
+                ) : step.active ? (
+                  <Loader2 className="w-5 h-5 text-accent shrink-0 animate-spin" />
+                ) : (
+                  <Circle className="w-5 h-5 text-warm-300 shrink-0" />
+                )}
+                <span
+                  className={`text-sm font-medium flex-1 ${step.done || step.active ? "text-foreground" : "text-warm-400"}`}
+                >
+                  {step.label}
+                </span>
+                {step.detail && (
+                  <span className="text-xs font-semibold text-accent tabular-nums">
+                    {step.detail}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all"
+          >
+            View progress on Dashboard
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
@@ -187,7 +388,9 @@ export default function HitListClient({
       <div className="animate-fade-in">
         <div className="mb-8">
           <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
-          <p className="text-sm text-warm-400 mt-1">Loading your matches...</p>
+          <p className="text-sm text-warm-400 mt-1">
+            Loading your matches...
+          </p>
         </div>
         <div className="space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -210,17 +413,17 @@ export default function HitListClient({
         </div>
         <div className="card-elevated p-10 text-center">
           <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <Sparkles className="w-7 h-7 text-accent" strokeWidth={1.5} />
+            <Sparkles
+              className="w-7 h-7 text-accent"
+              strokeWidth={1.5}
+            />
           </div>
           <h3 className="text-lg font-bold tracking-tight">
-            {processingStatus === "completed"
-              ? "No enriched connections yet"
-              : "Your hit list is being prepared"}
+            No strong matches found yet
           </h3>
           <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
-            {processingStatus === "completed"
-              ? "Your connections need to be enriched before scoring. Check your dashboard for pipeline status."
-              : "Matches will appear here once the pipeline finishes classifying, enriching, and scoring."}
+            Try broadening your ICP or uploading more connections. Matches
+            scoring 7+ out of 10 appear here.
           </p>
           <Link
             href="/dashboard"
@@ -240,13 +443,16 @@ export default function HitListClient({
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
         <p className="text-sm text-warm-400 mt-1">
-          {sorted.length} high-value connections from your network
+          {sorted.length} high-value match
+          {sorted.length !== 1 ? "es" : ""} from your network
         </p>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 mr-1">Type:</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 mr-1">
+          Type:
+        </span>
         {(["all", "customer", "investor"] as const).map((f) => (
           <button
             key={f}
@@ -257,29 +463,98 @@ export default function HitListClient({
                 : "bg-surface text-warm-500 border-border hover:border-border-strong"
             }`}
           >
-            {f === "all" ? "All" : f === "customer" ? "Customers" : "Investors"}
+            {f === "all"
+              ? "All"
+              : f === "customer"
+                ? "Customers"
+                : "Investors"}
           </button>
         ))}
 
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 ml-3 mr-1">Seniority:</span>
-        {(["all", "C-suite", "VP/Director", "Manager"] as const).map((f) => (
+        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 ml-3 mr-1">
+          Seniority:
+        </span>
+        {(["all", "C-suite", "VP/Director", "Manager"] as const).map(
+          (f) => (
+            <button
+              key={f}
+              onClick={() => setSeniorityFilter(f)}
+              className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
+                seniorityFilter === f
+                  ? "bg-[#1B4332] text-white border-[#1B4332]"
+                  : "bg-surface text-warm-500 border-border hover:border-border-strong"
+              }`}
+            >
+              {f === "all" ? "All" : f}
+            </button>
+          )
+        )}
+      </div>
+
+      {/* Industry filter */}
+      <div className="flex flex-wrap items-center gap-2 mb-4 relative">
+        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 mr-1">
+          Industry:
+        </span>
+        <div className="relative">
           <button
-            key={f}
-            onClick={() => setSeniorityFilter(f)}
+            onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
             className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
-              seniorityFilter === f
+              industryFilter !== "all"
                 ? "bg-[#1B4332] text-white border-[#1B4332]"
                 : "bg-surface text-warm-500 border-border hover:border-border-strong"
             }`}
           >
-            {f === "all" ? "All" : f}
+            {industryFilter === "all" ? "All Industries" : industryFilter}
           </button>
-        ))}
+          {showIndustryDropdown && (
+            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-y-auto bg-surface border border-border rounded-xl shadow-lg z-50">
+              <div className="sticky top-0 bg-surface p-2 border-b border-border">
+                <input
+                  value={industrySearch}
+                  onChange={(e) => setIndustrySearch(e.target.value)}
+                  placeholder="Search industries..."
+                  className="w-full h-8 px-3 rounded-lg border border-border bg-warm-50 text-xs focus:outline-none focus:border-[#1B4332]"
+                  autoFocus
+                />
+              </div>
+              <button
+                onClick={() => {
+                  setIndustryFilter("all");
+                  setShowIndustryDropdown(false);
+                  setIndustrySearch("");
+                }}
+                className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-warm-50 transition-colors ${
+                  industryFilter === "all" ? "text-accent font-semibold" : "text-foreground"
+                }`}
+              >
+                All Industries
+              </button>
+              {filteredIndustryOptions.map((ind) => (
+                <button
+                  key={ind}
+                  onClick={() => {
+                    setIndustryFilter(ind);
+                    setShowIndustryDropdown(false);
+                    setIndustrySearch("");
+                  }}
+                  className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-warm-50 transition-colors ${
+                    industryFilter === ind ? "text-accent font-semibold" : "text-foreground"
+                  }`}
+                >
+                  {ind}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Sort */}
       <div className="flex items-center gap-2 mb-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">Sort:</span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+          Sort:
+        </span>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -300,10 +575,14 @@ export default function HitListClient({
           const company = profile?.current_company_linkedin
             ? companies.get(profile.current_company_linkedin)
             : null;
-          const initials = `${(conn.first_name || "?")[0]}${(conn.last_name || "?")[0]}`.toUpperCase();
+          const initials =
+            `${(conn.first_name || "?")[0]}${(conn.last_name || "?")[0]}`.toUpperCase();
 
           return (
-            <div key={conn.id} className="card-elevated p-6 hover:shadow-md transition-shadow">
+            <div
+              key={conn.id}
+              className="card-elevated p-6 hover:shadow-md transition-shadow"
+            >
               {/* Top section: Avatar + Name + Score */}
               <div className="flex items-start gap-4 mb-4">
                 {/* Avatar */}
@@ -315,7 +594,9 @@ export default function HitListClient({
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-2xl bg-[#1B4332] flex items-center justify-center shrink-0">
-                    <span className="text-white font-bold text-sm">{initials}</span>
+                    <span className="text-white font-bold text-sm">
+                      {initials}
+                    </span>
                   </div>
                 )}
 
@@ -323,19 +604,28 @@ export default function HitListClient({
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h3 className="font-bold text-base text-foreground">
-                        {profile?.full_name || `${conn.first_name} ${conn.last_name}`}
+                        {profile?.full_name ||
+                          `${conn.first_name} ${conn.last_name}`}
                       </h3>
                       <p className="text-sm text-warm-500 mt-0.5">
                         {profile?.current_title || conn.position}
                         {(profile?.current_company || conn.company) && (
-                          <> at <span className="font-medium text-foreground">{profile?.current_company || conn.company}</span></>
+                          <>
+                            {" "}
+                            at{" "}
+                            <span className="font-medium text-foreground">
+                              {profile?.current_company || conn.company}
+                            </span>
+                          </>
                         )}
                       </p>
                       <div className="flex items-center gap-3 mt-1.5 text-xs text-warm-400">
-                        {(profile?.location_str || profile?.country_full_name) && (
+                        {(profile?.location_str ||
+                          profile?.country_full_name) && (
                           <span className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            {profile.location_str || profile.country_full_name}
+                            {profile.location_str ||
+                              profile.country_full_name}
                           </span>
                         )}
                         {profile?.total_experience_years && (
@@ -348,11 +638,17 @@ export default function HitListClient({
                     </div>
 
                     {/* Score badge */}
-                    <div className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${getScoreColor(conn.match_score)}`}>
+                    <div
+                      className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${getScoreColor(conn.match_score)}`}
+                    >
                       {conn.match_score != null ? (
                         <>
-                          <span className="text-lg font-bold leading-none">{conn.match_score}</span>
-                          <span className="text-[9px] font-semibold uppercase opacity-80">Score</span>
+                          <span className="text-lg font-bold leading-none">
+                            {conn.match_score}
+                          </span>
+                          <span className="text-[8px] font-semibold uppercase opacity-80">
+                            {getScoreLabel(conn.match_score)}
+                          </span>
                         </>
                       ) : (
                         <Loader2 className="w-5 h-5 animate-spin opacity-60" />
@@ -365,21 +661,27 @@ export default function HitListClient({
               {/* Badges */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {conn.match_type && (
-                  <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    conn.match_type === "customer"
-                      ? "bg-accent-light text-accent border border-accent/15"
-                      : "bg-purple-light text-purple border border-purple/15"
-                  }`}>
+                  <span
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      conn.match_type === "customer"
+                        ? "bg-accent-light text-accent border border-accent/15"
+                        : "bg-purple-light text-purple border border-purple/15"
+                    }`}
+                  >
                     {conn.match_type === "customer" ? (
                       <Users className="w-3 h-3" />
                     ) : (
                       <TrendingUp className="w-3 h-3" />
                     )}
-                    {conn.match_type === "customer" ? "Customer" : "Investor"}
+                    {conn.match_type === "customer"
+                      ? "Customer"
+                      : "Investor"}
                   </span>
                 )}
                 {conn.seniority_tier && (
-                  <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getSeniorityColor(conn.seniority_tier)}`}>
+                  <span
+                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${getSeniorityColor(conn.seniority_tier)}`}
+                  >
                     {conn.seniority_tier}
                   </span>
                 )}
@@ -390,22 +692,43 @@ export default function HitListClient({
                 <div className="bg-warm-50 rounded-xl p-3.5 mb-4">
                   <div className="flex items-center gap-2 mb-1">
                     <Building2 className="w-3.5 h-3.5 text-warm-400" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">Company</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                      Company
+                    </span>
                   </div>
                   <p className="text-sm font-medium text-foreground">
                     {company.name || conn.company}
-                    {company.industry && <span className="text-warm-500"> &middot; {company.industry}</span>}
-                    {company.hq_city && <span className="text-warm-500"> &middot; {company.hq_city}{company.hq_country ? `, ${company.hq_country}` : ""}</span>}
+                    {company.industry && (
+                      <span className="text-warm-500">
+                        {" "}
+                        &middot; {company.industry}
+                      </span>
+                    )}
+                    {company.hq_city && (
+                      <span className="text-warm-500">
+                        {" "}
+                        &middot; {company.hq_city}
+                        {company.hq_country
+                          ? `, ${company.hq_country}`
+                          : ""}
+                      </span>
+                    )}
                   </p>
                   <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-warm-500 mt-1">
                     {company.company_size_min && (
-                      <span>{company.company_size_min.toLocaleString()}+ employees</span>
+                      <span>
+                        {company.company_size_min.toLocaleString()}+ employees
+                      </span>
                     )}
-                    {company.company_type && <span>{company.company_type}</span>}
+                    {company.company_type && (
+                      <span>{company.company_type}</span>
+                    )}
                     {company.latest_funding_type && (
                       <span className="text-accent font-medium">
                         {company.latest_funding_type}
-                        {company.latest_funding_amount ? ` ($${(company.latest_funding_amount / 1_000_000).toFixed(0)}M)` : ""}
+                        {company.latest_funding_amount
+                          ? ` ($${(company.latest_funding_amount / 1_000_000).toFixed(0)}M)`
+                          : ""}
                       </span>
                     )}
                   </div>
@@ -417,12 +740,19 @@ export default function HitListClient({
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Star className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">Why this match</span>
+                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                      Why this match
+                    </span>
                   </div>
                   <ul className="space-y-1.5">
                     {conn.match_reasons.map((reason, i) => (
-                      <li key={i} className="text-[13px] text-warm-600 leading-relaxed flex gap-2">
-                        <span className="text-accent shrink-0 mt-1">&bull;</span>
+                      <li
+                        key={i}
+                        className="text-[13px] text-warm-600 leading-relaxed flex gap-2"
+                      >
+                        <span className="text-accent shrink-0 mt-1">
+                          &bull;
+                        </span>
                         {reason}
                       </li>
                     ))}

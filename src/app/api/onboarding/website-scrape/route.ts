@@ -27,11 +27,15 @@ const SKIP_PATTERNS = [
 ];
 
 const PRIORITY_CATEGORIES: Record<string, RegExp[]> = {
+  customers: [
+    /customer/i, /case.?stud/i, /success.?stor/i, /testimonial/i, /client/i,
+    /our-customers/i, /our-clients/i, /client-stories/i, /who-we-serve/i,
+    /portfolio/i, /our-work/i, /reviews/i, /industries-served/i,
+  ],
+  partners: [/partner/i, /integrat/i, /ecosystem/i],
   product: [/product/i, /solution/i, /feature/i, /platform/i, /service/i, /offering/i],
-  customers: [/customer/i, /case.?stud/i, /success.?stor/i, /testimonial/i, /client/i],
   about: [/about/i, /team/i, /leadership/i, /company/i, /who.?we/i, /our.?story/i],
   pricing: [/pricing/i, /plans/i, /packages/i],
-  partners: [/partner/i, /integrat/i, /ecosystem/i],
 };
 
 function categorizeLink(href: string): string | null {
@@ -93,7 +97,7 @@ function prioritizeLinks(links: string[]): string[] {
   }
 
   const prioritized: string[] = [];
-  const order = ["product", "customers", "about", "pricing", "partners"];
+  const order = ["customers", "partners", "product", "about", "pricing"];
   for (const cat of order) {
     prioritized.push(...categorized[cat]);
   }
@@ -222,12 +226,15 @@ export async function POST(request: Request) {
         // Log to prompt_runs
         await supabaseAdmin.from("prompt_runs").insert({
           user_id: userId,
-          prompt_type: promptType,
+          prompt_type: "website_extraction",
           model: "claude-haiku-4-5-20251001",
+          system_prompt: `Type: ${promptType}`,
+          user_prompt: prompt.slice(0, 10000),
+          response: text,
+          structured_output: parsed,
           input_tokens: response.usage?.input_tokens || 0,
           output_tokens: response.usage?.output_tokens || 0,
           duration_ms: duration,
-          status: parsed ? "completed" : "failed",
         });
 
         return parsed;
@@ -275,13 +282,22 @@ Include at minimum 3 industries. Be generous — include all plausible industrie
 
         // Prompt 2: Customer List Extraction
         callHaiku(
-          `Extract any customer, client, or partner names mentioned on this website. Look for: logo sections, case studies, testimonials, partner pages, "trusted by" sections. Return ONLY valid JSON with no additional text.
+          `Extract ACTUAL company/brand names of customers, clients, or partners mentioned on this website.
+
+Look for: logo sections, "trusted by" banners, case studies, testimonials, partner pages, client lists, success stories, portfolio pages.
+
+CRITICAL RULES:
+- Extract REAL company/brand names ONLY (e.g. "Stripe", "Deloitte", "NHS")
+- NEVER use placeholders like "a fintech company" or "a healthcare startup" or "leading enterprise"
+- If you can't find a real company name, skip it — do not fabricate or generalize
+- Include partner/integration names if they appear prominently (they indicate who uses the product)
+- Aim for at least 5 names if the website mentions that many
 
 ${websiteContext}
 
-Return this exact JSON structure:
+Return ONLY valid JSON with no additional text:
 {
-  "customers": ["list of customer/client company names found"],
+  "customers": ["list of ACTUAL customer/client company names found"],
   "source": "logos | case_studies | testimonials | partner_page | mixed"
 }`,
           "website_customer_extraction"

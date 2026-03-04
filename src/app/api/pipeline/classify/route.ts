@@ -90,10 +90,40 @@ export async function POST(request: Request) {
           content: `Classify each person below. Return ONLY a valid JSON array (no other text) with one object per person in the same order as input.
 
 For each person, determine:
-- seniority_tier: "C-suite" | "VP/Director" | "Manager" | "IC" | "Junior/Intern/Irrelevant"
-- function_category: e.g. "Engineering", "Sales", "Marketing", "Finance", "Operations", "HR", "Product", "Legal", "Investment", "Consulting", "General Management", "Other"
-- decision_maker_likelihood: "High" | "Medium" | "Low"
-- connection_type_signal: "Potential Customer" | "Potential Investor" | "General Professional"
+
+1. seniority_tier: "C-suite" | "VP/Director" | "Manager" | "IC" | "Junior/Intern/Irrelevant"
+   - C-suite: CEO, CTO, CFO, COO, CIO, CISO, CMO, CRO, CPO, CLO, CHRO, General Counsel, Managing Partner, Founder, Co-Founder
+   - VP/Director: VP, SVP, EVP, Head of X, Director of X, Managing Director, Principal, Partner (non-managing)
+   - Manager: Manager, Senior Manager, Team Lead, Group Lead
+   - IC: Individual contributors, engineers, analysts, associates, consultants (non-titled)
+   - Junior/Intern/Irrelevant: Interns, students, assistants, entry-level, retired, unemployed
+
+2. function_category — infer from title context, not exact string matching:
+   - "Engineering & Technology": CTO, VP Engineering, Head of Data, Director of Engineering, Chief Architect, Head of Infrastructure, Head of Data Infrastructure, VP Technology
+   - "Product": CPO, VP Product, Head of Product, Director of Product Management
+   - "Operations": COO, VP Operations, Head of Operations, Director of Supply Chain, Head of Process
+   - "Sales & BD": CRO, VP Sales, Head of BD, Director of Partnerships, Chief Commercial Officer
+   - "Marketing": CMO, VP Marketing, Head of Growth, Director of Brand
+   - "Finance": CFO, VP Finance, Head of FP&A, Controller, Treasurer
+   - "HR & People": CHRO, VP People, Head of Talent, Director of HR, Head of People Operations
+   - "IT & Security": CIO, CISO, VP IT, Head of IT, Director of Information Security
+   - "Legal & Compliance": CLO, General Counsel, VP Legal, Head of Compliance
+   - "General Management": CEO, GM, Managing Director, Founder, President, Country Head
+   - "Investment": VC Partner, Angel Investor, Fund Manager, PE Director, Investment Director
+   - "Consulting": Management Consultant, Strategy Consultant, Advisory Partner
+   - "Other": Anything that doesn't clearly fit above
+
+   KEY: "Head of Data Infrastructure" = Engineering & Technology (not missed because it doesn't say "Engineering"). Infer functional intent from context.
+
+3. decision_maker_likelihood: "High" | "Medium" | "Low"
+   - High: C-suite, VP-level, Founders, Partners
+   - Medium: Directors, Heads of department
+   - Low: Managers, ICs, Junior
+
+4. connection_type_signal: "Potential Customer" | "Potential Investor" | "General Professional"
+   - Potential Investor: VC, PE, Angel, Fund titles/companies
+   - Potential Customer: Most business professionals at companies
+   - General Professional: Students, academics, retirees, unclear roles
 
 People to classify:
 ${connectionsText}
@@ -158,12 +188,14 @@ Return JSON array:
       user_id: userId,
       prompt_type: "classification",
       model: "claude-haiku-4-5-20251001",
+      user_prompt: connectionsText.slice(0, 10000),
+      response: responseText,
+      structured_output: classifications,
       input_tokens: aiResponse.usage?.input_tokens || 0,
       output_tokens: aiResponse.usage?.output_tokens || 0,
       duration_ms: durationMs,
       batch_id: batchId,
       rows_processed: connections.length,
-      status: "completed",
     });
 
     // Count remaining unclassified
