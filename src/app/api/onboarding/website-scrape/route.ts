@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { extractDomain } from "@/lib/utils";
 import Anthropic from "@anthropic-ai/sdk";
+import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 
 export const maxDuration = 60; // seconds — requires Vercel Pro plan
 
@@ -213,11 +214,13 @@ export async function POST(request: Request) {
       // Helper to call Haiku and parse JSON
       async function callHaiku(prompt: string, promptType: string) {
         const start = Date.now();
-        const response = await anthropic.messages.create({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 4096,
-          messages: [{ role: "user", content: prompt }],
-        });
+        const response = await callAnthropicWithRetry(() =>
+          anthropic.messages.create({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt }],
+          })
+        );
         const duration = Date.now() - start;
         const text = response.content[0].type === "text" ? response.content[0].text : "";
         const match = text.match(/\{[\s\S]*\}/);

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Anthropic from "@anthropic-ai/sdk";
+import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 
 const BATCH_SIZE = 75;
 
@@ -81,13 +82,14 @@ export async function POST(request: Request) {
     const anthropic = new Anthropic();
     const startTime = Date.now();
 
-    const aiResponse = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      messages: [
-        {
-          role: "user",
-          content: `Classify each person below. Return ONLY a valid JSON array (no other text) with one object per person in the same order as input.
+    const aiResponse = await callAnthropicWithRetry(() =>
+      anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        messages: [
+          {
+            role: "user",
+            content: `Classify each person below. Return ONLY a valid JSON array (no other text) with one object per person in the same order as input.
 
 For each person, determine:
 
@@ -130,9 +132,10 @@ ${connectionsText}
 
 Return JSON array:
 [{"seniority_tier":"...","function_category":"...","decision_maker_likelihood":"...","connection_type_signal":"..."},...]`,
-        },
-      ],
-    });
+          },
+        ],
+      })
+    );
 
     const durationMs = Date.now() - startTime;
     const responseText =

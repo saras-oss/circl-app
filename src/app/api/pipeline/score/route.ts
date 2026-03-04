@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Anthropic from "@anthropic-ai/sdk";
+import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 
 const BATCH_SIZE = 5;
 
@@ -282,17 +283,19 @@ Score each connection. Return ONLY a valid JSON array (no other text). One objec
     const anthropic = new Anthropic();
     const startTime = Date.now();
 
-    const aiResponse = await anthropic.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      system: SCORING_SYSTEM_PROMPT,
-      messages: [
-        {
-          role: "user",
-          content: userMessage,
-        },
-      ],
-    });
+    const aiResponse = await callAnthropicWithRetry(() =>
+      anthropic.messages.create({
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 4096,
+        system: SCORING_SYSTEM_PROMPT,
+        messages: [
+          {
+            role: "user",
+            content: userMessage,
+          },
+        ],
+      })
+    );
 
     const durationMs = Date.now() - startTime;
     const responseText =
