@@ -113,6 +113,7 @@ export default function ExportGuideStep({
         .eq("id", userId);
       if (dbError) throw dbError;
       setReminderSaved(true);
+      setTimeout(() => setShowModal(false), 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -368,9 +369,9 @@ export default function ExportGuideStep({
             onClick={() => !reminderSaved && setShowModal(false)}
           />
 
-          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-surface shadow-2xl overflow-hidden">
+          <div className="relative w-full min-w-0 sm:min-w-[480px] max-w-lg mx-4 rounded-2xl bg-surface shadow-2xl overflow-hidden">
             {/* Modal header */}
-            <div className="flex items-center justify-between p-5 border-b border-border">
+            <div className="flex items-center justify-between px-8 pt-8 pb-0">
               <h2 className="text-base font-bold text-foreground">
                 {reminderSaved
                   ? "You\u2019re all set!"
@@ -384,7 +385,7 @@ export default function ExportGuideStep({
               </button>
             </div>
 
-            <div className="p-5 space-y-5">
+            <div className="p-8 space-y-5">
               {!reminderSaved ? (
                 <>
                   <p className="text-sm text-warm-500 leading-relaxed">
@@ -397,8 +398,8 @@ export default function ExportGuideStep({
                   </p>
 
                   <Input
-                    label="Your mobile number (optional)"
-                    placeholder="+1 (555) 123-4567"
+                    label="Your mobile number"
+                    placeholder="+91 98765 43210"
                     type="tel"
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
@@ -425,23 +426,12 @@ export default function ExportGuideStep({
                   </button>
                 </>
               ) : (
-                <>
-                  <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3 animate-fade-in">
-                    <CheckCircle className="h-5 w-5 text-accent shrink-0" />
-                    <p className="text-sm font-medium text-accent">
-                      We&apos;ve saved your progress. We&apos;ll let you know
-                      when your file is ready.
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={() => setShowModal(false)}
-                    size="lg"
-                    className="w-full h-[44px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all"
-                  >
-                    Got it
-                  </Button>
-                </>
+                <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3 animate-fade-in">
+                  <CheckCircle className="h-5 w-5 text-accent shrink-0" />
+                  <p className="text-sm font-medium text-accent">
+                    Saved! We&apos;ll let you know when your file is ready.
+                  </p>
+                </div>
               )}
             </div>
           </div>

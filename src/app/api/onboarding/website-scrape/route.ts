@@ -98,7 +98,7 @@ function prioritizeLinks(links: string[]): string[] {
     prioritized.push(...categorized[cat]);
   }
 
-  return prioritized.slice(0, 5);
+  return prioritized.slice(0, 10);
 }
 
 async function serperSearch(query: string): Promise<string | null> {
@@ -238,22 +238,38 @@ export async function POST(request: Request) {
       const [icpResult, customerResult, triggerResult] = await Promise.all([
         // Prompt 1: ICP Extraction
         callHaiku(
-          `Based on this company's website content, determine their ideal customer profile. Infer from their product descriptions, pricing pages, and messaging who they sell to. Return ONLY valid JSON with no additional text.
+          `You are analyzing a company's website to determine their Ideal Customer Profile — meaning WHO DOES THIS COMPANY SELL TO, not what industry the company itself is in.
 
 ${websiteContext}
 
-Return this exact JSON structure:
+Think carefully:
+- What TYPES of companies would buy this product/service?
+- What industries do their customers operate in? (not the company's own industry)
+- A company can sell to MULTIPLE industries — a tech consultancy sells to healthcare, finance, manufacturing, etc.
+- Look at case studies, customer logos, testimonials, and product descriptions for clues
+- If they mention specific verticals they serve, include ALL of them
+- Consider adjacent industries — if they sell to "tech companies" they likely also sell to fintech, healthtech, edtech, etc.
+
+Return ONLY valid JSON with no additional text. Use ONLY values from the valid options listed below:
+
 {
-  "description": "company description",
-  "products_services": ["list of products/services"],
-  "target_market": "who they sell to",
-  "target_industries": ["specific industries they serve or should target"],
-  "target_geographies": ["regions they operate in or should target"],
-  "target_titles": ["job titles of their ideal buyers"],
-  "company_sizes": ["target company size ranges"],
-  "revenue_ranges": ["target revenue ranges"],
-  "funding_stages": ["target funding stages"]
-}`,
+  "target_industries": ["..."],
+  "target_geographies": ["..."],
+  "target_titles": ["..."],
+  "company_sizes": ["..."],
+  "revenue_ranges": ["..."],
+  "funding_stages": ["..."]
+}
+
+VALID OPTIONS:
+Industries: SaaS, AI / ML, Cybersecurity, Developer Tools, Data & Analytics, Enterprise Software, Cloud & Infrastructure, Internet & Web Services, Hardware & Semiconductors, Telecommunications & Networking, Robotics & Automation, Blockchain & Web3, Fintech, Banking & Lending, Insurance / Insurtech, Payments & Processing, Investment & Wealth Management, Capital Markets, HealthTech / Digital Health, Biotech & Pharma, Medical Devices, Healthcare Services, Clinical Research, E-commerce, D2C Brands, Marketplace, Food & Beverage, Consumer Electronics, Manufacturing, Logistics & Supply Chain, Energy & Oil, Cleantech / Climate, Construction & Real Estate, IT Services Consulting, IT Outsourcing / Managed Services, Systems Integration, Staffing & Recruitment, Legal Tech, HR Tech, Media & Publishing, EdTech / E-Learning, Gaming, Advertising & MarTech, Real Estate / PropTech, Commercial Real Estate, Construction Tech
+Company sizes: 1–10 employees, 11–50 employees, 51–200 employees, 201–500 employees, 501–1,000 employees, 1,001–5,000 employees, 5,001–10,000 employees, 10,000+ employees
+Revenue: Pre-revenue, $0–$1M ARR, $1M–$5M ARR, $5M–$20M ARR, $20M–$100M ARR, $100M+ ARR
+Funding: Pre-seed, Seed, Series A, Series B, Series C+, PE-backed, Public, Bootstrapped
+Geography: North America, Europe, UK, APAC, MENA, LATAM, India, Global
+Titles: CEO, CTO, CFO, COO, CISO, CIO, VP Engineering, VP Product, VP Sales, VP Marketing, Head of IT, Head of Data, Head of Engineering, Director of Engineering, Director of Product, General Manager, Managing Director
+
+Include at minimum 3 industries. Be generous — include all plausible industries.`,
           "website_icp_extraction"
         ),
 
@@ -273,16 +289,33 @@ Return this exact JSON structure:
 
         // Prompt 3: Sales Trigger Identification
         callHaiku(
-          `Based on this company's market and offerings, identify high-intent buying signals that would indicate a potential customer is ready to buy from them. Return ONLY valid JSON with no additional text.
+          `You are analyzing a company's website to identify HIGH-INTENT BUYING SIGNALS — organizational events or changes at a potential customer company that would make them likely to buy from this company RIGHT NOW.
 
 ${websiteContext}
 
-Return this exact JSON structure:
-{
-  "triggers": ["list of specific, actionable buying triggers"]
-}
+Think about ORGANIZATIONAL TRIGGERS — things that happen at a company that create urgency to buy:
 
-Examples of good triggers: "Recently raised Series B+", "Expanding engineering team", "Migrating from legacy systems", "Opening new geographic markets", "Hiring for relevant roles", "Published RFP for relevant category"`,
+Categories to consider:
+1. FUNDING & GROWTH: "Recently raised Series B+", "IPO preparation", "Rapid headcount growth (50%+ YoY)"
+2. LEADERSHIP CHANGES: "New CTO/CIO/CISO hired in last 6 months", "New VP Engineering appointed"
+3. STRATEGIC INITIATIVES: "Announced digital transformation initiative", "Opening new geographic office", "Launching new product line"
+4. TECHNOLOGY SIGNALS: "Migrating from legacy systems", "Evaluating new vendors (RFP published)", "Tech stack modernization"
+5. HIRING PATTERNS: "Hiring 10+ engineers in India", "Posting for relevant roles", "Building out security team"
+6. MARKET EVENTS: "Industry regulation change requiring compliance", "Competitor acquisition creating uncertainty"
+7. EXPANSION: "Expanding to India/APAC", "Setting up GCC/offshore center", "M&A activity"
+
+Return EXACTLY 5 triggers. Make them SPECIFIC to what this company sells — not generic. Each trigger should be a clear sentence that a sales rep could use to identify a hot prospect.
+
+Return ONLY valid JSON with no additional text:
+{
+  "triggers": [
+    "Recently raised Series B or later funding and scaling engineering team",
+    "Hired a new CTO or VP Engineering in the last 6 months",
+    "Posted 10+ open engineering roles in India on LinkedIn",
+    "Announced plans to set up or expand a Global Capability Center",
+    "Published RFP or vendor evaluation for relevant category"
+  ]
+}`,
           "website_trigger_extraction"
         ),
       ]);
@@ -295,9 +328,6 @@ Examples of good triggers: "Recently raised Series B+", "Expanding engineering t
 
       // Combine all results into final scrape data
       const extractedData = {
-        description: icpResult.description || "",
-        products_services: icpResult.products_services || [],
-        target_market: icpResult.target_market || "",
         icp_suggestions: {
           target_industries: icpResult.target_industries || [],
           target_geographies: icpResult.target_geographies || [],
