@@ -5,18 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Settings,
-  Shield,
-  Download,
-  CheckSquare,
-  Mail,
-  Upload,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  LinkIcon,
   ExternalLink,
-  FileSpreadsheet,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+  X,
+  Mail,
 } from "lucide-react";
 
 interface ExportGuideStepProps {
@@ -25,42 +21,44 @@ interface ExportGuideStepProps {
   onBack: () => void;
 }
 
-const guideSteps = [
+const directSteps = [
+  "Click the link above (opens LinkedIn)",
+  'Select "Download larger data archive" (it\'s the first option)',
+  'Click "Request archive"',
+  "Wait for LinkedIn\u2019s email (usually 10\u201330 min)",
+  'Download the ZIP, find "Connections.csv" inside',
+  "Come back here and upload it",
+];
+
+const manualSteps = [
   {
-    number: 1,
-    icon: ExternalLink,
     title: "Open LinkedIn on your desktop",
     description: "Go to linkedin.com and sign in to your account.",
   },
   {
-    number: 2,
-    icon: Settings,
     title: "Go to Settings & Privacy",
-    description: "Click your profile photo in the top right, then select Settings & Privacy.",
+    description:
+      "Click your profile photo in the top right, then select Settings & Privacy.",
   },
   {
-    number: 3,
-    icon: Shield,
     title: "Navigate to Data Privacy",
-    description: 'In the left sidebar, click "Data Privacy" then "Get a copy of your data."',
+    description:
+      'In the left sidebar, click "Data Privacy" then "Get a copy of your data."',
   },
   {
-    number: 4,
-    icon: CheckSquare,
     title: 'Select "Connections" only',
-    description: 'Choose "Connections" only (not full archive). Click "Request archive."',
+    description:
+      'Choose "Connections" only (not full archive). Click "Request archive."',
   },
   {
-    number: 5,
-    icon: Mail,
     title: "Wait for LinkedIn\u2019s email",
-    description: "LinkedIn sends a download link. Usually 10\u201330 minutes, can take up to 24 hours.",
+    description:
+      "LinkedIn sends a download link. Usually 10\u201330 minutes, can take up to 24 hours.",
   },
   {
-    number: 6,
-    icon: Download,
     title: "Download and come back",
-    description: 'Download the ZIP, extract "Connections.csv," and upload it in the next step.',
+    description:
+      'Download the ZIP, extract "Connections.csv," and upload it in the next step.',
   },
 ];
 
@@ -70,15 +68,16 @@ export default function ExportGuideStep({
   onBack,
 }: ExportGuideStepProps) {
   const supabase = createClient();
-
-  // Screen state: "question" | "guide" | "waiting"
-  const [screen, setScreen] = useState<"question" | "guide" | "waiting">("question");
+  const [showModal, setShowModal] = useState(false);
+  const [showManualSteps, setShowManualSteps] = useState(false);
   const [mobileNumber, setMobileNumber] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reminderSent, setReminderSent] = useState(false);
+  const [reminderSaved, setReminderSaved] = useState(false);
+  const [isReEntry, setIsReEntry] = useState(false);
+  const [showLaterMessage, setShowLaterMessage] = useState(false);
 
-  // Check if user has already requested export on prior visit
+  // Check re-entry state
   useEffect(() => {
     async function checkPriorState() {
       const { data } = await supabase
@@ -87,49 +86,33 @@ export default function ExportGuideStep({
         .eq("id", userId)
         .single();
       if (data?.has_requested_export) {
-        setScreen("waiting");
+        setIsReEntry(true);
       }
     }
     checkPriorState();
   }, [supabase, userId]);
 
-  async function handleHasFile() {
-    // User already has the file — skip to CSV upload
-    onNext();
-  }
-
   async function handleRequestedExport() {
-    setSaving(true);
-    setError(null);
-    try {
-      const { error: dbError } = await supabase
-        .from("users")
-        .update({ has_requested_export: true })
-        .eq("id", userId);
-      if (dbError) throw dbError;
-      setScreen("waiting");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
+    setShowModal(true);
   }
 
-  async function handleSaveReminder() {
+  async function handleSaveReminder(emailOnly?: boolean) {
     setSaving(true);
     setError(null);
     try {
-      const updates: Record<string, unknown> = {};
-      if (mobileNumber.trim()) {
+      const updates: Record<string, unknown> = {
+        has_requested_export: true,
+        email_reminder_opted_in: true,
+      };
+      if (!emailOnly && mobileNumber.trim()) {
         updates.mobile_number = mobileNumber.trim();
       }
-      updates.email_reminder_opted_in = true;
       const { error: dbError } = await supabase
         .from("users")
         .update(updates)
         .eq("id", userId);
       if (dbError) throw dbError;
-      setReminderSent(true);
+      setReminderSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     } finally {
@@ -137,53 +120,69 @@ export default function ExportGuideStep({
     }
   }
 
-  /* ─── Screen 1: The Question ─── */
-  if (screen === "question") {
+  async function handleDoLater() {
+    // The onboarding_step is already saved as step 2
+    // Mark export as requested so they see re-entry view when they return
+    await supabase
+      .from("users")
+      .update({ has_requested_export: true })
+      .eq("id", userId);
+    setShowLaterMessage(true);
+  }
+
+  /* ─── Re-entry view ─── */
+  if (isReEntry) {
     return (
       <div className="animate-fade-in space-y-8">
         <div className="flex flex-col items-center text-center space-y-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
-            <LinkIcon className="h-7 w-7 text-accent" strokeWidth={1.5} />
+            <CheckCircle
+              className="h-7 w-7 text-accent"
+              strokeWidth={1.5}
+            />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Do you have your LinkedIn export?
+              Your LinkedIn export should be ready!
             </h1>
             <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
-              We need your Connections.csv file from LinkedIn to analyze your network.
+              Download it from the email LinkedIn sent you, then upload the
+              Connections.csv file below.
             </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Yes */}
-          <button
-            onClick={handleHasFile}
-            className="card-interactive p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer min-h-[44px] active:scale-[0.98] transition-all"
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10">
-              <FileSpreadsheet className="h-7 w-7 text-accent" strokeWidth={1.5} />
-            </div>
-            <div className="text-center">
-              <span className="text-base font-bold text-foreground block">Yes, I have my file</span>
-              <span className="text-xs text-warm-400 mt-1 block">Ready to upload Connections.csv</span>
-            </div>
-          </button>
+        <div className="card-elevated p-6 space-y-4">
+          <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-accent shrink-0" />
+            <p className="text-sm font-medium text-accent">
+              Export requested. Check your email for LinkedIn&apos;s download
+              link.
+            </p>
+          </div>
 
-          {/* No */}
-          <button
-            onClick={() => setScreen("guide")}
-            className="card-interactive p-6 sm:p-8 flex flex-col items-center gap-4 cursor-pointer min-h-[44px] active:scale-[0.98] transition-all"
+          <Button
+            onClick={onNext}
+            size="lg"
+            className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-warm-100">
-              <Download className="h-7 w-7 text-warm-500" strokeWidth={1.5} />
-            </div>
-            <div className="text-center">
-              <span className="text-base font-bold text-foreground block">No, I need to export</span>
-              <span className="text-xs text-warm-400 mt-1 block">Show me how to get the file</span>
-            </div>
+            I already have my data
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+
+          <button
+            onClick={() => setIsReEntry(false)}
+            className="w-full text-center text-sm text-warm-400 hover:text-warm-600 transition-colors py-1"
+          >
+            I still need to export
           </button>
         </div>
+
+        {error && (
+          <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
+            {error}
+          </div>
+        )}
 
         <Button
           onClick={onBack}
@@ -198,194 +197,151 @@ export default function ExportGuideStep({
     );
   }
 
-  /* ─── Screen 2: Export Guide ─── */
-  if (screen === "guide") {
-    return (
-      <div className="animate-fade-in space-y-8">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
-            <LinkIcon className="h-7 w-7 text-accent" strokeWidth={1.5} />
-          </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              How to export your LinkedIn connections
-            </h1>
-            <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
-              Follow these steps, then come back to upload your file.
-            </p>
-          </div>
+  /* ─── Default view ─── */
+  return (
+    <div className="animate-fade-in space-y-8">
+      {/* Header */}
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+          <ExternalLink
+            className="h-7 w-7 text-accent"
+            strokeWidth={1.5}
+          />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            Export your LinkedIn connections
+          </h1>
+          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+            We need your connections data to analyze your network.
+          </p>
+        </div>
+      </div>
+
+      {/* Direct link */}
+      <a
+        href="https://www.linkedin.com/mypreferences/d/download-my-data"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="card-interactive p-5 flex items-center gap-4 text-accent font-bold text-base min-h-[56px] border-2 border-accent/20 hover:border-accent/40 transition-all"
+      >
+        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+          <ExternalLink
+            className="h-5 w-5 text-accent"
+            strokeWidth={1.5}
+          />
+        </div>
+        <span className="flex-1">
+          Click here to export your data from LinkedIn
+        </span>
+        <ArrowRight className="h-4 w-4 shrink-0" />
+      </a>
+
+      {/* Split layout: steps (40%) + GIF placeholder (60%) */}
+      <div className="flex flex-col md:flex-row gap-6">
+        {/* Steps */}
+        <div className="md:w-[40%] space-y-1">
+          {directSteps.map((step, i) => (
+            <div key={i} className="flex items-start gap-3 py-2.5">
+              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white mt-0.5">
+                {i + 1}
+              </span>
+              <p className="text-sm text-warm-600 leading-relaxed">{step}</p>
+            </div>
+          ))}
         </div>
 
-        {/* Desktop: split layout, Mobile: stacked */}
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Left: Steps (60%) */}
-          <div className="md:w-[60%] space-y-3 stagger-children">
-            {guideSteps.map((step) => {
-              const Icon = step.icon;
-              return (
-                <div
-                  key={step.number}
-                  className="card-elevated p-4 flex items-start gap-4"
-                >
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-bold text-white">
-                    {step.number}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="h-4 w-4 text-warm-500 shrink-0" strokeWidth={1.5} />
-                      <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
-                    </div>
-                    <p className="text-sm text-warm-500 leading-relaxed">{step.description}</p>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Direct link */}
-            <a
-              href="https://www.linkedin.com/mypreferences/d/download-my-data"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="card-interactive p-4 flex items-center gap-3 text-accent font-semibold text-sm min-h-[44px]"
-            >
-              <ExternalLink className="h-4 w-4 shrink-0" />
-              Open LinkedIn Data Export directly
-              <ArrowRight className="h-3.5 w-3.5 ml-auto" />
-            </a>
-          </div>
-
-          {/* Right: GIF placeholder (40%) */}
-          <div className="md:w-[40%]">
-            <div className="card-elevated p-6 flex flex-col items-center justify-center min-h-[300px] border-2 border-dashed border-warm-200">
+        {/* GIF placeholder */}
+        <div className="md:w-[60%]">
+          <div className="card-elevated overflow-hidden min-h-[350px] md:min-h-[400px] border-2 border-dashed border-warm-200 rounded-2xl flex items-center justify-center">
+            {/* Replace this placeholder with: <img src="/images/linkedin-export-guide.gif" alt="LinkedIn export walkthrough" className="max-w-full rounded-xl" /> */}
+            <div className="flex flex-col items-center justify-center p-6 text-center">
               <div className="w-16 h-16 bg-warm-100 rounded-2xl flex items-center justify-center mb-4">
-                <Upload className="h-7 w-7 text-warm-400" strokeWidth={1.5} />
+                <ExternalLink
+                  className="h-7 w-7 text-warm-400"
+                  strokeWidth={1.5}
+                />
               </div>
-              <p className="text-sm text-warm-400 text-center">
+              <p className="text-sm text-warm-400">
                 Video walkthrough coming soon
               </p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Bottom section */}
-        <div className="card-elevated p-6 space-y-5">
-          <p className="text-sm text-warm-500 text-center leading-relaxed">
-            This usually takes <strong className="text-foreground">10&ndash;30 minutes</strong>. We&apos;ll remind you when it&apos;s ready.
-          </p>
-
-          <Input
-            label="Your mobile number (optional)"
-            placeholder="+1 (555) 123-4567"
-            type="tel"
-            value={mobileNumber}
-            onChange={(e) => setMobileNumber(e.target.value)}
-            helperText="We'll send a reminder when your export is ready"
-            className="h-[52px] rounded-2xl border-2 border-border input-ring"
-          />
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              onClick={handleRequestedExport}
-              size="lg"
-              loading={saving}
-              className="flex-1 h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
-            >
-              I&apos;ve requested the export
-            </Button>
-            <Button
-              onClick={onNext}
-              variant="outline"
-              size="lg"
-              className="h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
-            >
-              I already have my data
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {error && (
-          <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 text-sm text-destructive animate-fade-in">
-            {error}
-          </div>
-        )}
-
-        <Button
-          onClick={() => setScreen("question")}
-          variant="ghost"
-          size="lg"
-          className="h-[52px] rounded-2xl min-h-[44px]"
+      {/* Accordion: manual steps */}
+      <div className="card-elevated overflow-hidden">
+        <button
+          onClick={() => setShowManualSteps(!showManualSteps)}
+          className="w-full flex items-center justify-between p-4 text-sm font-medium text-warm-500 hover:text-foreground transition-colors min-h-[44px]"
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
-      </div>
-    );
-  }
-
-  /* ─── Screen 3: Waiting / Re-entry ─── */
-  return (
-    <div className="animate-fade-in space-y-8">
-      <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
-          <CheckCircle className="h-7 w-7 text-accent" strokeWidth={1.5} />
-        </div>
-        <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            Your LinkedIn export should be ready
-          </h1>
-          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
-            Check your email for a download link from LinkedIn, then upload the file below.
-          </p>
-        </div>
-      </div>
-
-      <div className="card-elevated p-6 space-y-5">
-        <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3">
-          <CheckCircle className="h-5 w-5 text-accent shrink-0" />
-          <p className="text-sm font-medium text-accent">
-            Export requested. Check your email for LinkedIn&apos;s download link.
-          </p>
-        </div>
-
-        {!reminderSent && (
-          <div className="space-y-4">
-            <Input
-              label="Your mobile number (optional)"
-              placeholder="+1 (555) 123-4567"
-              type="tel"
-              value={mobileNumber}
-              onChange={(e) => setMobileNumber(e.target.value)}
-              helperText="We'll send a reminder when it's time"
-              className="h-[52px] rounded-2xl border-2 border-border input-ring"
-            />
-            <Button
-              onClick={handleSaveReminder}
-              variant="outline"
-              size="lg"
-              loading={saving}
-              className="w-full h-[44px] rounded-2xl border-2 border-border hover:border-border-strong transition-all text-sm"
-            >
-              <Mail className="h-4 w-4" />
-              Send me an email reminder
-            </Button>
+          <span>
+            Export another way (if the link above doesn&apos;t work)
+          </span>
+          {showManualSteps ? (
+            <ChevronUp className="h-4 w-4" />
+          ) : (
+            <ChevronDown className="h-4 w-4" />
+          )}
+        </button>
+        {showManualSteps && (
+          <div className="border-t border-border p-4 space-y-3 animate-fade-in">
+            {manualSteps.map((step, i) => (
+              <div key={i} className="flex items-start gap-3">
+                <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-warm-200 text-[11px] font-bold text-warm-600 mt-0.5">
+                  {i + 1}
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">
+                    {step.title}
+                  </p>
+                  <p className="text-xs text-warm-500 mt-0.5">
+                    {step.description}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
+      </div>
 
-        {reminderSent && (
-          <div className="rounded-2xl bg-warm-50 border border-warm-200 p-4 text-sm text-warm-600 text-center animate-fade-in">
-            We&apos;ll remind you when your export is ready.
+      {/* "Do later" confirmation */}
+      {showLaterMessage && (
+        <div className="card-elevated p-4 text-center animate-fade-in">
+          <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-accent shrink-0" />
+            <p className="text-sm font-medium text-accent">
+              Your progress is saved. Come back anytime to continue.
+            </p>
           </div>
-        )}
+        </div>
+      )}
 
+      {/* CTAs */}
+      <div className="space-y-3">
         <Button
-          onClick={onNext}
+          onClick={handleRequestedExport}
           size="lg"
           className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
         >
-          Upload my file now
+          I&apos;ve requested the export
+        </Button>
+        <Button
+          onClick={onNext}
+          variant="outline"
+          size="lg"
+          className="w-full h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
+        >
+          I already have my data
           <ArrowRight className="h-4 w-4" />
         </Button>
+        <button
+          onClick={handleDoLater}
+          className="w-full text-center text-sm text-warm-400 hover:text-warm-600 transition-colors py-2"
+        >
+          I&apos;ll do this later
+        </button>
       </div>
 
       {error && (
@@ -403,6 +359,94 @@ export default function ExportGuideStep({
         <ArrowLeft className="h-4 w-4" />
         Back
       </Button>
+
+      {/* ─── Reminder Modal ─── */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !reminderSaved && setShowModal(false)}
+          />
+
+          <div className="relative w-full max-w-md mx-4 rounded-2xl bg-surface shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h2 className="text-base font-bold text-foreground">
+                {reminderSaved
+                  ? "You\u2019re all set!"
+                  : "We\u2019ll remind you"}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="w-8 h-8 rounded-lg hover:bg-warm-100 flex items-center justify-center"
+              >
+                <X className="h-4 w-4 text-warm-500" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {!reminderSaved ? (
+                <>
+                  <p className="text-sm text-warm-500 leading-relaxed">
+                    LinkedIn usually takes{" "}
+                    <strong className="text-foreground">
+                      10&ndash;30 minutes
+                    </strong>{" "}
+                    to prepare your file. We&apos;ll remind you when it&apos;s
+                    time to download.
+                  </p>
+
+                  <Input
+                    label="Your mobile number (optional)"
+                    placeholder="+1 (555) 123-4567"
+                    type="tel"
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    className="h-[52px] rounded-2xl border-2 border-border input-ring"
+                  />
+
+                  <Button
+                    onClick={() => handleSaveReminder(false)}
+                    size="lg"
+                    loading={saving}
+                    className="w-full h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
+                  >
+                    Remind me
+                  </Button>
+
+                  <button
+                    onClick={() => handleSaveReminder(true)}
+                    className="w-full text-center text-sm text-warm-400 hover:text-warm-600 transition-colors py-1"
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <Mail className="h-3.5 w-3.5" />
+                      Just remind me over email
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="rounded-2xl bg-accent-light border border-accent/20 p-4 flex items-center gap-3 animate-fade-in">
+                    <CheckCircle className="h-5 w-5 text-accent shrink-0" />
+                    <p className="text-sm font-medium text-accent">
+                      We&apos;ve saved your progress. We&apos;ll let you know
+                      when your file is ready.
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={() => setShowModal(false)}
+                    size="lg"
+                    className="w-full h-[44px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 transition-all"
+                  >
+                    Got it
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
