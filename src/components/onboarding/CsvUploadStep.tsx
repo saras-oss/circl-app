@@ -421,6 +421,23 @@ export default function CsvUploadStep({
         </div>
       </div>
 
+      {/* LinkedIn export guide — collapsible */}
+      {!uploadComplete && (
+        <details className="mt-2 mb-4">
+          <summary className="text-sm text-[#1B4332] font-medium cursor-pointer hover:underline">
+            How to export your LinkedIn connections
+          </summary>
+          <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden">
+            <img
+              src="/guides/linkedin-export-guide.gif"
+              alt="How to export LinkedIn connections"
+              className="w-full rounded-lg"
+              loading="lazy"
+            />
+          </div>
+        </details>
+      )}
+
       {/* Drag-and-drop zone */}
       {!uploadComplete && (
         <div
@@ -538,21 +555,6 @@ export default function CsvUploadStep({
         <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 flex items-start gap-3 animate-fade-in">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <p className="text-sm text-destructive">{error}</p>
-        </div>
-      )}
-
-      {/* LinkedIn export guide */}
-      {!uploadComplete && (
-        <div className="rounded-2xl border border-warm-200 overflow-hidden">
-          <img
-            src="/guides/linkedin-export-guide.gif"
-            alt="How to export LinkedIn connections"
-            className="w-full"
-            loading="lazy"
-          />
-          <p className="text-sm text-warm-400 text-center py-2.5 font-medium">
-            How to export your LinkedIn connections
-          </p>
         </div>
       )}
 
