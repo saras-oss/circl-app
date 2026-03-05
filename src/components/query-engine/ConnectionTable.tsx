@@ -3,7 +3,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  MapPin,
+  Briefcase,
+  Factory,
+  Calendar,
+} from "lucide-react";
 
 function getScoreColor(score: number | null) {
   if (!score) return "bg-[#96A0B5]";
@@ -145,6 +153,30 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
                     {isExpanded && (
                       <div className="px-4 pb-4 bg-[#F6F8FA] border-t border-[#E3E8EF]">
                         <div className="pt-3 space-y-2 text-sm text-[#596780]">
+                          {/* Meta row */}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[#596780]">
+                            {r.location_str && (
+                              <span className="inline-flex items-center gap-1">
+                                <MapPin className="w-3 h-3" /> {r.location_str}
+                              </span>
+                            )}
+                            {r.total_experience_years != null && (
+                              <span className="inline-flex items-center gap-1">
+                                <Briefcase className="w-3 h-3" /> {r.total_experience_years} years
+                              </span>
+                            )}
+                            {r.company_industry && (
+                              <span className="inline-flex items-center gap-1">
+                                <Factory className="w-3 h-3" /> {r.company_industry}
+                              </span>
+                            )}
+                            {r.connected_on && (
+                              <span className="inline-flex items-center gap-1">
+                                <Calendar className="w-3 h-3" /> Connected{" "}
+                                {new Date(r.connected_on).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                              </span>
+                            )}
+                          </div>
                           {r.match_reasons && (
                             <div>
                               <span className="font-semibold text-[#0A2540] text-xs">
@@ -161,14 +193,6 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
                                 Approach:{" "}
                               </span>
                               {r.suggested_approach}
-                            </div>
-                          )}
-                          {r.location_str && (
-                            <div>
-                              <span className="font-semibold text-[#0A2540] text-xs">
-                                Location:{" "}
-                              </span>
-                              {r.location_str}
                             </div>
                           )}
                         </div>

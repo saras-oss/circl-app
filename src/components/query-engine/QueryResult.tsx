@@ -1,9 +1,13 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+import { useState, useEffect } from "react";
+import { ArrowLeft } from "lucide-react";
 import type { QueryAPIResponse } from "@/lib/query-engine/types";
 import TextAnswer from "./TextAnswer";
 import ProfileCards from "./ProfileCards";
-import ConnectionCards from "./ConnectionCards";
+import DisambiguationCards from "./DisambiguationCards";
 import ConnectionTable from "./ConnectionTable";
 import AggregateChart from "./AggregateChart";
 import FollowUpSuggestions from "./FollowUpSuggestions";
@@ -14,6 +18,59 @@ interface QueryResultProps {
 }
 
 export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
+  const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
+
+  // Reset selected person whenever a new result comes in
+  useEffect(() => {
+    setSelectedPerson(null);
+  }, [result]);
+
+  function renderStructuredDisplay() {
+    // Profile display type — person lookup
+    if (result.display_type === "profile" && result.results.length > 0) {
+      if (result.results.length === 1) {
+        return <ProfileCards results={result.results} />;
+      } else if (selectedPerson) {
+        return (
+          <div>
+            <button
+              onClick={() => setSelectedPerson(null)}
+              className="inline-flex items-center gap-1 text-sm text-[#596780] hover:text-[#0ABF53] transition-colors mb-3"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back to all results
+            </button>
+            <ProfileCards results={[selectedPerson]} />
+          </div>
+        );
+      } else {
+        return (
+          <DisambiguationCards
+            results={result.results}
+            onSelect={setSelectedPerson}
+          />
+        );
+      }
+    }
+
+    // Cards display type (1-5 filter results) → use rich ProfileCards
+    if (result.display_type === "cards" && result.results.length > 0) {
+      return <ProfileCards results={result.results} />;
+    }
+
+    // Table display type (6+ filter results)
+    if (result.display_type === "table" && result.results.length > 0) {
+      return <ConnectionTable results={result.results} />;
+    }
+
+    // Chart display type (aggregation)
+    if (result.display_type === "chart" && result.aggregation) {
+      return <AggregateChart data={result.aggregation} />;
+    }
+
+    return null;
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Text answer */}
@@ -22,18 +79,7 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
       </div>
 
       {/* Structured display */}
-      {result.display_type === "profile" && result.results.length > 0 && (
-        <ProfileCards results={result.results} />
-      )}
-      {result.display_type === "cards" && result.results.length > 0 && (
-        <ConnectionCards results={result.results} />
-      )}
-      {result.display_type === "table" && result.results.length > 0 && (
-        <ConnectionTable results={result.results} />
-      )}
-      {result.display_type === "chart" && result.aggregation && (
-        <AggregateChart data={result.aggregation} />
-      )}
+      {renderStructuredDisplay()}
 
       {/* Total count note */}
       {result.total_available > result.results.length && (

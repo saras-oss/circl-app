@@ -36,6 +36,18 @@ async function executePersonLookup(
   userId: string,
   lookup: QueryIntent["person_lookup"]
 ): Promise<QueryResult> {
+  // If no name fields provided at all, return empty — don't fetch everything
+  const hasName =
+    lookup?.first_name || lookup?.last_name || lookup?.full_name;
+  if (!hasName) {
+    return {
+      data: [],
+      count: 0,
+      total_available: 0,
+      enrichment_coverage: { enriched: 0, total: 0 },
+    };
+  }
+
   let query = supabase
     .from("network_view")
     .select(FULL_COLUMNS, { count: "exact" })
@@ -56,6 +68,14 @@ async function executePersonLookup(
         `first_name.ilike.%${escapeIlike(parts[0])}%,last_name.ilike.%${escapeIlike(parts[0])}%`
       );
     }
+  } else if (lookup?.first_name) {
+    query = query.or(
+      `first_name.ilike.%${escapeIlike(lookup.first_name)}%,last_name.ilike.%${escapeIlike(lookup.first_name)}%`
+    );
+  } else if (lookup?.last_name) {
+    query = query.or(
+      `first_name.ilike.%${escapeIlike(lookup.last_name)}%,last_name.ilike.%${escapeIlike(lookup.last_name)}%`
+    );
   }
 
   if (lookup?.company) {
@@ -65,16 +85,36 @@ async function executePersonLookup(
     );
   }
 
-  query = query.limit(10);
+  // Sort by match_score descending so strongest matches appear first
+  query = query
+    .order("match_score", { ascending: false, nullsFirst: false })
+    .limit(10);
 
   const { data, error, count } = await query;
   if (error) throw new Error(`Person lookup failed: ${error.message}`);
+
+  // Enrichment coverage
+  const [{ count: totalConnections }, { count: enrichedConnections }] =
+    await Promise.all([
+      supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId),
+      supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .in("enrichment_status", ["enriched", "cached"]),
+    ]);
 
   return {
     data: data || [],
     count: data?.length || 0,
     total_available: count || 0,
-    enrichment_coverage: { enriched: 0, total: 0 },
+    enrichment_coverage: {
+      enriched: enrichedConnections || 0,
+      total: totalConnections || 0,
+    },
   };
 }
 
