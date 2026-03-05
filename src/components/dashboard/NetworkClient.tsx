@@ -140,9 +140,9 @@ export default function NetworkClient({ userId }: { userId: string }) {
       return <ArrowUpDown className="w-3 h-3 text-[#96A0B5]" />;
     }
     return sortAsc ? (
-      <ChevronUp className="w-3.5 h-3.5 text-[#0ABF53]" />
+      <ChevronUp className="w-3.5 h-3.5 text-[#6366F1]" />
     ) : (
-      <ChevronDown className="w-3.5 h-3.5 text-[#0ABF53]" />
+      <ChevronDown className="w-3.5 h-3.5 text-[#6366F1]" />
     );
   }
 
@@ -176,7 +176,7 @@ export default function NetworkClient({ userId }: { userId: string }) {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, company, or position..."
-          className="w-full h-[52px] pl-12 pr-4 rounded-lg bg-white border border-[#E3E8EF] text-sm font-medium text-[#0A2540] placeholder:text-[#96A0B5] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 focus:outline-none transition-all"
+          className="w-full h-[52px] pl-12 pr-4 rounded-lg bg-white border border-[#E3E8EF] text-sm font-medium text-[#0A2540] placeholder:text-[#96A0B5] focus:border-[#94A3B8] focus:ring-2 focus:ring-[#6366F1]/10 focus:outline-none transition-all"
         />
       </div>
 

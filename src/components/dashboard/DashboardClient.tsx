@@ -72,13 +72,14 @@ interface DashboardClientProps {
 const SENIORITY_COLORS = [
   "#7C3AED",
   "#2563EB",
-  "#FFBB38",
-  "#96A0B5",
-  "#D1D9E6",
-  "#089E45",
-  "#6EE7B7",
+  "#F59E0B",
+  "#94A3B8",
+  "#CBD5E1",
+  "#6366F1",
+  "#A78BFA",
 ];
-const CHART_GREEN = "#0ABF53";
+const CHART_BLUE = "#6366F1";
+const CHART_BLUE_LIGHT = "#818CF8";
 
 const suggestedPrompts = [
   "Who are the founders in my network?",
@@ -177,12 +178,12 @@ export default function DashboardClient({
         <UpgradeBanner totalConnections={insights?.total_connections || 0} />
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 mb-6">
+      <div className="bg-white rounded-xl border border-[#E3E8EF] p-5 mb-6">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#96A0B5]" />
           <a
             href="/dashboard/query"
-            className="flex items-center w-full h-12 pl-12 pr-4 rounded-lg border border-[#E3E8EF] bg-white text-sm text-[#96A0B5] hover:border-[#0ABF53] transition-all"
+            className="flex items-center w-full h-12 pl-12 pr-4 rounded-lg border border-[#E3E8EF] bg-[#F6F8FA] text-sm text-[#96A0B5] hover:border-[#94A3B8] transition-all"
           >
             Search your network... &quot;VCs who invest in fintech&quot;
           </a>
@@ -192,7 +193,7 @@ export default function DashboardClient({
             <a
               key={prompt}
               href={`/dashboard/query?q=${encodeURIComponent(prompt)}`}
-              className="text-xs px-3.5 py-2 rounded-full bg-[#E6F9EE] text-[#089E45] hover:bg-[#d4f5e2] transition-all font-medium"
+              className="text-xs px-3.5 py-2 rounded-full bg-[#F0F3F7] text-[#596780] hover:bg-[#E3E8EF] hover:text-[#0A2540] transition-all font-medium border border-[#E3E8EF]"
             >
               {prompt}
             </a>
@@ -203,28 +204,28 @@ export default function DashboardClient({
       {showWrapped ? (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 text-center">
-              <Users className="w-5 h-5 text-[#0ABF53] mx-auto mb-2" strokeWidth={1.8} />
+            <div className="bg-white rounded-xl border border-[#E3E8EF] p-5 text-center">
+              <Users className="w-5 h-5 text-[#94A3B8] mx-auto mb-2" strokeWidth={1.5} />
               <p className="text-3xl font-semibold text-[#0A2540] tabular-nums">{insights.total_connections.toLocaleString()}</p>
-              <p className="text-sm font-medium text-[#596780] uppercase tracking-wide mt-1">Connections</p>
+              <p className="text-xs text-[#94A3B8] tracking-wider uppercase mt-1">Connections</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 text-center">
-              <Sparkles className="w-5 h-5 text-[#0ABF53] mx-auto mb-2" strokeWidth={1.8} />
+            <div className="bg-white rounded-xl border border-[#E3E8EF] p-5 text-center">
+              <Sparkles className="w-5 h-5 text-[#94A3B8] mx-auto mb-2" strokeWidth={1.5} />
               <p className="text-3xl font-semibold text-[#0A2540] tabular-nums">{insights.enriched_count}</p>
-              <p className="text-sm font-medium text-[#596780] uppercase tracking-wide mt-1">Enriched</p>
+              <p className="text-xs text-[#94A3B8] tracking-wider uppercase mt-1">Enriched</p>
             </div>
-            <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 text-center">
-              <TrendingUp className="w-5 h-5 text-[#0ABF53] mx-auto mb-2" strokeWidth={1.8} />
+            <div className="bg-white rounded-xl border border-[#E3E8EF] p-5 text-center">
+              <TrendingUp className="w-5 h-5 text-[#94A3B8] mx-auto mb-2" strokeWidth={1.5} />
               <p className="text-3xl font-semibold text-[#0A2540] tabular-nums">{insights.scored_count}</p>
-              <p className="text-sm font-medium text-[#596780] uppercase tracking-wide mt-1">Scored</p>
+              <p className="text-xs text-[#94A3B8] tracking-wider uppercase mt-1">Scored</p>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {insights.seniority_breakdown.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Seniority Mix
                 </h3>
                 <div className="flex items-center gap-4">
@@ -254,9 +255,9 @@ export default function DashboardClient({
             )}
 
             {insights.industry_breakdown.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Top Industries
                 </h3>
                 <div className="h-[140px]">
@@ -265,7 +266,7 @@ export default function DashboardClient({
                       <XAxis type="number" hide />
                       <YAxis type="category" dataKey="industry" width={100} tick={{ fontSize: 11, fill: "#596780" }} tickLine={false} axisLine={false} />
                       <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "1px solid #E3E8EF", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-                      <Bar dataKey="count" fill={CHART_GREEN} radius={[0, 6, 6, 0]} barSize={16} />
+                      <Bar dataKey="count" fill={CHART_BLUE} radius={[0, 6, 6, 0]} barSize={16} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -275,9 +276,9 @@ export default function DashboardClient({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {insights.geo_breakdown.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Geography
                 </h3>
                 <div className="space-y-2.5">
@@ -291,7 +292,7 @@ export default function DashboardClient({
                           <span className="font-semibold text-[#0A2540] tabular-nums">{item.count} ({pct}%)</span>
                         </div>
                         <div className="h-2 bg-[#F0F3F7] rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg, #0ABF53, #34D399)" }} />
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg, #6366F1, #818CF8)" }} />
                         </div>
                       </div>
                     );
@@ -301,9 +302,9 @@ export default function DashboardClient({
             )}
 
             {insights.timeline.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Connection Timeline
                 </h3>
                 <div className="h-[140px]">
@@ -311,14 +312,14 @@ export default function DashboardClient({
                     <AreaChart data={insights.timeline.slice(-12)} margin={{ left: 0, right: 0, top: 5, bottom: 0 }}>
                       <defs>
                         <linearGradient id="timeGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#0ABF53" stopOpacity={0.2} />
-                          <stop offset="95%" stopColor="#0ABF53" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#6366F1" stopOpacity={0.15} />
+                          <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <XAxis dataKey="period" tickFormatter={formatPeriod} tick={{ fontSize: 10, fill: "#596780" }} tickLine={false} axisLine={false} />
                       <YAxis hide />
                       <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "1px solid #E3E8EF", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} labelFormatter={(label) => formatPeriod(String(label))} />
-                      <Area type="monotone" dataKey="count" stroke="#0ABF53" strokeWidth={2} fill="url(#timeGrad)" />
+                      <Area type="monotone" dataKey="count" stroke="#6366F1" strokeWidth={1.5} fill="url(#timeGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -328,9 +329,9 @@ export default function DashboardClient({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {insights.top_companies.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Top Companies
                 </h3>
                 <div className="space-y-2.5">
@@ -349,9 +350,9 @@ export default function DashboardClient({
             )}
 
             {insights.top_schools.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Education Highlights
                 </h3>
                 <div className="space-y-2.5">
@@ -371,16 +372,16 @@ export default function DashboardClient({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {insights.funding_signals.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                  <Banknote className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Funding Signals
                 </h3>
                 <div className="space-y-2.5">
                   {insights.funding_signals.map((item) => (
                     <div key={`${item.company}-${item.date}`} className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-[#E6F9EE] flex items-center justify-center shrink-0">
-                        <Banknote className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.8} />
+                      <div className="w-8 h-8 rounded-lg bg-[#F0F3F7] flex items-center justify-center shrink-0">
+                        <Banknote className="w-4 h-4 text-[#596780]" strokeWidth={1.5} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#0A2540] truncate">{item.company}</p>
@@ -394,9 +395,9 @@ export default function DashboardClient({
             )}
 
             {insights.experience_stats.histogram.some((b) => b.count > 0) && (
-              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
-                <h3 className="text-lg font-semibold text-[#0A2540] mb-1 flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-[#0ABF53]" strokeWidth={2} />
+              <div className="bg-white rounded-xl border border-[#E3E8EF] p-5">
+                <h3 className="text-sm font-semibold text-[#0A2540] mb-1 flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Experience Distribution
                 </h3>
                 <p className="text-[11px] text-[#96A0B5] mb-3">
@@ -411,7 +412,7 @@ export default function DashboardClient({
                       <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "1px solid #E3E8EF", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} formatter={(value) => [`${value} people`, "Count"]} />
                       <Bar dataKey="count" radius={[6, 6, 0, 0]} barSize={24}>
                         {insights.experience_stats.histogram.map((entry, i) => (
-                          <Cell key={i} fill={entry.count > 0 ? "#0ABF53" : "#E3E8EF"} />
+                          <Cell key={i} fill={entry.count > 0 ? "#6366F1" : "#E3E8EF"} />
                         ))}
                       </Bar>
                     </BarChart>
@@ -421,24 +422,24 @@ export default function DashboardClient({
             )}
           </div>
 
-          <Link href="/dashboard/hit-list" className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 flex items-center gap-4 hover:shadow-md transition-all group block">
-            <div className="w-12 h-12 rounded-xl bg-[#E6F9EE] flex items-center justify-center shrink-0">
-              <TrendingUp className="w-6 h-6 text-[#0ABF53]" strokeWidth={1.8} />
+          <Link href="/dashboard/hit-list" className="bg-white rounded-xl border border-[#E3E8EF] p-5 flex items-center gap-4 hover:border-[#6366F1]/30 transition-all group block">
+            <div className="w-10 h-10 rounded-lg bg-[#EEF2FF] flex items-center justify-center shrink-0">
+              <TrendingUp className="w-5 h-5 text-[#6366F1]" strokeWidth={1.5} />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-[#0A2540]">View your Hit List</p>
+              <p className="text-sm font-medium text-[#0A2540]">View your Hit List</p>
               <p className="text-xs text-[#596780] mt-0.5">
                 {insights.scored_count > 0 ? `${insights.scored_count} scored matches ready to explore` : "Your top-scored connections ranked by relevance"}
               </p>
             </div>
-            <ArrowRight className="w-5 h-5 text-[#96A0B5] group-hover:text-[#0ABF53] transition-colors" />
+            <ArrowRight className="w-5 h-5 text-[#94A3B8] group-hover:text-[#6366F1] transition-colors" />
           </Link>
         </div>
       ) : !pipelineActive ? (
-        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-10 text-center">
+        <div className="bg-white rounded-xl border border-[#E3E8EF] p-10 text-center">
           <div className="animate-fade-in-up">
-            <div className="w-16 h-16 bg-[#E6F9EE] rounded-xl flex items-center justify-center mx-auto mb-5">
-              <Sparkles className="w-7 h-7 text-[#0ABF53]" strokeWidth={1.5} />
+            <div className="w-16 h-16 bg-[#F0F3F7] rounded-xl flex items-center justify-center mx-auto mb-5">
+              <Sparkles className="w-7 h-7 text-[#94A3B8]" strokeWidth={1.5} />
             </div>
             {loadingInsights ? (
               <>
