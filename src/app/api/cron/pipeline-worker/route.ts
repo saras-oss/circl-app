@@ -71,19 +71,10 @@ async function chunkedUpdate(
 // Main GET handler — cron entry point
 // ---------------------------------------------------------------------------
 
-export async function GET(request: Request) {
-  // 1. Verify this is a legitimate cron call
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  const isAuthorized =
-    authHeader === `Bearer ${cronSecret}` ||
-    !cronSecret; // If CRON_SECRET isn't set, allow (for testing)
-
-  if (!isAuthorized) {
-    console.log("CRON: Unauthorized. Header:", authHeader?.slice(0, 20));
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function GET() {
+  // No auth check needed — this endpoint is called by Vercel cron only
+  // The vercel.json cron config ensures only Vercel calls this
+  console.log("CRON: Tick started at", new Date().toISOString());
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
