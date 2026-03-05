@@ -8,12 +8,12 @@ import {
   Star,
   Users,
   Search,
-  Settings,
-  LogOut,
   Shield,
+  Settings,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import UserProfilePopup from "./UserProfilePopup";
 
 const ADMIN_EMAILS = ["saras@incommon.ai", "piyush@incommon.ai"];
 
@@ -21,6 +21,13 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/hit-list", label: "Hit List", icon: Star },
   { href: "/dashboard/network", label: "My Network", icon: Users },
+  { href: "/dashboard/query", label: "Query", icon: Search },
+];
+
+const mobileNavItems = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/hit-list", label: "Hit List", icon: Star },
+  { href: "/dashboard/network", label: "Network", icon: Users },
   { href: "/dashboard/query", label: "Query", icon: Search },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
@@ -30,14 +37,35 @@ export default function Sidebar() {
   const router = useRouter();
   const supabase = createClient();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [companyName, setCompanyName] = useState("");
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email && ADMIN_EMAILS.includes(user.email)) {
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      if (user.email && ADMIN_EMAILS.includes(user.email)) {
         setIsAdmin(true);
       }
-    });
-  }, [supabase.auth]);
+      setUserEmail(user.email || "");
+
+      const { data: profile } = await supabase
+        .from("users")
+        .select("full_name, company_name")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        setUserName((profile.full_name as string) || "");
+        setCompanyName((profile.company_name as string) || "");
+      }
+    }
+    loadUser();
+  }, [supabase]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -72,7 +100,10 @@ export default function Sidebar() {
                     : "text-warm-500 hover:text-foreground hover:bg-warm-100"
                 }`}
               >
-                <item.icon className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.2 : 1.8} />
+                <item.icon
+                  className="w-[18px] h-[18px]"
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                />
                 {item.label}
               </Link>
             );
@@ -86,27 +117,27 @@ export default function Sidebar() {
                   : "text-warm-500 hover:text-foreground hover:bg-warm-100"
               }`}
             >
-              <Shield className="w-[18px] h-[18px]" strokeWidth={pathname === "/dashboard/admin" ? 2.2 : 1.8} />
+              <Shield
+                className="w-[18px] h-[18px]"
+                strokeWidth={pathname === "/dashboard/admin" ? 2.2 : 1.8}
+              />
               Admin
             </Link>
           )}
         </nav>
 
-        <div className="px-3 py-4 border-t border-border">
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-3 px-3 h-11 rounded-xl text-[13px] font-medium text-warm-400 hover:text-foreground hover:bg-warm-100 transition-all duration-200 w-full"
-          >
-            <LogOut className="w-[18px] h-[18px]" strokeWidth={1.8} />
-            Sign Out
-          </button>
-        </div>
+        <UserProfilePopup
+          userName={userName}
+          userEmail={userEmail}
+          companyName={companyName}
+          onSignOut={handleSignOut}
+        />
       </aside>
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-border z-50 safe-area-bottom">
         <div className="flex items-center justify-around h-[64px]">
-          {navItems.map((item) => {
+          {mobileNavItems.map((item) => {
             const isActive =
               pathname === item.href ||
               (item.href !== "/dashboard" && pathname.startsWith(item.href));
@@ -122,7 +153,9 @@ export default function Sidebar() {
                   className="w-5 h-5"
                   strokeWidth={isActive ? 2.2 : 1.8}
                 />
-                <span className={`text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}>
+                <span
+                  className={`text-[10px] ${isActive ? "font-semibold" : "font-medium"}`}
+                >
                   {item.label}
                 </span>
               </Link>

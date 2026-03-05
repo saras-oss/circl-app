@@ -1,13 +1,99 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { User, CreditCard, Target, Upload, Check, Sparkles } from "lucide-react";
+import {
+  User,
+  CreditCard,
+  Target,
+  Upload,
+  Check,
+  Sparkles,
+  BarChart3,
+  X,
+  Plus,
+  Pencil,
+} from "lucide-react";
 
 interface SettingsClientProps {
   userId: string;
   profile: Record<string, unknown>;
   payment: Record<string, unknown> | null;
+}
+
+interface IcpFields {
+  industries: string[];
+  titles: string[];
+  companySizes: string[];
+  geographies: string[];
+  fundingStages: string[];
+  triggers: string[];
+}
+
+const ICP_FIELD_LABELS: Record<keyof IcpFields, string> = {
+  industries: "Target Industries",
+  titles: "Target Titles",
+  companySizes: "Company Sizes",
+  geographies: "Geographies",
+  fundingStages: "Funding Stages",
+  triggers: "Sales Triggers",
+};
+
+function TagEditor({
+  tags,
+  onChange,
+  placeholder,
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder: string;
+}) {
+  const [input, setInput] = useState("");
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if ((e.key === "Enter" || e.key === ",") && input.trim()) {
+      e.preventDefault();
+      if (!tags.includes(input.trim())) {
+        onChange([...tags, input.trim()]);
+      }
+      setInput("");
+    }
+    if (e.key === "Backspace" && !input && tags.length > 0) {
+      onChange(tags.slice(0, -1));
+    }
+  }
+
+  function removeTag(index: number) {
+    onChange(tags.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="min-h-[52px] px-3 py-2 rounded-2xl border-2 border-border bg-surface flex flex-wrap gap-2 items-center input-ring transition-all focus-within:border-accent/50">
+      {tags.map((tag, i) => (
+        <span
+          key={i}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
+        >
+          {tag}
+          <button
+            type="button"
+            onClick={() => removeTag(i)}
+            className="hover:text-accent/70 transition-colors"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </span>
+      ))}
+      <input
+        type="text"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={tags.length === 0 ? placeholder : "Add more..."}
+        className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-warm-400 outline-none py-1"
+      />
+    </div>
+  );
 }
 
 export default function SettingsClient({
@@ -34,6 +120,74 @@ export default function SettingsClient({
   const [saved, setSaved] = useState(false);
   const supabase = createClient();
 
+  // ICP state
+  const rawIcp = profile.icp_data as Record<string, unknown> | null;
+  const [icpEditing, setIcpEditing] = useState(false);
+  const [icpFields, setIcpFields] = useState<IcpFields>({
+    industries: (rawIcp?.industries as string[]) || [],
+    titles: (rawIcp?.titles as string[]) || [],
+    companySizes: (rawIcp?.companySizes as string[]) || [],
+    geographies: (rawIcp?.geographies as string[]) || [],
+    fundingStages: (rawIcp?.fundingStages as string[]) || [],
+    triggers: (rawIcp?.triggers as string[]) || [],
+  });
+  const [icpSaving, setIcpSaving] = useState(false);
+  const [icpSaved, setIcpSaved] = useState(false);
+
+  // Usage stats
+  const [usageStats, setUsageStats] = useState<{
+    uploaded: number;
+    enriched: number;
+    scored: number;
+  } | null>(null);
+
+  const icpRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to hash on mount
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash) {
+      setTimeout(() => {
+        const el = document.querySelector(hash);
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, []);
+
+  // Load usage stats
+  useEffect(() => {
+    async function loadUsage() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { count: total } = await supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      const { count: enriched } = await supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .in("enrichment_status", ["enriched", "cached"]);
+
+      const { count: scored } = await supabase
+        .from("user_connections")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("match_score", "is", null);
+
+      setUsageStats({
+        uploaded: total || 0,
+        enriched: enriched || 0,
+        scored: scored || 0,
+      });
+    }
+    loadUsage();
+  }, [supabase]);
+
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -55,6 +209,33 @@ export default function SettingsClient({
     setTimeout(() => setSaved(false), 3000);
   }
 
+  async function handleSaveIcp() {
+    setIcpSaving(true);
+    setIcpSaved(false);
+
+    const icpData = {
+      ...rawIcp,
+      ...icpFields,
+    };
+
+    const res = await fetch("/api/icp/confirm", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, icpData }),
+    });
+
+    setIcpSaving(false);
+    if (res.ok) {
+      setIcpSaved(true);
+      setIcpEditing(false);
+      setTimeout(() => setIcpSaved(false), 3000);
+    }
+  }
+
+  function updateIcpField(field: keyof IcpFields, value: string[]) {
+    setIcpFields((prev) => ({ ...prev, [field]: value }));
+  }
+
   const tierLabels: Record<string, string> = {
     free: "Free",
     starter: "Starter \u2014 $100/year",
@@ -70,7 +251,9 @@ export default function SettingsClient({
     <div className="animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">Settings</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+          Settings
+        </h1>
       </div>
 
       <div className="space-y-6 stagger-children">
@@ -165,8 +348,136 @@ export default function SettingsClient({
           </form>
         </div>
 
-        {/* Subscription */}
-        <div className="card-elevated p-6 sm:p-8">
+        {/* ICP */}
+        <div id="icp" ref={icpRef} className="card-elevated p-6 sm:p-8 scroll-mt-6">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
+                <Target className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-foreground">
+                  Ideal Customer Profile
+                </h2>
+                <p className="text-xs text-warm-400 font-medium">
+                  Your targeting criteria for matches
+                </p>
+              </div>
+            </div>
+            {!icpEditing &&
+              rawIcp &&
+              Object.keys(rawIcp).length > 0 && (
+                <button
+                  onClick={() => setIcpEditing(true)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80 transition-colors"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Edit
+                </button>
+              )}
+          </div>
+
+          {icpEditing ? (
+            <div className="space-y-5">
+              {(Object.keys(ICP_FIELD_LABELS) as (keyof IcpFields)[]).map(
+                (field) => (
+                  <div key={field}>
+                    <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+                      {ICP_FIELD_LABELS[field]}
+                    </label>
+                    <TagEditor
+                      tags={icpFields[field]}
+                      onChange={(tags) => updateIcpField(field, tags)}
+                      placeholder={`Add ${ICP_FIELD_LABELS[field].toLowerCase()}...`}
+                    />
+                  </div>
+                )
+              )}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleSaveIcp}
+                  disabled={icpSaving}
+                  className="h-[44px] px-6 rounded-2xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2"
+                >
+                  {icpSaving ? (
+                    "Saving..."
+                  ) : icpSaved ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Saved!
+                    </>
+                  ) : (
+                    "Save ICP"
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    setIcpEditing(false);
+                    setIcpFields({
+                      industries: (rawIcp?.industries as string[]) || [],
+                      titles: (rawIcp?.titles as string[]) || [],
+                      companySizes: (rawIcp?.companySizes as string[]) || [],
+                      geographies: (rawIcp?.geographies as string[]) || [],
+                      fundingStages: (rawIcp?.fundingStages as string[]) || [],
+                      triggers: (rawIcp?.triggers as string[]) || [],
+                    });
+                  }}
+                  className="h-[44px] px-6 rounded-2xl border-2 border-border text-sm font-semibold text-warm-500 hover:text-foreground hover:border-border-strong transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : rawIcp && Object.keys(rawIcp).length > 0 ? (
+            <div className="space-y-5">
+              {Object.entries(rawIcp).map(([key, value]) => {
+                if (typeof value === "boolean" || !value) return null;
+                const label = key
+                  .replace(/([A-Z])/g, " $1")
+                  .replace(/^./, (s) => s.toUpperCase());
+                return (
+                  <div key={key}>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3">
+                      {label}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {Array.isArray(value) ? (
+                        value.map((v: string) => (
+                          <span
+                            key={v}
+                            className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
+                          >
+                            {v}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10">
+                          {String(value)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="py-6 text-center">
+              <p className="text-sm text-warm-400 font-medium mb-3">
+                No ICP defined yet
+              </p>
+              <button
+                onClick={() => setIcpEditing(true)}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Define your ICP
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Subscription & Billing */}
+        <div id="billing" className="card-elevated p-6 sm:p-8 scroll-mt-6">
           <div className="flex items-center gap-3.5 mb-8">
             <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
               <CreditCard className="w-5 h-5 text-accent" />
@@ -217,7 +528,9 @@ export default function SettingsClient({
                 </span>
                 <span className="text-sm font-semibold text-foreground">
                   ${((payment.amount as number) / 100).toFixed(0)} on{" "}
-                  {new Date(payment.created_at as string).toLocaleDateString()}
+                  {new Date(
+                    payment.created_at as string
+                  ).toLocaleDateString()}
                 </span>
               </div>
             )}
@@ -225,7 +538,9 @@ export default function SettingsClient({
 
           {profile.subscription_tier === "free" && (
             <div className="mt-6 p-5 rounded-2xl bg-gradient-to-br from-accent-light to-accent/5 border border-accent/10">
-              <p className="text-sm font-semibold text-foreground">Upgrade your plan</p>
+              <p className="text-sm font-semibold text-foreground">
+                Upgrade your plan
+              </p>
               <p className="text-xs text-warm-500 mt-1 leading-relaxed">
                 Analyze all{" "}
                 {(
@@ -237,57 +552,50 @@ export default function SettingsClient({
           )}
         </div>
 
-        {/* ICP */}
-        <div className="card-elevated p-6 sm:p-8">
-          <div className="flex items-center gap-3.5 mb-6">
+        {/* Usage & Limits */}
+        <div id="usage" className="card-elevated p-6 sm:p-8 scroll-mt-6">
+          <div className="flex items-center gap-3.5 mb-8">
             <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-              <Target className="w-5 h-5 text-accent" />
+              <BarChart3 className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Ideal Customer Profile</h2>
+              <h2 className="font-semibold text-foreground">Usage & Limits</h2>
               <p className="text-xs text-warm-400 font-medium">
-                Your targeting criteria for matches
+                Your pipeline usage
               </p>
             </div>
           </div>
-          {profile.icp_data &&
-          Object.keys(profile.icp_data as object).length > 0 ? (
-            <div className="space-y-5">
-              {Object.entries(profile.icp_data as Record<string, unknown>).map(
-                ([key, value]) => {
-                  if (typeof value === "boolean" || !value) return null;
-                  const label = key
-                    .replace(/([A-Z])/g, " $1")
-                    .replace(/^./, (s) => s.toUpperCase());
-                  return (
-                    <div key={key}>
-                      <p className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3">
-                        {label}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {Array.isArray(value) ? (
-                          value.map((v: string) => (
-                            <span
-                              key={v}
-                              className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
-                            >
-                              {v}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10">
-                            {String(value)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-              )}
+
+          {usageStats ? (
+            <div className="grid grid-cols-3 gap-4">
+              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
+                <p className="text-2xl font-bold text-foreground">
+                  {usageStats.uploaded.toLocaleString()}
+                </p>
+                <p className="text-xs text-warm-400 font-medium mt-1">
+                  Uploaded
+                </p>
+              </div>
+              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
+                <p className="text-2xl font-bold text-foreground">
+                  {usageStats.enriched.toLocaleString()}
+                </p>
+                <p className="text-xs text-warm-400 font-medium mt-1">
+                  Enriched
+                </p>
+              </div>
+              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
+                <p className="text-2xl font-bold text-foreground">
+                  {usageStats.scored.toLocaleString()}
+                </p>
+                <p className="text-xs text-warm-400 font-medium mt-1">
+                  Scored
+                </p>
+              </div>
             </div>
           ) : (
-            <div className="py-6 text-center">
-              <p className="text-sm text-warm-400 font-medium">No ICP defined yet</p>
+            <div className="flex items-center justify-center py-6">
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-warm-200 border-t-accent" />
             </div>
           )}
         </div>
@@ -299,7 +607,9 @@ export default function SettingsClient({
               <Upload className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Re-upload Connections</h2>
+              <h2 className="font-semibold text-foreground">
+                Re-upload Connections
+              </h2>
               <p className="text-xs text-warm-400 font-medium">
                 Update your network with a new LinkedIn export
               </p>

@@ -541,6 +541,21 @@ export default function CsvUploadStep({
         </div>
       )}
 
+      {/* LinkedIn export guide */}
+      {!uploadComplete && (
+        <div className="rounded-2xl border border-warm-200 overflow-hidden">
+          <img
+            src="/guides/linkedin-export-guide.gif"
+            alt="How to export LinkedIn connections"
+            className="w-full"
+            loading="lazy"
+          />
+          <p className="text-sm text-warm-400 text-center py-2.5 font-medium">
+            How to export your LinkedIn connections
+          </p>
+        </div>
+      )}
+
       {/* Navigation */}
       <div className="flex gap-3">
         <Button
