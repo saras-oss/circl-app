@@ -27,7 +27,53 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
 
   const salesIntent = result?.sales_intent || false;
 
+  function renderIntroGrouped() {
+    if (!result.is_intro_query || !result.intro_company) return null;
+
+    const companyName = result.intro_company.toLowerCase();
+
+    const currentEmployees = result.results.filter((r: any) => {
+      const current = (r.current_company || r.csv_company || "").toLowerCase();
+      const compName = (r.company_name || "").toLowerCase();
+      return current.includes(companyName) || compName.includes(companyName);
+    });
+
+    const formerEmployees = result.results.filter((r: any) => {
+      const current = (r.current_company || r.csv_company || "").toLowerCase();
+      const compName = (r.company_name || "").toLowerCase();
+      return !current.includes(companyName) && !compName.includes(companyName);
+    });
+
+    return (
+      <div className="space-y-6 mt-4">
+        {currentEmployees.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[#596780] mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#0ABF53] rounded-full"></span>
+              Currently at {result.intro_company} ({currentEmployees.length})
+            </h3>
+            <ProfileCards results={currentEmployees} salesIntent={salesIntent} />
+          </div>
+        )}
+        {formerEmployees.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-[#596780] mb-3 flex items-center gap-2">
+              <span className="w-2 h-2 bg-[#FFBB38] rounded-full"></span>
+              Previously at {result.intro_company} ({formerEmployees.length})
+            </h3>
+            <ProfileCards results={formerEmployees} salesIntent={salesIntent} />
+          </div>
+        )}
+      </div>
+    );
+  }
+
   function renderStructuredDisplay() {
+    // Intro-to-company grouping (current vs previous)
+    if (result.is_intro_query && result.intro_company && result.results.length > 0) {
+      return renderIntroGrouped();
+    }
+
     // Profile display type — person lookup
     if (result.display_type === "profile" && result.results.length > 0) {
       if (result.results.length === 1) {

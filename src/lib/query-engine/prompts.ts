@@ -98,20 +98,45 @@ Return ONLY a valid JSON object. No explanation, no markdown backticks, no pream
 
 ## Role-specific query rules
 
-When the user asks about a specific ROLE or FUNCTION ("recruiting leaders", "engineering managers", "sales directors", "product people"), use BROAD title_keywords that cover common variations for that function. Do NOT set function_category — title_keywords alone are sufficient and adding function_category creates an overly strict AND filter.
+When the user asks about a specific ROLE or FUNCTION ("recruiting leaders", "engineering managers", "sales directors", "product people"):
+- Use title_keywords with terms SPECIFIC to that function. These keywords must be precise enough that unrelated roles don't match.
+- DO set function_category to further constrain. This prevents CEOs and CTOs from matching recruiting queries.
+- But make BOTH the title_keywords AND function_category INDIVIDUALLY broad enough to catch variations.
 
-Role mapping (use broad terms):
-- "recruiting leaders" / "talent people" / "HR leaders" → title_keywords: ["Talent", "Recruiter", "Recruiting", "People", "HR", "Human Resources", "Talent Partner", "People Partner", "Talent Acquisition", "Head of Talent", "HR Director", "Head of People", "Chief People Officer", "CHRO"]
-- "engineering leaders" / "tech leaders" → title_keywords: ["CTO", "VP Engineering", "Director of Engineering", "Head of Engineering", "SVP Engineering", "Chief Technology", "Engineering Manager"], seniority_tier: ["C-suite", "VP/Director"]
-- "sales leaders" → title_keywords: ["VP Sales", "Sales Director", "Head of Sales", "CRO", "Chief Revenue", "SVP Sales"], seniority_tier: ["C-suite", "VP/Director"]
-- "marketing leaders" → title_keywords: ["CMO", "VP Marketing", "Director of Marketing", "Head of Marketing", "Chief Marketing"], seniority_tier: ["C-suite", "VP/Director"]
-- "product leaders" / "product people" → title_keywords: ["CPO", "VP Product", "Director of Product", "Head of Product", "Chief Product"], seniority_tier: ["C-suite", "VP/Director"]
-- "finance leaders" → title_keywords: ["CFO", "VP Finance", "Director of Finance", "Head of Finance", "Chief Financial", "Controller"], seniority_tier: ["C-suite", "VP/Director"]
+Role mapping (use these exact values):
+
+"recruiting leaders" / "talent people" / "HR leaders" / "people leaders":
+  title_keywords: ["Talent", "Recruit", "People Partner", "People Operations", "HR ", "Human Resources", "CHRO", "Chief People"]
+  function_category: ["HR & People"]
+  NOTE: "Talent" matches "Senior Talent Partner", "Talent Acquisition Lead", etc. "Recruit" matches "Recruiter", "Recruiting Manager", "Recruitment". "HR " (with trailing space) avoids matching "Chris" but catches "HR Director".
+
+"engineering leaders" / "tech leaders" / "technical leaders":
+  title_keywords: ["Engineer", "CTO", "Chief Technology", "VP Engineering", "Director of Engineering", "Head of Engineering", "Architect"]
+  function_category: ["Engineering & Technology"]
+
+"sales leaders":
+  title_keywords: ["Sales", "CRO", "Chief Revenue", "Business Development", "Account Executive"]
+  function_category: ["Sales & BD"]
+
+"marketing leaders":
+  title_keywords: ["Marketing", "CMO", "Chief Marketing", "Growth", "Brand"]
+  function_category: ["Marketing"]
+
+"product leaders" / "product people":
+  title_keywords: ["Product", "CPO", "Chief Product"]
+  function_category: ["Product"]
+
+"finance leaders":
+  title_keywords: ["Finance", "CFO", "Chief Financial", "Controller", "Treasurer", "FP&A"]
+  function_category: ["Finance"]
+
+CRITICAL: When the query asks for "[role] at [company]" or "[role] in [industry]", the title_keywords + function_category filter for the ROLE, and company_keywords or industry_keywords filter for the COMPANY/INDUSTRY. Both must match. A CEO at a healthtech company is NOT a "recruiting leader in healthtech."
+
+When the query just says "leaders" without a specific function (e.g., "leaders at Mimecast"), do NOT set function_category. Just use seniority_tier: ["C-suite", "VP/Director"].
 
 For role-specific queries with an industry ("recruiting leaders in healthtech", "engineering managers at fintech companies"):
 - Use BROAD industry keywords. "healthtech" → industry_keywords: ["health", "healthcare", "healthtech", "medical", "biotech", "pharma", "clinical"]. "fintech" → ["fintech", "financial", "banking", "payments", "lending"]. "cybersecurity" → ["security", "cyber", "cybersecurity", "infosec"].
 - Industry keywords search across company_industry, company_description, and company_specialities — so broad terms catch companies with varied industry labels.
-- PREFER broader matching over precision. It's better to return 3 results where 1 isn't perfect than 0 results.
 
 When a role-specific query ALSO mentions a company ("recruiting leaders at HealthEdge"), apply BOTH the title filter AND the company filter.
 
@@ -225,7 +250,12 @@ Contextual briefing. Mention each person by name with their title, company, and 
 Same but include scores, match analysis, and outreach approach for top matches. 100-150 words.
 
 **Filter — 6+ results, sales_intent FALSE (display_type: "table"):**
-Executive summary. Headline number, top 3-5 people by name with titles, company context, one pattern or insight. 80-120 words. No scores.
+Keep it SHORT. The table shows the details — your text is just the executive headline.
+- One paragraph max. 60-80 words. No more.
+- Open with the company context in one sentence (what the company does, size, funding) if it's a company query.
+- Then one sentence naming the 2-3 most senior contacts.
+- Then one sentence on a pattern (geography split, seniority mix, or department concentration).
+- That's it. Stop. Do NOT list every person by name. Do NOT create sections or sub-headers. Do NOT write more than one paragraph.
 
 **Filter — 6+ results, sales_intent TRUE (display_type: "table"):**
 Lead with strongest matches by score. Group into tiers. Outreach approach for top leads. 80-120 words.

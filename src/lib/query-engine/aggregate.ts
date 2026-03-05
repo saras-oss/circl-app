@@ -16,9 +16,12 @@ export function aggregateResults(
   const actualColumn = columnMap[groupBy] || groupBy;
 
   for (const row of data) {
-    const key = String(row[actualColumn] || "Unknown");
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(row.match_score || 0);
+    const key = row[actualColumn];
+    // Skip null, undefined, empty string, and "Unknown" entries
+    if (!key || key === "Unknown" || key === "unknown" || String(key).trim() === "") continue;
+    const label = String(key);
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label)!.push(row.match_score || 0);
   }
 
   const results = Array.from(groups.entries()).map(([label, scores]) => ({

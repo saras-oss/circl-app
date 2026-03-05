@@ -106,4 +106,6 @@ export interface QueryAPIResponse {
     total: number;
   };
   sales_intent?: boolean;
+  is_intro_query?: boolean;
+  intro_company?: string | null;
 }

@@ -260,6 +260,8 @@ ${synthesisInput}`,
       total_available: results.total_available,
       enrichment_coverage: results.enrichment_coverage,
       sales_intent: intent.sales_intent || false,
+      is_intro_query: isIntroQuery,
+      intro_company: isIntroQuery ? intent.filters!.company_current_or_previous_keywords![0] : null,
     });
   } catch (err: unknown) {
     console.error("QUERY: Engine error:", err);
