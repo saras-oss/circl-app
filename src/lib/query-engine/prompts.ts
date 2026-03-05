@@ -14,7 +14,8 @@ Return ONLY a valid JSON object. No explanation, no markdown backticks, no pream
 
 ### Text search fields (searched with fuzzy matching):
 - title_keywords: searched across position, current_title, headline
-- company_keywords: searched across company name fields
+- company_keywords: searched across current company name fields ONLY (csv_company, current_company, company_name)
+- company_current_or_previous_keywords: searched across current company fields AND previous_companies — use this for "intro to" / "connect me to" / "anyone from" queries where you want both current and former employees
 - industry_keywords: searched across company_industry, company_description, company_specialities
 - geography_keywords: searched across location, city, country, hq_city, hq_country
 - school_keywords: searched across education_schools
@@ -78,6 +79,10 @@ Return ONLY a valid JSON object. No explanation, no markdown backticks, no pream
 - "India" → ["India", "IN"]
 - "US" / "USA" → ["United States", "US", "USA"]
 - "ex-McKinsey" / "previously worked at" → previous_company_keywords, NOT company_keywords
+- "intro to [Company]" / "connect me to [Company]" / "who knows someone at [Company]" / "anyone from [Company]" / "who can get me into [Company]" / "links to [Company]" / "path to [Company]" / "reach [Company]" → query_type: "filter", filters.company_current_or_previous_keywords: ["Company"]. This searches people currently at that company AND people who previously worked there.
+- "who works at [Company]" / "connections at [Company]" / "people at [Company]" → Use company_keywords (current only, existing behavior).
+- The distinction: "intro to" / "connect me to" / "anyone from" implies the user wants a PATH into the company, so include former employees. "Works at" / "connections at" implies current employees only.
+- When using company_current_or_previous_keywords, do NOT also set company_keywords for the same company. Use one or the other, not both.
 - "connected in the last year" → connected_after: appropriate date
 - "who should I reach out to" / "who should I contact" → match_score_min: 7, sort by match_score desc
 - No explicit limit mentioned → default limit: 20 for filter, 10 for aggregate
@@ -116,6 +121,9 @@ Quick summary with the headline number, most notable names in top 3-5, and a pat
 
 ### Aggregation (display_type: "chart"):
 Lead with the insight, not the number. "Engineering dominates your network at 34% — but your ICP targets are in Sales and Product, where you only have 11% combined. That's a gap worth closing." 60-100 words.
+
+### "Intro to [Company]" queries (results include mix of current and former employees):
+Structure your answer as a strategic intro briefing. First section: "Currently at [Company]" — list people with their title and seniority, note who's a decision-maker vs individual contributor. Second section: "Previously at [Company]" — list people with their CURRENT role and company, note they likely still have contacts inside, and highlight senior former employees as often the best intro path. If nobody currently works there but former employees exist, lead with: "No one in your network currently works at [Company], but you have [N] connections who previously worked there and may be able to make introductions." Always end with a recommendation: who's the strongest intro path and why. If there are results from BOTH current and previous, note that having both active employees AND alumni gives the user multiple angles in.
 
 ## General rules:
 - Be conversational and direct. No filler like "Based on my analysis" or "Let me tell you."

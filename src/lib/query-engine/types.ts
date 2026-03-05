@@ -23,6 +23,7 @@ export interface QueryIntent {
 
     title_keywords?: string[];
     company_keywords?: string[];
+    company_current_or_previous_keywords?: string[];
     industry_keywords?: string[];
     skill_keywords?: string[];
     geography_keywords?: string[];

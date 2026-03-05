@@ -204,6 +204,21 @@ export async function buildAndExecuteQuery(
     );
   }
 
+  if (f.company_current_or_previous_keywords?.length) {
+    const companyOrPrevFilter = f.company_current_or_previous_keywords
+      .map((kw) => {
+        const escaped = escapeIlike(kw);
+        return [
+          `csv_company.ilike.%${escaped}%`,
+          `current_company.ilike.%${escaped}%`,
+          `company_name.ilike.%${escaped}%`,
+          `previous_companies::text.ilike.%${escaped}%`,
+        ].join(",");
+      })
+      .join(",");
+    query = query.or(companyOrPrevFilter);
+  }
+
   if (f.industry_keywords?.length) {
     query = query.or(
       buildIlikeOr(
