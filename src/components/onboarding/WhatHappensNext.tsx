@@ -55,16 +55,16 @@ export default function WhatHappensNext({
     <div className="animate-fade-in flex flex-col items-center text-center space-y-10">
       {/* Header */}
       <div className="space-y-4">
-        <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+        <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
           <PartyPopper className="h-7 w-7 text-accent" strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
             You&apos;re all set!
           </h1>
-          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-[#596780] max-w-md mx-auto leading-relaxed">
             Here&apos;s what happens next.{connectionCount > 0 && (
-              <> Estimated time: <strong className="text-foreground">{getTimeEstimate(connectionCount)}</strong>.</>
+              <> Estimated time: <strong className="text-[#0A2540]">{getTimeEstimate(connectionCount)}</strong>.</>
             )}
           </p>
         </div>
@@ -88,11 +88,11 @@ export default function WhatHappensNext({
             return (
               <div
                 key={index}
-                className="card-elevated p-5 sm:p-6 flex items-start gap-5 text-left relative"
+                className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 sm:p-6 flex items-start gap-5 text-left relative"
               >
                 {/* Number + icon column */}
                 <div className="flex flex-col items-center gap-2 shrink-0 relative z-10">
-                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-accent/10">
+                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-xl bg-accent/10">
                     <Icon className="h-6 w-6 sm:h-7 sm:w-7 text-accent" strokeWidth={1.5} />
                   </div>
                 </div>
@@ -103,11 +103,11 @@ export default function WhatHappensNext({
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-accent text-xs font-bold text-white shrink-0">
                       {index + 1}
                     </span>
-                    <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                    <h3 className="text-base sm:text-lg font-semibold text-[#0A2540]">
                       {step.title}
                     </h3>
                   </div>
-                  <p className="text-sm text-warm-500 leading-relaxed">
+                  <p className="text-sm text-[#596780] leading-relaxed">
                     {step.description}
                   </p>
                 </div>
@@ -122,7 +122,7 @@ export default function WhatHappensNext({
         onClick={handleGoToDashboard}
         size="lg"
         loading={loading}
-        className="w-full h-[56px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-accent/20"
+        className="w-full h-[56px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-accent/20"
       >
         Go to Dashboard
         <ArrowRight className="h-4 w-4" />

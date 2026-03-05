@@ -13,7 +13,7 @@ import {
   Loader2,
   Sparkles,
   ArrowRight,
-  Lock,
+  Target,
   CheckCircle,
   Circle,
 } from "lucide-react";
@@ -276,11 +276,11 @@ export default function HitListClient({
   });
 
   function getScoreColor(score: number | null) {
-    if (!score) return "bg-warm-100 text-warm-500";
-    if (score >= 9) return "bg-[#1B4332] text-white";
-    if (score >= 7) return "bg-[#2D6A4F] text-white";
-    if (score >= 5) return "bg-amber-500 text-white";
-    return "bg-warm-200 text-warm-600";
+    if (!score) return "bg-[#96A0B5] text-white";
+    if (score >= 9) return "score-badge-excellent text-white";
+    if (score >= 7) return "bg-[#0ABF53] text-white";
+    if (score >= 5) return "bg-[#FFBB38] text-white";
+    return "bg-[#96A0B5] text-white";
   }
 
   function getScoreLabel(score: number | null) {
@@ -294,13 +294,13 @@ export default function HitListClient({
   function getSeniorityColor(tier: string | null) {
     switch (tier) {
       case "C-suite":
-        return "bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800 border border-amber-200/60";
+        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
       case "VP/Director":
-        return "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border border-blue-200/60";
+        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
       case "Manager":
-        return "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 border border-emerald-200/60";
+        return "bg-[#FFF8E6] text-[#B8860B] border border-[#FFBB38]/20";
       default:
-        return "bg-warm-100 text-warm-600 border border-warm-200/60";
+        return "bg-[#F0F3F7] text-[#596780] border border-[#E3E8EF]";
     }
   }
 
@@ -333,16 +333,16 @@ export default function HitListClient({
     return (
       <div className="animate-fade-in">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Hit List</h1>
         </div>
-        <div className="card-elevated p-10 text-center max-w-lg mx-auto">
-          <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
-            <Lock className="w-7 h-7 text-accent" strokeWidth={1.5} />
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-10 text-center max-w-lg mx-auto">
+          <div className="w-16 h-16 bg-[#E6F9EE] rounded-2xl flex items-center justify-center mx-auto mb-5">
+            <Target className="w-7 h-7 text-[#0ABF53]" strokeWidth={1.5} />
           </div>
-          <h3 className="text-lg font-bold tracking-tight">
+          <h3 className="text-lg font-bold text-[#0A2540] tracking-tight">
             Building your hit list...
           </h3>
-          <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
+          <p className="text-sm text-[#596780] mt-2 max-w-sm mx-auto leading-relaxed">
             We&apos;re analyzing your connections against your ICP. Your scored
             matches will appear here when ready.
           </p>
@@ -351,19 +351,19 @@ export default function HitListClient({
             {steps.map((step) => (
               <div key={step.label} className="flex items-center gap-3">
                 {step.done ? (
-                  <CheckCircle className="w-5 h-5 text-accent shrink-0" />
+                  <CheckCircle className="w-5 h-5 text-[#0ABF53] shrink-0" />
                 ) : step.active ? (
-                  <Loader2 className="w-5 h-5 text-accent shrink-0 animate-spin" />
+                  <Loader2 className="w-5 h-5 text-[#0ABF53] shrink-0 animate-spin" />
                 ) : (
-                  <Circle className="w-5 h-5 text-warm-300 shrink-0" />
+                  <Circle className="w-5 h-5 text-[#96A0B5] shrink-0" />
                 )}
                 <span
-                  className={`text-sm font-medium flex-1 ${step.done || step.active ? "text-foreground" : "text-warm-400"}`}
+                  className={`text-sm font-medium flex-1 ${step.done || step.active ? "text-[#0A2540]" : "text-[#96A0B5]"}`}
                 >
                   {step.label}
                 </span>
                 {step.detail && (
-                  <span className="text-xs font-semibold text-accent tabular-nums">
+                  <span className="text-xs font-semibold text-[#0ABF53] tabular-nums">
                     {step.detail}
                   </span>
                 )}
@@ -373,7 +373,7 @@ export default function HitListClient({
 
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all"
+            className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-sm font-semibold hover:opacity-90 transition-all"
           >
             View progress on Dashboard
             <ArrowRight className="w-4 h-4" />
@@ -387,14 +387,14 @@ export default function HitListClient({
     return (
       <div className="animate-fade-in">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
-          <p className="text-sm text-warm-400 mt-1">
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Hit List</h1>
+          <p className="text-sm text-[#96A0B5] mt-1">
             Loading your matches...
           </p>
         </div>
         <div className="space-y-4">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="card-elevated p-6">
+            <div key={i} className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6">
               <div className="h-6 w-48 rounded-lg animate-shimmer mb-3" />
               <div className="h-4 w-64 rounded-lg animate-shimmer mb-2" />
               <div className="h-4 w-96 rounded-lg animate-shimmer" />
@@ -409,25 +409,25 @@ export default function HitListClient({
     return (
       <div className="animate-fade-in">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Hit List</h1>
         </div>
-        <div className="card-elevated p-10 text-center">
-          <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-10 text-center">
+          <div className="w-16 h-16 bg-[#E6F9EE] rounded-2xl flex items-center justify-center mx-auto mb-5">
             <Sparkles
-              className="w-7 h-7 text-accent"
+              className="w-7 h-7 text-[#0ABF53]"
               strokeWidth={1.5}
             />
           </div>
-          <h3 className="text-lg font-bold tracking-tight">
+          <h3 className="text-lg font-bold text-[#0A2540] tracking-tight">
             No strong matches found yet
           </h3>
-          <p className="text-sm text-warm-500 mt-2 max-w-sm mx-auto leading-relaxed">
+          <p className="text-sm text-[#596780] mt-2 max-w-sm mx-auto leading-relaxed">
             Try broadening your ICP or uploading more connections. Matches
             scoring 7+ out of 10 appear here.
           </p>
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all"
+            className="inline-flex items-center gap-2 mt-4 px-5 py-2.5 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-sm font-semibold hover:opacity-90 transition-all"
           >
             Go to Dashboard
             <ArrowRight className="w-4 h-4" />
@@ -441,8 +441,8 @@ export default function HitListClient({
     <div className="animate-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Hit List</h1>
-        <p className="text-sm text-warm-400 mt-1">
+        <h1 className="text-2xl font-semibold text-[#0A2540]">Hit List</h1>
+        <p className="text-sm text-[#596780] mt-1">
           {sorted.length} high-value match
           {sorted.length !== 1 ? "es" : ""} from your network
         </p>
@@ -450,7 +450,7 @@ export default function HitListClient({
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 mr-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5] mr-1">
           Type:
         </span>
         {(["all", "customer", "investor"] as const).map((f) => (
@@ -459,8 +459,8 @@ export default function HitListClient({
             onClick={() => setMatchFilter(f)}
             className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
               matchFilter === f
-                ? "bg-[#1B4332] text-white border-[#1B4332]"
-                : "bg-surface text-warm-500 border-border hover:border-border-strong"
+                ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
             }`}
           >
             {f === "all"
@@ -471,7 +471,7 @@ export default function HitListClient({
           </button>
         ))}
 
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 ml-3 mr-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5] ml-3 mr-1">
           Seniority:
         </span>
         {(["all", "C-suite", "VP/Director", "Manager"] as const).map(
@@ -481,8 +481,8 @@ export default function HitListClient({
               onClick={() => setSeniorityFilter(f)}
               className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
                 seniorityFilter === f
-                  ? "bg-[#1B4332] text-white border-[#1B4332]"
-                  : "bg-surface text-warm-500 border-border hover:border-border-strong"
+                  ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                  : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
               }`}
             >
               {f === "all" ? "All" : f}
@@ -493,7 +493,7 @@ export default function HitListClient({
 
       {/* Industry filter */}
       <div className="flex flex-wrap items-center gap-2 mb-4 relative">
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400 mr-1">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5] mr-1">
           Industry:
         </span>
         <div className="relative">
@@ -501,20 +501,20 @@ export default function HitListClient({
             onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
             className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
               industryFilter !== "all"
-                ? "bg-[#1B4332] text-white border-[#1B4332]"
-                : "bg-surface text-warm-500 border-border hover:border-border-strong"
+                ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
             }`}
           >
             {industryFilter === "all" ? "All Industries" : industryFilter}
           </button>
           {showIndustryDropdown && (
-            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-y-auto bg-surface border border-border rounded-xl shadow-lg z-50">
-              <div className="sticky top-0 bg-surface p-2 border-b border-border">
+            <div className="absolute top-full left-0 mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-[#E3E8EF] rounded-xl shadow-lg z-50">
+              <div className="sticky top-0 bg-white p-2 border-b border-[#E3E8EF]">
                 <input
                   value={industrySearch}
                   onChange={(e) => setIndustrySearch(e.target.value)}
                   placeholder="Search industries..."
-                  className="w-full h-8 px-3 rounded-lg border border-border bg-warm-50 text-xs focus:outline-none focus:border-[#1B4332]"
+                  className="w-full h-8 px-3 rounded-lg border border-[#E3E8EF] bg-[#F6F8FA] text-xs focus:outline-none focus:border-[#0ABF53]"
                   autoFocus
                 />
               </div>
@@ -524,8 +524,8 @@ export default function HitListClient({
                   setShowIndustryDropdown(false);
                   setIndustrySearch("");
                 }}
-                className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-warm-50 transition-colors ${
-                  industryFilter === "all" ? "text-accent font-semibold" : "text-foreground"
+                className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-[#F6F8FA] transition-colors ${
+                  industryFilter === "all" ? "text-[#0ABF53] font-semibold" : "text-[#0A2540]"
                 }`}
               >
                 All Industries
@@ -538,8 +538,8 @@ export default function HitListClient({
                     setShowIndustryDropdown(false);
                     setIndustrySearch("");
                   }}
-                  className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-warm-50 transition-colors ${
-                    industryFilter === ind ? "text-accent font-semibold" : "text-foreground"
+                  className={`w-full text-left px-3 py-2 text-xs font-medium hover:bg-[#F6F8FA] transition-colors ${
+                    industryFilter === ind ? "text-[#0ABF53] font-semibold" : "text-[#0A2540]"
                   }`}
                 >
                   {ind}
@@ -552,13 +552,13 @@ export default function HitListClient({
 
       {/* Sort */}
       <div className="flex items-center gap-2 mb-6">
-        <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
           Sort:
         </span>
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortOption)}
-          className="h-8 px-3 rounded-lg border border-border bg-surface text-xs font-medium text-foreground"
+          className="h-8 px-3 rounded-lg border border-[#E3E8EF] bg-white text-xs font-medium text-[#0A2540]"
         >
           <option value="score">Match Score</option>
           <option value="seniority">Seniority</option>
@@ -581,7 +581,7 @@ export default function HitListClient({
           return (
             <div
               key={conn.id}
-              className="card-elevated p-6 hover:shadow-md transition-shadow"
+              className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 hover:shadow-md transition-shadow"
             >
               {/* Top section: Avatar + Name + Score */}
               <div className="flex items-start gap-4 mb-4">
@@ -593,7 +593,7 @@ export default function HitListClient({
                     className="w-14 h-14 rounded-2xl object-cover shrink-0"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-2xl bg-[#1B4332] flex items-center justify-center shrink-0">
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#0ABF53] to-[#34D399] flex items-center justify-center shrink-0">
                     <span className="text-white font-bold text-sm">
                       {initials}
                     </span>
@@ -603,23 +603,23 @@ export default function HitListClient({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-base text-foreground">
+                      <h3 className="font-bold text-base text-[#0A2540]">
                         {profile?.full_name ||
                           `${conn.first_name} ${conn.last_name}`}
                       </h3>
-                      <p className="text-sm text-warm-500 mt-0.5">
+                      <p className="text-sm text-[#596780] mt-0.5">
                         {profile?.current_title || conn.position}
                         {(profile?.current_company || conn.company) && (
                           <>
                             {" "}
                             at{" "}
-                            <span className="font-medium text-foreground">
+                            <span className="font-medium text-[#0A2540]">
                               {profile?.current_company || conn.company}
                             </span>
                           </>
                         )}
                       </p>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-warm-400">
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-[#96A0B5]">
                         {(profile?.location_str ||
                           profile?.country_full_name) && (
                           <span className="flex items-center gap-1">
@@ -640,6 +640,11 @@ export default function HitListClient({
                     {/* Score badge */}
                     <div
                       className={`shrink-0 w-14 h-14 rounded-2xl flex flex-col items-center justify-center ${getScoreColor(conn.match_score)}`}
+                      style={
+                        conn.match_score != null && conn.match_score >= 9
+                          ? { background: "linear-gradient(135deg, #0ABF53, #34D399)" }
+                          : undefined
+                      }
                     >
                       {conn.match_score != null ? (
                         <>
@@ -664,8 +669,8 @@ export default function HitListClient({
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
                       conn.match_type === "customer"
-                        ? "bg-accent-light text-accent border border-accent/15"
-                        : "bg-purple-light text-purple border border-purple/15"
+                        ? "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/15"
+                        : "bg-purple-50 text-purple-700 border border-purple-200/15"
                     }`}
                   >
                     {conn.match_type === "customer" ? (
@@ -689,23 +694,23 @@ export default function HitListClient({
 
               {/* Company section */}
               {company && (
-                <div className="bg-warm-50 rounded-xl p-3.5 mb-4">
+                <div className="bg-[#F6F8FA] rounded-xl p-3.5 mb-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <Building2 className="w-3.5 h-3.5 text-warm-400" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                    <Building2 className="w-3.5 h-3.5 text-[#96A0B5]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
                       Company
                     </span>
                   </div>
-                  <p className="text-sm font-medium text-foreground">
+                  <p className="text-sm font-medium text-[#0A2540]">
                     {company.name || conn.company}
                     {company.industry && (
-                      <span className="text-warm-500">
+                      <span className="text-[#596780]">
                         {" "}
                         &middot; {company.industry}
                       </span>
                     )}
                     {company.hq_city && (
-                      <span className="text-warm-500">
+                      <span className="text-[#596780]">
                         {" "}
                         &middot; {company.hq_city}
                         {company.hq_country
@@ -714,7 +719,7 @@ export default function HitListClient({
                       </span>
                     )}
                   </p>
-                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-warm-500 mt-1">
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-[#596780] mt-1">
                     {company.company_size_min && (
                       <span>
                         {company.company_size_min.toLocaleString()}+ employees
@@ -724,7 +729,7 @@ export default function HitListClient({
                       <span>{company.company_type}</span>
                     )}
                     {company.latest_funding_type && (
-                      <span className="text-accent font-medium">
+                      <span className="text-[#0ABF53] font-medium">
                         {company.latest_funding_type}
                         {company.latest_funding_amount
                           ? ` ($${(company.latest_funding_amount / 1_000_000).toFixed(0)}M)`
@@ -739,8 +744,8 @@ export default function HitListClient({
               {conn.match_reasons && conn.match_reasons.length > 0 && (
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Star className="w-3.5 h-3.5 text-accent" />
-                    <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                    <Star className="w-3.5 h-3.5 text-[#0ABF53]" />
+                    <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
                       Why this match
                     </span>
                   </div>
@@ -748,9 +753,9 @@ export default function HitListClient({
                     {conn.match_reasons.map((reason, i) => (
                       <li
                         key={i}
-                        className="text-[13px] text-warm-600 leading-relaxed flex gap-2"
+                        className="text-[13px] text-[#596780] leading-relaxed flex gap-2"
                       >
-                        <span className="text-accent shrink-0 mt-1">
+                        <span className="text-[#0ABF53] shrink-0 mt-1">
                           &bull;
                         </span>
                         {reason}
@@ -762,14 +767,14 @@ export default function HitListClient({
 
               {/* Suggested approach */}
               {conn.suggested_approach && (
-                <p className="text-[13px] text-warm-500 italic mb-4 pl-3 border-l-2 border-accent/20">
+                <p className="text-[13px] text-[#596780] italic mb-4 pl-3 border-l-2 border-[#0ABF53]/20">
                   {conn.suggested_approach}
                 </p>
               )}
 
               {/* Footer: Connected date + CTA */}
-              <div className="flex items-center justify-between pt-3 border-t border-border/60">
-                <span className="text-xs text-warm-400">
+              <div className="flex items-center justify-between pt-3 border-t border-[#F0F3F7]">
+                <span className="text-xs text-[#96A0B5]">
                   Connected {conn.connected_on || "\u2014"}
                 </span>
                 {conn.linkedin_url && (
@@ -777,7 +782,7 @@ export default function HitListClient({
                     href={conn.linkedin_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-[#1B4332] text-white text-xs font-semibold hover:bg-[#1B4332]/90 transition-all"
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-xs font-semibold hover:opacity-90 transition-all"
                   >
                     Reach out on LinkedIn
                     <ExternalLink className="w-3 h-3" />

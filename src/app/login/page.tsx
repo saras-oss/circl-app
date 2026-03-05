@@ -48,7 +48,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left panel — brand */}
-      <div className="hidden lg:flex lg:w-[45%] bg-warm-900 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-[45%] bg-[#0A2540] relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.4) 1px, transparent 0)`,
           backgroundSize: '24px 24px'
@@ -68,7 +68,7 @@ export default function LoginPage() {
               Your network is your
               <span className="text-gradient-accent block mt-1">unfair advantage.</span>
             </h1>
-            <p className="mt-6 text-warm-400 text-base leading-relaxed">
+            <p className="mt-6 text-[#596780] text-base leading-relaxed">
               Turn thousands of LinkedIn connections into a scored pipeline of
               customers and investors — in minutes, not months.
             </p>
@@ -80,9 +80,9 @@ export default function LoginPage() {
                 { num: "03", text: "Discover who matters most" },
               ].map((step) => (
                 <div key={step.num} className="flex items-center gap-4">
-                  <span className="text-xs font-mono text-warm-500">{step.num}</span>
-                  <div className="h-px flex-1 bg-warm-700" />
-                  <span className="text-sm text-warm-300">{step.text}</span>
+                  <span className="text-xs font-mono text-[#596780]">{step.num}</span>
+                  <div className="h-px flex-1 bg-white/10" />
+                  <span className="text-sm text-[#96A0B5]">{step.text}</span>
                 </div>
               ))}
             </div>
@@ -90,13 +90,13 @@ export default function LoginPage() {
 
           <div className="flex items-center gap-3">
             <div className="flex -space-x-2">
-              {["bg-accent", "bg-gold", "bg-purple", "bg-green"].map((color, i) => (
-                <div key={i} className={`w-8 h-8 rounded-full ${color} border-2 border-warm-900 flex items-center justify-center`}>
+              {["bg-accent", "bg-[#FFBB38]", "bg-[#8B5CF6]", "bg-[#0ABF53]"].map((color, i) => (
+                <div key={i} className={`w-8 h-8 rounded-full ${color} border-2 border-[#0A2540] flex items-center justify-center`}>
                   <span className="text-white text-xs font-semibold">{["S", "A", "R", "K"][i]}</span>
                 </div>
               ))}
             </div>
-            <p className="text-sm text-warm-400">
+            <p className="text-sm text-[#596780]">
               Trusted by founders and sales leaders
             </p>
           </div>
@@ -104,7 +104,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right panel — auth form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-background">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-[#F6F8FA]">
         <div className="w-full max-w-[400px] animate-fade-in">
           {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
@@ -116,23 +116,23 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold tracking-tight">Get started</h2>
-            <p className="mt-2 text-muted-foreground text-sm">
+            <p className="mt-2 text-[#596780] text-sm">
               Sign in to discover who in your network matters most.
             </p>
           </div>
 
           {magicLinkSent ? (
             <div className="animate-scale-in">
-              <div className="card-elevated p-8 text-center">
-                <div className="w-14 h-14 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-5">
+              <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-8 text-center">
+                <div className="w-14 h-14 bg-accent-light rounded-xl flex items-center justify-center mx-auto mb-5">
                   <svg className="w-7 h-7 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold mb-2">Check your inbox</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+                <p className="text-[#596780] text-sm leading-relaxed">
                   We sent a sign-in link to{" "}
-                  <span className="font-semibold text-foreground">{email}</span>
+                  <span className="font-semibold text-[#0A2540]">{email}</span>
                 </p>
                 <button
                   onClick={() => setMagicLinkSent(false)}
@@ -147,7 +147,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 h-[52px] rounded-2xl border-2 border-border bg-surface hover:bg-muted hover:border-border-strong transition-all text-sm font-semibold disabled:opacity-50 active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-3 h-[52px] rounded-xl border border-[#E3E8EF] bg-white hover:bg-[#F6F8FA] hover:border-[#596780] transition-all text-sm font-semibold disabled:opacity-50 active:scale-[0.98]"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
@@ -159,9 +159,9 @@ export default function LoginPage() {
               </button>
 
               <div className="flex items-center gap-4">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">or</span>
-                <div className="flex-1 h-px bg-border" />
+                <div className="flex-1 h-px bg-[#E3E8EF]" />
+                <span className="text-xs font-medium text-[#596780] uppercase tracking-wider">or</span>
+                <div className="flex-1 h-px bg-[#E3E8EF]" />
               </div>
 
               <form onSubmit={handleMagicLink} className="space-y-3">
@@ -175,13 +175,13 @@ export default function LoginPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@company.com"
                     required
-                    className="w-full h-[52px] px-4 rounded-2xl border-2 border-border bg-surface text-sm input-ring placeholder:text-warm-400"
+                    className="w-full h-[52px] px-4 rounded-xl border border-[#E3E8EF] bg-white text-sm focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none placeholder:text-[#96A0B5]"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={loading || !email.trim()}
-                  className="w-full h-[52px] rounded-2xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-warm-800 transition-all disabled:opacity-40 active:scale-[0.98]"
+                  className="w-full h-[52px] rounded-xl bg-[#0A2540] text-white text-sm font-semibold hover:bg-[#0A2540]/80 transition-all disabled:opacity-40 active:scale-[0.98]"
                 >
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
@@ -195,14 +195,14 @@ export default function LoginPage() {
               </form>
 
               {error && (
-                <div className="p-3 rounded-xl bg-red-50 border border-red-100">
-                  <p className="text-sm text-destructive text-center">{error}</p>
+                <div className="p-3 rounded-xl bg-[#FDE8EC] border border-[#ED5F74]/20">
+                  <p className="text-sm text-[#ED5F74] text-center">{error}</p>
                 </div>
               )}
             </div>
           )}
 
-          <p className="text-center text-xs text-warm-400 mt-8 leading-relaxed">
+          <p className="text-center text-xs text-[#96A0B5] mt-8 leading-relaxed">
             By continuing, you agree to Circl&apos;s Terms of Service
             and Privacy Policy.
           </p>

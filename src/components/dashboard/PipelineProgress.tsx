@@ -79,10 +79,10 @@ export default function PipelineProgress({
 
   if (state.step === "checking") {
     return (
-      <div className="card-elevated p-6 mb-6 animate-fade-in">
+      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 mb-6 animate-fade-in">
         <div className="flex items-center gap-3">
-          <div className="w-5 h-5 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm font-semibold text-foreground">
+          <div className="w-5 h-5 border-[2.5px] border-[#0ABF53] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-[#0A2540]">
             Checking pipeline status...
           </p>
         </div>
@@ -94,15 +94,15 @@ export default function PipelineProgress({
   const progress = getOverallProgress(state);
 
   return (
-    <div className="card-elevated p-6 mb-6 animate-fade-in border-accent/20">
+    <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 mb-6 animate-fade-in">
       <div className="flex items-center justify-between mb-5">
-        <h3 className="text-base font-bold text-foreground">
+        <h3 className="text-base font-semibold text-[#0A2540]">
           Analyzing your network...
         </h3>
         {onRefresh && (
           <button
             onClick={onRefresh}
-            className="flex items-center gap-1.5 text-xs font-medium text-warm-400 hover:text-foreground transition-colors"
+            className="flex items-center gap-1.5 text-xs font-medium text-[#96A0B5] hover:text-[#0A2540] transition-colors"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
@@ -118,16 +118,16 @@ export default function PipelineProgress({
           return (
             <div key={stepConfig.key} className="flex items-center gap-3">
               {isDone ? (
-                <CheckCircle className="w-5 h-5 text-accent shrink-0" />
+                <CheckCircle className="w-5 h-5 text-[#0ABF53] shrink-0" />
               ) : isActive ? (
-                <Loader2 className="w-5 h-5 text-accent shrink-0 animate-spin" />
+                <Loader2 className="w-5 h-5 text-[#0ABF53] shrink-0 animate-spin" />
               ) : (
-                <Circle className="w-5 h-5 text-warm-300 shrink-0" />
+                <Circle className="w-5 h-5 text-[#D1D9E6] shrink-0" />
               )}
 
               <span
                 className={`text-sm font-medium flex-1 ${
-                  isDone || isActive ? "text-foreground" : "text-warm-400"
+                  isDone || isActive ? "text-[#0A2540]" : "text-[#96A0B5]"
                 }`}
               >
                 {stepConfig.label}
@@ -135,7 +135,7 @@ export default function PipelineProgress({
 
               <span
                 className={`text-xs font-semibold tabular-nums ${
-                  isDone || isActive ? "text-accent" : "text-warm-300"
+                  isDone || isActive ? "text-[#0ABF53]" : "text-[#D1D9E6]"
                 }`}
               >
                 {isDone
@@ -149,20 +149,19 @@ export default function PipelineProgress({
         })}
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1.5 bg-warm-100 rounded-full overflow-hidden mb-3">
+      <div className="h-1.5 bg-[#F0F3F7] rounded-full overflow-hidden mb-3">
         <div
-          className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
-          style={{ width: `${progress}%` }}
+          className="h-full rounded-full transition-all duration-700 ease-out"
+          style={{ width: `${progress}%`, background: "linear-gradient(90deg, #0ABF53, #34D399)" }}
         />
       </div>
 
-      <p className="text-xs text-warm-400 text-center">
+      <p className="text-xs text-[#96A0B5] text-center">
         This usually takes 2-5 minutes
       </p>
 
       {state.error && (
-        <div className="mt-3 rounded-xl bg-destructive/5 border border-destructive/20 p-3 text-xs text-destructive">
+        <div className="mt-3 rounded-lg bg-[#FDE8EC] border border-[#ED5F74]/20 p-3 text-xs text-[#ED5F74]">
           {state.error}
         </div>
       )}

@@ -116,33 +116,33 @@ export default function NetworkClient({ userId }: { userId: string }) {
   function getSeniorityColor(tier: string | null) {
     switch (tier) {
       case "C-suite":
-        return "bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-800 border border-amber-200/60";
+        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
       case "VP/Director":
-        return "bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-800 border border-blue-200/60";
+        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
       case "Manager":
-        return "bg-gradient-to-r from-emerald-50 to-green-50 text-emerald-800 border border-emerald-200/60";
+        return "bg-[#FFF8E6] text-[#B8860B] border border-[#FFBB38]/20";
       case "IC":
-        return "bg-warm-100 text-warm-600 border border-warm-200/60";
+        return "bg-[#F0F3F7] text-[#596780] border border-[#E3E8EF]";
       default:
-        return "bg-warm-50 text-warm-400 border border-warm-200/40";
+        return "bg-[#F0F3F7] text-[#96A0B5] border border-[#E3E8EF]";
     }
   }
 
   function getScoreColor(score: number) {
-    if (score >= 9) return "bg-[#1B4332] text-white";
-    if (score >= 7) return "bg-[#2D6A4F] text-white";
-    if (score >= 5) return "bg-amber-100 text-amber-800 border border-amber-200/60";
-    return "bg-warm-100 text-warm-500 border border-warm-200/60";
+    if (score >= 9) return "bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white";
+    if (score >= 7) return "bg-[#0ABF53] text-white";
+    if (score >= 5) return "bg-[#FFBB38] text-white";
+    return "bg-[#96A0B5] text-white";
   }
 
   function SortIcon({ field }: { field: SortField }) {
     if (sortField !== field) {
-      return <ArrowUpDown className="w-3 h-3 text-warm-300" />;
+      return <ArrowUpDown className="w-3 h-3 text-[#96A0B5]" />;
     }
     return sortAsc ? (
-      <ChevronUp className="w-3.5 h-3.5 text-accent" />
+      <ChevronUp className="w-3.5 h-3.5 text-[#0ABF53]" />
     ) : (
-      <ChevronDown className="w-3.5 h-3.5 text-accent" />
+      <ChevronDown className="w-3.5 h-3.5 text-[#0ABF53]" />
     );
   }
 
@@ -161,8 +161,8 @@ export default function NetworkClient({ userId }: { userId: string }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">My Network</h1>
-          <p className="text-sm text-warm-400 mt-1 font-medium">
+          <h1 className="text-2xl font-semibold text-[#0A2540]">My Network</h1>
+          <p className="text-sm text-[#96A0B5] mt-1 font-medium">
             {total.toLocaleString()} connections
           </p>
         </div>
@@ -170,26 +170,26 @@ export default function NetworkClient({ userId }: { userId: string }) {
 
       {/* Search */}
       <div className="relative mb-6 animate-fade-in-up" style={{ animationDelay: "0.05s" }}>
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-warm-400" />
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-[18px] h-[18px] text-[#96A0B5]" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search by name, company, or position..."
-          className="w-full h-[52px] pl-12 pr-4 rounded-2xl border-2 border-border bg-surface text-sm font-medium text-foreground placeholder:text-warm-400 input-ring transition-all"
+          className="w-full h-[52px] pl-12 pr-4 rounded-lg bg-white border border-[#E3E8EF] text-sm font-medium text-[#0A2540] placeholder:text-[#96A0B5] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 focus:outline-none transition-all"
         />
       </div>
 
       {/* Table */}
-      <div className="card-elevated overflow-hidden animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
+      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-border bg-warm-50/60">
+              <tr className="bg-[#F6F8FA] border-b border-[#E3E8EF]">
                 <th className="text-left px-5 py-1">
                   <button
                     onClick={() => handleSort("name")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-medium uppercase tracking-wide text-[#596780] hover:text-[#0A2540] transition-colors"
                   >
                     Name
                     <SortIcon field="name" />
@@ -198,40 +198,40 @@ export default function NetworkClient({ userId }: { userId: string }) {
                 <th className="text-left px-5 py-1 hidden sm:table-cell">
                   <button
                     onClick={() => handleSort("company")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-medium uppercase tracking-wide text-[#596780] hover:text-[#0A2540] transition-colors"
                   >
                     Company
                     <SortIcon field="company" />
                   </button>
                 </th>
                 <th className="text-left px-5 py-1 hidden md:table-cell">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                  <span className="text-xs font-medium uppercase tracking-wide text-[#596780]">
                     Position
                   </span>
                 </th>
                 <th className="text-left px-5 py-1 hidden lg:table-cell">
                   <button
                     onClick={() => handleSort("seniority_tier")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-medium uppercase tracking-wide text-[#596780] hover:text-[#0A2540] transition-colors"
                   >
                     Seniority
                     <SortIcon field="seniority_tier" />
                   </button>
                 </th>
                 <th className="text-left px-5 py-1 hidden xl:table-cell">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                  <span className="text-xs font-medium uppercase tracking-wide text-[#596780]">
                     Location
                   </span>
                 </th>
                 <th className="text-left px-5 py-1 hidden xl:table-cell">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+                  <span className="text-xs font-medium uppercase tracking-wide text-[#596780]">
                     Experience
                   </span>
                 </th>
                 <th className="text-left px-5 py-1">
                   <button
                     onClick={() => handleSort("match_score")}
-                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-semibold uppercase tracking-wider text-warm-400 hover:text-foreground transition-colors"
+                    className="flex items-center gap-1.5 min-h-[44px] text-xs font-medium uppercase tracking-wide text-[#596780] hover:text-[#0A2540] transition-colors"
                   >
                     Score
                     <SortIcon field="match_score" />
@@ -242,7 +242,7 @@ export default function NetworkClient({ userId }: { userId: string }) {
             <tbody>
               {loading ? (
                 Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i} className="border-b border-border/50 last:border-0">
+                  <tr key={i} className="bg-white border-b border-[#F0F3F7] last:border-0">
                     <td className="px-5 py-4">
                       <div className="h-4 rounded-lg w-32 animate-shimmer" />
                     </td>
@@ -270,14 +270,14 @@ export default function NetworkClient({ userId }: { userId: string }) {
                 <tr>
                   <td colSpan={7} className="px-5 py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="w-16 h-16 rounded-2xl bg-warm-100 flex items-center justify-center">
-                        <Users className="w-7 h-7 text-warm-300" />
+                      <div className="w-16 h-16 rounded-2xl bg-[#F0F3F7] flex items-center justify-center">
+                        <Users className="w-7 h-7 text-[#96A0B5]" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">
+                        <p className="text-sm font-semibold text-[#0A2540]">
                           {search ? "No matches found" : "No connections yet"}
                         </p>
-                        <p className="text-xs text-warm-400 mt-1 max-w-[240px] mx-auto">
+                        <p className="text-xs text-[#96A0B5] mt-1 max-w-[240px] mx-auto">
                           {search
                             ? "Try adjusting your search terms to find what you are looking for"
                             : "Upload your LinkedIn connections to get started"}
@@ -293,15 +293,15 @@ export default function NetworkClient({ userId }: { userId: string }) {
                   return (
                     <tr
                       key={conn.id}
-                      className="border-b border-border/40 last:border-0 hover:bg-warm-50 transition-colors duration-150"
+                      className="bg-white border-b border-[#F0F3F7] last:border-0 hover:bg-[#F6F8FA] transition-colors duration-150"
                     >
-                      <td className="px-5 py-3.5 font-semibold text-foreground">
+                      <td className="px-5 py-3.5 font-semibold text-[#0A2540]">
                         {conn.first_name} {conn.last_name}
                       </td>
-                      <td className="px-5 py-3.5 text-warm-500 hidden sm:table-cell">
+                      <td className="px-5 py-3.5 text-[#596780] hidden sm:table-cell">
                         {conn.company || "\u2014"}
                       </td>
-                      <td className="px-5 py-3.5 text-warm-500 hidden md:table-cell truncate max-w-[200px]">
+                      <td className="px-5 py-3.5 text-[#596780] hidden md:table-cell truncate max-w-[200px]">
                         {conn.position || "\u2014"}
                       </td>
                       <td className="px-5 py-3.5 hidden lg:table-cell">
@@ -312,26 +312,26 @@ export default function NetworkClient({ userId }: { userId: string }) {
                             {conn.seniority_tier}
                           </span>
                         ) : (
-                          <span className="text-warm-300">{"\u2014"}</span>
+                          <span className="text-[#96A0B5]">{"\u2014"}</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 hidden xl:table-cell">
                         {location ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-warm-500">
+                          <span className="inline-flex items-center gap-1 text-xs text-[#596780]">
                             <MapPin className="w-3 h-3 shrink-0" />
                             <span className="truncate max-w-[120px]">{location}</span>
                           </span>
                         ) : (
-                          <span className="text-warm-300">{"\u2014"}</span>
+                          <span className="text-[#96A0B5]">{"\u2014"}</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5 hidden xl:table-cell">
                         {profile?.total_experience_years ? (
-                          <span className="text-xs text-warm-500">
+                          <span className="text-xs text-[#596780]">
                             {profile.total_experience_years}y
                           </span>
                         ) : (
-                          <span className="text-warm-300">{"\u2014"}</span>
+                          <span className="text-[#96A0B5]">{"\u2014"}</span>
                         )}
                       </td>
                       <td className="px-5 py-3.5">
@@ -343,7 +343,7 @@ export default function NetworkClient({ userId }: { userId: string }) {
                             {conn.match_score}
                           </span>
                         ) : (
-                          <span className="text-warm-300">{"\u2014"}</span>
+                          <span className="text-[#96A0B5]">{"\u2014"}</span>
                         )}
                       </td>
                     </tr>
@@ -356,24 +356,24 @@ export default function NetworkClient({ userId }: { userId: string }) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-4 border-t border-border/60 bg-warm-50/40">
-            <p className="text-xs font-medium text-warm-400">
+          <div className="flex items-center justify-between px-5 py-4 border-t border-[#F0F3F7] bg-[#F6F8FA]/40">
+            <p className="text-xs font-medium text-[#96A0B5]">
               Page {page + 1} of {totalPages}
             </p>
             <div className="flex gap-1.5">
               <button
                 onClick={() => setPage(Math.max(0, page - 1))}
                 disabled={page === 0}
-                className="h-[44px] w-[44px] flex items-center justify-center rounded-full border border-border bg-surface hover:bg-warm-50 hover:border-border-strong disabled:opacity-30 disabled:hover:bg-surface transition-all duration-150 active:scale-[0.96]"
+                className="h-[44px] w-[44px] flex items-center justify-center rounded-full bg-white border border-[#E3E8EF] hover:bg-[#F6F8FA] disabled:opacity-30 disabled:hover:bg-white transition-all duration-150 active:scale-[0.96]"
               >
-                <ChevronLeft className="w-4 h-4 text-warm-600" />
+                <ChevronLeft className="w-4 h-4 text-[#596780]" />
               </button>
               <button
                 onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
                 disabled={page >= totalPages - 1}
-                className="h-[44px] w-[44px] flex items-center justify-center rounded-full border border-border bg-surface hover:bg-warm-50 hover:border-border-strong disabled:opacity-30 disabled:hover:bg-surface transition-all duration-150 active:scale-[0.96]"
+                className="h-[44px] w-[44px] flex items-center justify-center rounded-full bg-white border border-[#E3E8EF] hover:bg-[#F6F8FA] disabled:opacity-30 disabled:hover:bg-white transition-all duration-150 active:scale-[0.96]"
               >
-                <ChevronRight className="w-4 h-4 text-warm-600" />
+                <ChevronRight className="w-4 h-4 text-[#596780]" />
               </button>
             </div>
           </div>

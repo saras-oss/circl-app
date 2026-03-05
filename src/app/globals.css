@@ -2,35 +2,36 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap');
 
 @theme inline {
-  --color-background: #FAFAF9;
-  --color-foreground: #0C0C0C;
+  --color-background: #F6F8FA;
+  --color-foreground: #0A2540;
   --color-surface: #FFFFFF;
-  --color-muted: #F5F5F4;
-  --color-muted-foreground: #78716C;
-  --color-border: #E7E5E4;
-  --color-border-strong: #D6D3D1;
-  --color-primary: #0C0C0C;
+  --color-muted: #F0F3F7;
+  --color-muted-foreground: #596780;
+  --color-border: #E3E8EF;
+  --color-border-strong: #D1D9E6;
+  --color-primary: #0ABF53;
   --color-primary-foreground: #FFFFFF;
-  --color-accent: #0D9373;
-  --color-accent-light: #ECFDF5;
+  --color-accent: #0ABF53;
+  --color-accent-dark: #089E45;
+  --color-accent-light: #E6F9EE;
   --color-accent-foreground: #FFFFFF;
-  --color-destructive: #DC2626;
-  --color-gold: #D97706;
-  --color-gold-light: #FFFBEB;
-  --color-green: #059669;
-  --color-green-light: #ECFDF5;
+  --color-destructive: #ED5F74;
+  --color-gold: #FFBB38;
+  --color-gold-light: #FFF8E6;
+  --color-green: #0ABF53;
+  --color-green-light: #E6F9EE;
   --color-purple: #7C3AED;
   --color-purple-light: #F5F3FF;
-  --color-warm-50: #FAFAF9;
-  --color-warm-100: #F5F5F4;
-  --color-warm-200: #E7E5E4;
-  --color-warm-300: #D6D3D1;
-  --color-warm-400: #A8A29E;
-  --color-warm-500: #78716C;
-  --color-warm-600: #57534E;
-  --color-warm-700: #44403C;
-  --color-warm-800: #292524;
-  --color-warm-900: #1C1917;
+  --color-warm-50: #F6F8FA;
+  --color-warm-100: #F0F3F7;
+  --color-warm-200: #E3E8EF;
+  --color-warm-300: #D1D9E6;
+  --color-warm-400: #96A0B5;
+  --color-warm-500: #596780;
+  --color-warm-600: #3D4F6F;
+  --color-warm-700: #2C3A52;
+  --color-warm-800: #1A2435;
+  --color-warm-900: #0A2540;
   --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
@@ -115,31 +116,29 @@ body {
 .card-elevated {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.02);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
   transition: all 0.2s ease;
 }
 .card-elevated:hover {
-  border-color: var(--color-border-strong);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
 }
 
 .card-interactive {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: all 0.2s ease;
 }
 .card-interactive:hover {
-  border-color: var(--color-accent);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(13,147,115,0.08);
+  box-shadow: 0 4px 12px rgba(10,191,83,0.08), 0 1px 3px rgba(0,0,0,0.04);
   transform: translateY(-1px);
 }
 
 /* Glass effect */
 .glass {
-  background: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.92);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -149,7 +148,7 @@ body {
 .input-ring:focus {
   outline: none;
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(13,147,115,0.12);
+  box-shadow: 0 0 0 3px rgba(10,191,83,0.15);
 }
 
 /* Scrollbar */
@@ -163,20 +162,31 @@ body {
 
 /* Score badges */
 .badge-exceptional {
-  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-  color: #92400E;
-  border: 1px solid #FDE68A;
+  background: linear-gradient(135deg, #0ABF53 0%, #34D399 100%);
+  color: white;
 }
 .badge-strong {
-  background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
-  color: #065F46;
-  border: 1px solid #A7F3D0;
+  background: #0ABF53;
+  color: white;
 }
 
 /* Gradient text */
 .text-gradient-accent {
-  background: linear-gradient(135deg, #059669 0%, #0D9373 50%, #10B981 100%);
+  background: linear-gradient(135deg, #0ABF53 0%, #34D399 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* Primary gradient button */
+.btn-primary-gradient {
+  background: linear-gradient(135deg, #0ABF53 0%, #34D399 100%);
+  color: white;
+  font-weight: 500;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(10,191,83,0.2);
+}
+.btn-primary-gradient:hover {
+  box-shadow: 0 4px 12px rgba(10,191,83,0.3);
 }

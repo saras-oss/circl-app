@@ -82,11 +82,11 @@ interface PromptRun {
 
 function SeniorityBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
-    "C-Suite": "bg-[#1B4332] text-white",
-    "VP/Director": "bg-[#2D6A4F] text-white",
-    Manager: "bg-amber-100 text-amber-800",
-    IC: "bg-gray-100 text-gray-600",
-    Other: "bg-gray-100 text-gray-500",
+    "C-Suite": "bg-[#E6F9EE] text-[#089E45]",
+    "VP/Director": "bg-[#E6F9EE] text-[#089E45]",
+    Manager: "bg-[#FFF8E6] text-[#B8860B]",
+    IC: "bg-[#F0F3F7] text-[#596780]",
+    Other: "bg-[#F0F3F7] text-[#96A0B5]",
   };
   return (
     <span
@@ -99,14 +99,14 @@ function SeniorityBadge({ tier }: { tier: string }) {
 
 function TierPill({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
-    tier1: "bg-green-50 text-green-700",
-    tier2: "bg-blue-50 text-blue-700",
-    tier3: "bg-gray-100 text-gray-500",
-    tier4: "bg-gray-50 text-gray-400",
+    tier1: "bg-[#E6F9EE] text-[#089E45]",
+    tier2: "bg-[#E8F0FE] text-[#3B6CE7]",
+    tier3: "bg-[#F0F3F7] text-[#596780]",
+    tier4: "bg-[#F0F3F7] text-[#96A0B5]",
   };
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[tier] || "bg-gray-50 text-gray-400"}`}
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${styles[tier] || "bg-[#F0F3F7] text-[#96A0B5]"}`}
     >
       {tier || "—"}
     </span>
@@ -115,15 +115,15 @@ function TierPill({ tier }: { tier: string }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    enriched: "bg-green-50 text-green-700 border-green-200",
-    cached: "bg-green-50 text-green-700 border-green-200",
-    pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
-    failed: "bg-red-50 text-red-700 border-red-200",
-    skipped: "bg-gray-50 text-gray-500 border-gray-200",
+    enriched: "bg-[#E6F9EE] text-[#089E45] border-[#E6F9EE]",
+    cached: "bg-[#E6F9EE] text-[#089E45] border-[#E6F9EE]",
+    pending: "bg-[#FFF8E6] text-[#B8860B] border-[#FFF8E6]",
+    failed: "bg-[#FDE8EC] text-[#ED5F74] border-[#FDE8EC]",
+    skipped: "bg-[#F0F3F7] text-[#96A0B5] border-[#F0F3F7]",
   };
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${styles[status] || "bg-gray-50 text-gray-500 border-gray-200"}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${styles[status] || "bg-[#F0F3F7] text-[#96A0B5] border-[#F0F3F7]"}`}
     >
       {status || "—"}
     </span>
@@ -131,11 +131,11 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) return <span className="text-gray-300 text-sm">—</span>;
-  let color = "bg-gray-100 text-gray-600";
-  if (score >= 9) color = "bg-[#1B4332] text-white";
-  else if (score >= 7) color = "bg-[#2D6A4F] text-white";
-  else if (score >= 5) color = "bg-amber-100 text-amber-800";
+  if (score === null) return <span className="text-[#96A0B5] text-sm">—</span>;
+  let color = "bg-[#96A0B5] text-white";
+  if (score >= 9) color = "bg-gradient-to-br from-[#0ABF53] to-[#34D399] text-white";
+  else if (score >= 7) color = "bg-[#0ABF53] text-white";
+  else if (score >= 5) color = "bg-[#FFBB38] text-white";
   return (
     <span
       className={`inline-flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold ${color}`}
@@ -148,27 +148,27 @@ function ScoreBadge({ score }: { score: number | null }) {
 function VerdictBadge({ conn }: { conn: Connection }) {
   if (conn.enrichment_status === "failed") {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-600">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#FDE8EC] text-[#ED5F74]">
         Failed
       </span>
     );
   }
   if (conn.match_score === null) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-50 text-gray-400">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F0F3F7] text-[#96A0B5]">
         Pending
       </span>
     );
   }
   if (conn.match_score >= 7) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#E6F9EE] text-[#089E45]">
         Hit
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 text-red-500">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#FDE8EC] text-[#ED5F74]">
       Miss
     </span>
   );
@@ -190,12 +190,12 @@ function Modal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <div className="relative bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F3F7]">
+          <h3 className="text-sm font-semibold text-[#0A2540]">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-foreground transition-colors"
+            className="p-1.5 rounded-lg hover:bg-[#F6F8FA] text-[#96A0B5] hover:text-[#0A2540] transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -216,7 +216,7 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-[12px] font-medium text-gray-600 transition-colors"
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#F0F3F7] hover:bg-[#E3E8EF] text-[12px] font-medium text-[#596780] transition-colors"
     >
       {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       {copied ? "Copied" : "Copy"}
@@ -258,14 +258,14 @@ function EnrichedDataModal({
     >
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
         </div>
       ) : (
         <>
           <div className="mb-3">
             <CopyButton text={jsonText} />
           </div>
-          <pre className="text-[11px] leading-relaxed bg-gray-50 rounded-xl p-4 overflow-auto max-h-[60vh] border border-gray-100 font-mono whitespace-pre-wrap break-words">
+          <pre className="text-[11px] leading-relaxed bg-[#F6F8FA] rounded-xl p-4 overflow-auto max-h-[60vh] border border-[#E3E8EF] font-mono whitespace-pre-wrap break-words">
             {jsonText || "No enrichment data found."}
           </pre>
         </>
@@ -315,24 +315,24 @@ function PromptModal({
     >
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+          <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
         </div>
       ) : !text ? (
-        <p className="text-sm text-gray-400 py-8 text-center">
+        <p className="text-sm text-[#96A0B5] py-8 text-center">
           No prompt logs found for this connection.
         </p>
       ) : (
         <>
           {meta && (
             <div className="mb-3 flex items-center justify-between">
-              <p className="text-[11px] text-gray-400">
+              <p className="text-[11px] text-[#96A0B5]">
                 {meta.model} &middot; {meta.input_tokens} in / {meta.output_tokens} out / {meta.duration_ms}ms &middot;{" "}
                 {new Date(meta.created_at).toLocaleString()}
               </p>
               <CopyButton text={text} />
             </div>
           )}
-          <pre className="text-[11px] leading-relaxed bg-gray-50 rounded-xl p-4 overflow-auto max-h-[60vh] border border-gray-100 font-mono whitespace-pre-wrap break-words">
+          <pre className="text-[11px] leading-relaxed bg-[#F6F8FA] rounded-xl p-4 overflow-auto max-h-[60vh] border border-[#E3E8EF] font-mono whitespace-pre-wrap break-words">
             {text}
           </pre>
         </>
@@ -361,17 +361,17 @@ const TableRow = React.memo(function TableRow({
   const isScored = conn.match_score !== null;
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors even:bg-gray-50/30">
+    <tr className="border-b border-[#F0F3F7] hover:bg-[#F6F8FA] transition-colors">
       {/* User */}
       <td className="px-3 py-2.5">
-        <div className="text-[12px] font-medium text-foreground truncate max-w-[120px]" title={conn.user_name}>
+        <div className="text-[12px] font-medium text-[#0A2540] truncate max-w-[120px]" title={conn.user_name}>
           {conn.user_name?.split(" ")[0] || conn.user_email.split("@")[0]}
         </div>
-        <div className="text-[10px] text-gray-400 truncate max-w-[120px]">{conn.user_company}</div>
+        <div className="text-[10px] text-[#96A0B5] truncate max-w-[120px]">{conn.user_company}</div>
       </td>
       {/* Connection */}
       <td className="px-3 py-2.5">
-        <div className="text-[13px] font-semibold text-foreground">
+        <div className="text-[13px] font-semibold text-[#0A2540]">
           {conn.first_name} {conn.last_name}
         </div>
         {conn.linkedin_url && (
@@ -379,18 +379,18 @@ const TableRow = React.memo(function TableRow({
             href={conn.linkedin_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[10px] text-accent hover:underline"
+            className="text-[10px] text-[#0ABF53] hover:underline"
           >
             LinkedIn &#8599;
           </a>
         )}
       </td>
       {/* Title */}
-      <td className="px-3 py-2.5 text-[12px] text-gray-500 max-w-[160px] truncate" title={conn.position}>
+      <td className="px-3 py-2.5 text-[12px] text-[#596780] max-w-[160px] truncate" title={conn.position}>
         {conn.position || "—"}
       </td>
       {/* Company */}
-      <td className="px-3 py-2.5 text-[12px] text-gray-600 max-w-[140px] truncate" title={conn.company}>
+      <td className="px-3 py-2.5 text-[12px] text-[#596780] max-w-[140px] truncate" title={conn.company}>
         {conn.company || "—"}
       </td>
       {/* Seniority */}
@@ -410,12 +410,12 @@ const TableRow = React.memo(function TableRow({
         {isEnriched ? (
           <button
             onClick={() => onViewJson(conn)}
-            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+            className="text-[11px] font-medium text-[#0ABF53] hover:underline whitespace-nowrap"
           >
             View JSON
           </button>
         ) : (
-          <span className="text-gray-300 text-[12px]">—</span>
+          <span className="text-[#96A0B5] text-[12px]">—</span>
         )}
       </td>
       {/* Scoring Input */}
@@ -423,12 +423,12 @@ const TableRow = React.memo(function TableRow({
         {isScored ? (
           <button
             onClick={() => onViewInput(conn)}
-            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+            className="text-[11px] font-medium text-[#0ABF53] hover:underline whitespace-nowrap"
           >
             Input
           </button>
         ) : (
-          <span className="text-gray-300 text-[11px]">...</span>
+          <span className="text-[#96A0B5] text-[11px]">...</span>
         )}
       </td>
       {/* Scoring Output */}
@@ -436,12 +436,12 @@ const TableRow = React.memo(function TableRow({
         {isScored ? (
           <button
             onClick={() => onViewOutput(conn)}
-            className="text-[11px] font-medium text-accent hover:underline whitespace-nowrap"
+            className="text-[11px] font-medium text-[#0ABF53] hover:underline whitespace-nowrap"
           >
             Output
           </button>
         ) : (
-          <span className="text-gray-300 text-[11px]">...</span>
+          <span className="text-[#96A0B5] text-[11px]">...</span>
         )}
       </td>
       {/* Score */}
@@ -537,11 +537,11 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <h1 className="text-xl font-bold text-foreground">Admin Pipeline Monitor</h1>
+      <h1 className="text-xl font-semibold text-[#0A2540]">Admin Pipeline Monitor</h1>
 
       {/* Stats Bar */}
       {stats && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
           <div className="flex flex-wrap gap-3 mb-4">
             <StatPill icon={<Users className="w-4 h-4" />} label="Users" value={stats.by_user.length} />
             <StatPill icon={<ListFilter className="w-4 h-4" />} label="Connections" value={stats.total} />
@@ -557,8 +557,8 @@ export default function AdminDashboard() {
                 onClick={() => setUserFilter(userFilter === u.email ? "" : u.email)}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
                   userFilter === u.email
-                    ? "bg-[#1B4332] text-white border-[#1B4332]"
-                    : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-300"
+                    ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                    : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
                 }`}
               >
                 {u.name?.split(" ")[0] || u.email.split("@")[0]} &middot; {u.company || "—"} ({u.count})
@@ -569,19 +569,19 @@ export default function AdminDashboard() {
       )}
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-4">
         <div className="flex flex-wrap gap-3 items-center">
           <input
             type="text"
             placeholder="Search name, company, title..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 min-w-[200px] h-9 px-3 rounded-lg border border-gray-200 text-[13px] placeholder:text-gray-300 focus:outline-none focus:border-[#1B4332] focus:ring-1 focus:ring-[#1B4332]/20"
+            className="flex-1 min-w-[200px] h-9 px-3 rounded-lg border border-[#E3E8EF] text-[13px] text-[#0A2540] placeholder:text-[#96A0B5] focus:outline-none focus:border-[#0ABF53] focus:ring-1 focus:ring-[#0ABF53]/20"
           />
           <select
             value={seniorityFilter}
             onChange={(e) => setSeniorityFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
+            className="h-9 px-3 rounded-lg border border-[#E3E8EF] text-[13px] text-[#596780] focus:outline-none focus:border-[#0ABF53] focus:ring-1 focus:ring-[#0ABF53]/20"
           >
             <option value="">All Seniorities</option>
             <option value="C-Suite">C-Suite</option>
@@ -593,7 +593,7 @@ export default function AdminDashboard() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
+            className="h-9 px-3 rounded-lg border border-[#E3E8EF] text-[13px] text-[#596780] focus:outline-none focus:border-[#0ABF53] focus:ring-1 focus:ring-[#0ABF53]/20"
           >
             <option value="">All Statuses</option>
             <option value="enriched">Enriched</option>
@@ -604,7 +604,7 @@ export default function AdminDashboard() {
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value)}
-            className="h-9 px-3 rounded-lg border border-gray-200 text-[13px] text-gray-600 focus:outline-none focus:border-[#1B4332]"
+            className="h-9 px-3 rounded-lg border border-[#E3E8EF] text-[13px] text-[#596780] focus:outline-none focus:border-[#0ABF53] focus:ring-1 focus:ring-[#0ABF53]/20"
           >
             <option value="">All Tiers</option>
             <option value="tier1">Tier 1</option>
@@ -621,20 +621,20 @@ export default function AdminDashboard() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+            <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="sticky top-0 z-10">
-                <tr className="border-b border-gray-100 bg-gray-50">
+                <tr className="border-b border-[#E3E8EF] bg-[#F6F8FA]">
                   {columns.map((col) => (
                     <th
                       key={col}
-                      className="px-3 py-2.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap"
+                      className="px-3 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider whitespace-nowrap"
                     >
                       {col}
                     </th>
@@ -653,7 +653,7 @@ export default function AdminDashboard() {
                 ))}
                 {data?.connections.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="px-3 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={12} className="px-3 py-12 text-center text-sm text-[#96A0B5]">
                       No connections found.
                     </td>
                   </tr>
@@ -665,8 +665,8 @@ export default function AdminDashboard() {
 
         {/* Pagination */}
         {pagination && pagination.total_pages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-            <p className="text-[12px] text-gray-400">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-[#F0F3F7]">
+            <p className="text-[12px] text-[#96A0B5]">
               {pagination.total} results &middot; Page {pagination.page} of{" "}
               {pagination.total_pages}
             </p>
@@ -674,7 +674,7 @@ export default function AdminDashboard() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[#596780] hover:bg-[#F6F8FA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
                 Previous
@@ -684,7 +684,7 @@ export default function AdminDashboard() {
                   setPage((p) => Math.min(pagination.total_pages, p + 1))
                 }
                 disabled={page >= pagination.total_pages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[12px] font-medium text-[#596780] hover:bg-[#F6F8FA] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 Next
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -730,10 +730,10 @@ function StatPill({
   value: number;
 }) {
   return (
-    <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-3.5 py-2 border border-gray-100">
-      <span className="text-gray-400">{icon}</span>
-      <span className="text-[13px] font-semibold text-foreground">{value}</span>
-      <span className="text-[12px] text-gray-400">{label}</span>
+    <div className="flex items-center gap-2 bg-white rounded-xl px-3.5 py-2 border border-[#E3E8EF] shadow-sm">
+      <span className="text-[#0ABF53]">{icon}</span>
+      <span className="text-[13px] font-semibold text-[#0A2540]">{value}</span>
+      <span className="text-[12px] text-[#596780]">{label}</span>
     </div>
   );
 }
@@ -748,12 +748,12 @@ function TogglePill({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-1.5 text-[12px] text-gray-500 cursor-pointer select-none">
+    <label className="flex items-center gap-1.5 text-[12px] text-[#596780] cursor-pointer select-none">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="rounded border-gray-300 text-[#1B4332] focus:ring-[#1B4332] w-3.5 h-3.5"
+        className="rounded border-[#E3E8EF] text-[#0ABF53] focus:ring-[#0ABF53] w-3.5 h-3.5"
       />
       {label}
     </label>

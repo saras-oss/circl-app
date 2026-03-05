@@ -160,8 +160,8 @@ function TogglePill({
       onClick={onToggle}
       className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 h-[38px] ${
         selected
-          ? "bg-[#1B4332] text-white"
-          : "bg-white text-foreground border border-[#E0E0E0] hover:bg-warm-50"
+          ? "bg-[#0ABF53] text-white"
+          : "bg-white text-[#0A2540] border border-[#E3E8EF] hover:bg-[#F6F8FA]"
       }`}
     >
       {selected && <Check className="h-3 w-3" />}
@@ -201,7 +201,7 @@ function PillGroupEditable({
   return (
     <div className="space-y-2.5">
       {label && (
-        <h4 className="text-xs font-semibold uppercase tracking-wider text-warm-400">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
           {label}
         </h4>
       )}
@@ -209,7 +209,7 @@ function PillGroupEditable({
         {pills.map((pill) => (
           <span
             key={pill}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#1B4332] text-white px-3.5 py-1.5 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#0ABF53] text-white px-3.5 py-1.5 text-xs font-medium"
           >
             {pill}
             <button
@@ -239,13 +239,13 @@ function PillGroupEditable({
                 setNewValue("");
               }
             }}
-            className="h-9 w-36 rounded-full border border-[#E0E0E0] bg-white px-3 text-xs font-medium text-foreground focus:outline-none focus:border-[#1B4332]"
+            className="h-9 w-36 rounded-full border border-[#E3E8EF] bg-white px-3 text-xs font-medium text-[#0A2540] focus:outline-none focus:border-[#0ABF53]"
             placeholder="Type and press Enter"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-warm-300 px-3.5 py-1.5 text-xs font-medium text-warm-400 hover:border-[#1B4332] hover:text-[#1B4332] transition-colors h-[38px]"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#D1D9E6] px-3.5 py-1.5 text-xs font-medium text-[#96A0B5] hover:border-[#0ABF53] hover:text-[#089E45] transition-colors h-[38px]"
           >
             <Plus className="h-3 w-3" />
             Add
@@ -275,14 +275,14 @@ function IcpSummaryReadOnly({ icp }: { icp: IcpState }) {
         if (!pills || pills.length === 0) return null;
         return (
           <div key={key}>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-warm-400">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-[#96A0B5]">
               {label}
             </span>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {pills.map((pill) => (
                 <span
                   key={pill}
-                  className="inline-flex items-center rounded-full bg-[#1B4332]/10 text-[#1B4332] px-2.5 py-1 text-[11px] font-medium"
+                  className="inline-flex items-center rounded-full bg-[#E6F9EE] text-[#089E45] px-2.5 py-1 text-[11px] font-medium"
                 >
                   {pill}
                 </span>
@@ -519,7 +519,7 @@ export default function IcpStep({
     const parts = text.split(/\*\*(.*?)\*\*/g);
     return parts.map((part, i) =>
       i % 2 === 1 ? (
-        <span key={i} className="font-semibold text-foreground">
+        <span key={i} className="font-semibold text-[#0A2540]">
           {part}
         </span>
       ) : (
@@ -532,13 +532,13 @@ export default function IcpStep({
     <div className="animate-fade-in">
       {/* ─── Hero Section ─── */}
       <div className="pt-8 pb-10 text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400 mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5] mb-4">
           Your Ideal Customer Profile
         </p>
-        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-foreground leading-tight max-w-lg mx-auto">
+        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight max-w-lg mx-auto">
           {heroHeading}
         </h1>
-        <p className="text-base sm:text-lg text-warm-500 max-w-lg mx-auto leading-relaxed mt-4">
+        <p className="text-base sm:text-lg text-[#596780] max-w-lg mx-auto leading-relaxed mt-4">
           {renderSubtext(heroSubtext)}
         </p>
       </div>
@@ -551,8 +551,8 @@ export default function IcpStep({
               <Loader2 className="w-5 h-5 text-accent animate-spin" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">Analyzing your website...</p>
-              <p className="text-xs text-warm-500 mt-0.5">
+              <p className="text-sm font-semibold text-[#0A2540]">Analyzing your website...</p>
+              <p className="text-xs text-[#596780] mt-0.5">
                 Pre-filling your ICP based on your company data
               </p>
             </div>
@@ -563,7 +563,7 @@ export default function IcpStep({
       <div className="space-y-10">
         {/* ─── TARGET INDUSTRIES ─── */}
         <div className="space-y-4">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Target Industries
           </h3>
 
@@ -577,13 +577,13 @@ export default function IcpStep({
                   onClick={() => toggleTheme(theme)}
                   className={`text-left p-4 rounded-xl border transition-all duration-200 ${
                     isSelected
-                      ? "bg-[#1B4332] text-white border-[#1B4332] shadow-lg shadow-[#1B4332]/15"
-                      : "bg-white border-[#E0E0E0] hover:border-warm-400 hover:shadow-sm"
+                      ? "bg-[#0ABF53] text-white border-[#0ABF53] shadow-lg shadow-[#0ABF53]/15"
+                      : "bg-white border-[#E3E8EF] hover:border-[#96A0B5] hover:shadow-sm"
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
                     <span
-                      className={`text-sm font-semibold ${isSelected ? "text-white" : "text-foreground"}`}
+                      className={`text-sm font-semibold ${isSelected ? "text-white" : "text-[#0A2540]"}`}
                     >
                       {theme.theme}
                     </span>
@@ -594,7 +594,7 @@ export default function IcpStep({
                     )}
                   </div>
                   <p
-                    className={`text-[13px] leading-relaxed ${isSelected ? "text-white/70" : "text-warm-400"}`}
+                    className={`text-[13px] leading-relaxed ${isSelected ? "text-white/70" : "text-[#96A0B5]"}`}
                   >
                     {theme.description}
                   </p>
@@ -606,8 +606,8 @@ export default function IcpStep({
           {/* Selected sub-industries */}
           {icp.industries.length > 0 && (
             <div className="space-y-3 pt-2">
-              <div className="h-px bg-warm-200" />
-              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+              <div className="h-px bg-[#E3E8EF]" />
+              <p className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
                 Selected Sub-Industries
               </p>
               <div className="flex flex-wrap gap-2">
@@ -629,19 +629,19 @@ export default function IcpStep({
 
           {/* Industry search */}
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-warm-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#96A0B5]" />
             <input
               value={industrySearch}
               onChange={(e) => setIndustrySearch(e.target.value)}
               placeholder="Search more industries..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E0E0E0] bg-white text-sm focus:outline-none focus:border-[#1B4332]"
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E3E8EF] bg-white text-sm focus:outline-none focus:border-[#0ABF53]"
             />
           </div>
         </div>
 
         {/* ─── COMPANY HEADCOUNT ─── */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Company Headcount
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -658,7 +658,7 @@ export default function IcpStep({
 
         {/* ─── REVENUE RANGE ─── */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Revenue Range
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -675,7 +675,7 @@ export default function IcpStep({
 
         {/* ─── FUNDING STAGE ─── */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Funding Stage
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -692,7 +692,7 @@ export default function IcpStep({
 
         {/* ─── GEOGRAPHY ─── */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Geography
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -709,7 +709,7 @@ export default function IcpStep({
 
         {/* ─── TARGET TITLES ─── */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
             Target Titles / Roles
           </h4>
           <div className="flex flex-wrap gap-2">
@@ -745,10 +745,10 @@ export default function IcpStep({
         {/* ─── HIGH-INTENT TRIGGERS ─── */}
         <div className="space-y-3">
           <div>
-            <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-warm-400">
+            <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
               High-Intent Triggers
             </h4>
-            <p className="text-xs text-warm-400 mt-1">
+            <p className="text-xs text-[#96A0B5] mt-1">
               Signals that indicate a company is ready to buy from you
             </p>
           </div>
@@ -760,8 +760,8 @@ export default function IcpStep({
                   onClick={() => toggleItem("triggers", trigger)}
                   className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-medium transition-all duration-200 text-left ${
                     icp.triggers.includes(trigger)
-                      ? "bg-[#1B4332] text-white"
-                      : "bg-white text-foreground border border-[#E0E0E0] hover:bg-warm-50"
+                      ? "bg-[#0ABF53] text-white"
+                      : "bg-white text-[#0A2540] border border-[#E3E8EF] hover:bg-[#F6F8FA]"
                   }`}
                 >
                   {icp.triggers.includes(trigger) && <Check className="h-3 w-3 shrink-0" />}
@@ -793,7 +793,7 @@ export default function IcpStep({
         {/* ─── INVESTOR TOGGLE ─── */}
         <div className="space-y-4">
           <div className="flex items-center justify-between py-3 px-1">
-            <span className="text-sm font-semibold text-foreground">
+            <span className="text-sm font-semibold text-[#0A2540]">
               Also highlight connections who are investors
             </span>
             <button
@@ -803,7 +803,7 @@ export default function IcpStep({
                   lookingForInvestors: !prev.lookingForInvestors,
                 }))
               }
-              className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-[#1B4332]" : "bg-warm-300"}`}
+              className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-[#0ABF53]" : "bg-[#D1D9E6]"}`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm ${icp.lookingForInvestors ? "translate-x-5" : "translate-x-0"}`}
@@ -812,7 +812,7 @@ export default function IcpStep({
           </div>
 
           {icp.lookingForInvestors && (
-            <div className="ml-4 space-y-4 border-l-2 border-[#1B4332]/20 pl-5 animate-fade-in">
+            <div className="ml-4 space-y-4 border-l-2 border-[#0ABF53]/20 pl-5 animate-fade-in">
               <PillGroupEditable
                 label="Fund Types"
                 pills={icp.investorFundTypes}
@@ -888,14 +888,14 @@ export default function IcpStep({
           onClick={confirmIcp}
           size="lg"
           loading={confirming}
-          className="w-full sm:w-auto sm:min-w-[280px] sm:mx-auto sm:flex h-12 rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all shadow-sm"
+          className="w-full sm:w-auto sm:min-w-[280px] sm:mx-auto sm:flex h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
         >
           Find my matches
           <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
         <button
           onClick={() => setShowChatModal(true)}
-          className="w-full text-center text-sm font-medium text-warm-500 hover:text-foreground transition-colors py-2"
+          className="w-full text-center text-sm font-medium text-[#596780] hover:text-[#0A2540] transition-colors py-2"
         >
           <span className="inline-flex items-center gap-1.5">
             <Sparkles className="h-3.5 w-3.5" />
@@ -924,24 +924,24 @@ export default function IcpStep({
             onClick={() => setShowChatModal(false)}
           />
 
-          <div className="relative w-full h-full md:h-auto md:max-h-[85vh] md:max-w-[600px] md:mx-4 md:rounded-2xl bg-surface shadow-2xl flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <div className="relative w-full h-full md:h-auto md:max-h-[85vh] md:max-w-[600px] md:mx-4 md:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b border-[#E3E8EF] shrink-0">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#1B4332]" />
-                <h2 className="text-sm font-bold text-foreground">
+                <Sparkles className="h-4 w-4 text-[#0ABF53]" />
+                <h2 className="text-sm font-bold text-[#0A2540]">
                   Refine your ICP
                 </h2>
               </div>
               <button
                 onClick={() => setShowChatModal(false)}
-                className="w-8 h-8 rounded-lg hover:bg-warm-100 flex items-center justify-center transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-[#F0F3F7] flex items-center justify-center transition-colors"
               >
-                <X className="h-4 w-4 text-warm-500" />
+                <X className="h-4 w-4 text-[#596780]" />
               </button>
             </div>
 
-            <div className="border-b border-border p-4 max-h-[200px] overflow-y-auto shrink-0 bg-warm-50/50">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-warm-400 mb-2">
+            <div className="border-b border-[#E3E8EF] p-4 max-h-[200px] overflow-y-auto shrink-0 bg-[#F6F8FA]/50">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#96A0B5] mb-2">
                 Current ICP
               </p>
               <IcpSummaryReadOnly icp={icp} />
@@ -956,8 +956,8 @@ export default function IcpStep({
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-[#1B4332] text-white"
-                        : "bg-warm-100 text-foreground"
+                        ? "bg-[#0ABF53] text-white"
+                        : "bg-[#F0F3F7] text-[#0A2540]"
                     }`}
                   >
                     {msg.content}
@@ -966,11 +966,11 @@ export default function IcpStep({
               ))}
               {chatLoading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl bg-warm-100 px-5 py-3">
+                  <div className="rounded-2xl bg-[#F0F3F7] px-5 py-3">
                     <div className="flex gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce" />
-                      <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.1s]" />
-                      <span className="h-2 w-2 rounded-full bg-warm-400 animate-bounce [animation-delay:0.2s]" />
+                      <span className="h-2 w-2 rounded-full bg-[#96A0B5] animate-bounce" />
+                      <span className="h-2 w-2 rounded-full bg-[#96A0B5] animate-bounce [animation-delay:0.1s]" />
+                      <span className="h-2 w-2 rounded-full bg-[#96A0B5] animate-bounce [animation-delay:0.2s]" />
                     </div>
                   </div>
                 </div>
@@ -984,7 +984,7 @@ export default function IcpStep({
                   <button
                     key={chip}
                     onClick={() => sendChatMessage(chip)}
-                    className="text-xs px-3.5 py-2 rounded-full bg-[#1B4332]/10 text-[#1B4332] hover:bg-[#1B4332]/20 transition-all font-medium"
+                    className="text-xs px-3.5 py-2 rounded-full bg-[#E6F9EE] text-[#089E45] hover:bg-[#0ABF53]/20 transition-all font-medium"
                   >
                     {chip}
                   </button>
@@ -992,7 +992,7 @@ export default function IcpStep({
               </div>
             )}
 
-            <div className="border-t border-border p-4 bg-warm-50/50 shrink-0">
+            <div className="border-t border-[#E3E8EF] p-4 bg-[#F6F8FA]/50 shrink-0">
               <div className="flex gap-3">
                 <Input
                   value={chatInput}
@@ -1004,24 +1004,24 @@ export default function IcpStep({
                     }
                   }}
                   placeholder="Tell us what to change..."
-                  className="h-[44px] rounded-xl border border-[#E0E0E0]"
+                  className="h-[44px] rounded-xl border border-[#E3E8EF]"
                 />
                 <Button
                   onClick={() => sendChatMessage()}
                   size="lg"
                   disabled={!chatInput.trim() || chatLoading}
-                  className="h-[44px] w-[44px] rounded-xl bg-[#1B4332] text-white hover:bg-[#1B4332]/90 shrink-0 p-0"
+                  className="h-[44px] w-[44px] rounded-xl bg-[#0ABF53] text-white hover:opacity-90 shrink-0 p-0"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
             </div>
 
-            <div className="border-t border-border p-4 shrink-0">
+            <div className="border-t border-[#E3E8EF] p-4 shrink-0">
               <Button
                 onClick={() => setShowChatModal(false)}
                 size="lg"
-                className="w-full h-[44px] rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all"
+                className="w-full h-[44px] rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
               >
                 Apply changes
               </Button>

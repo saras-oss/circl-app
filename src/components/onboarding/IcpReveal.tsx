@@ -56,10 +56,10 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
         <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-6">
           <Loader2 className="w-7 h-7 text-accent animate-spin" />
         </div>
-        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-foreground leading-tight max-w-lg mx-auto">
+        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight max-w-lg mx-auto">
           Analyzing your website...
         </h1>
-        <p className="text-base sm:text-lg text-warm-500 max-w-lg mx-auto leading-relaxed mt-4">
+        <p className="text-base sm:text-lg text-[#596780] max-w-lg mx-auto leading-relaxed mt-4">
           We&apos;re building a target profile based on your company data.
         </p>
       </div>
@@ -74,11 +74,11 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
             <AlertTriangle className="w-7 h-7 text-amber-500" strokeWidth={1.5} />
           </div>
 
-          <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-foreground leading-tight">
+          <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight">
             Website analysis didn&apos;t complete
           </h1>
 
-          <p className="text-base sm:text-lg text-warm-500 leading-relaxed mt-5">
+          <p className="text-base sm:text-lg text-[#596780] leading-relaxed mt-5">
             {scrapeError
               ? "We had trouble analyzing your website. You can try again or skip ahead to define your ICP manually."
               : "We couldn\u2019t analyze your website this time. You can retry or define your ICP manually."}
@@ -89,7 +89,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
               <Button
                 onClick={handleRetry}
                 size="lg"
-                className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all shadow-sm"
+                className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry website analysis
@@ -106,7 +106,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
             <div>
               <button
                 onClick={onBack}
-                className="text-sm font-medium text-warm-500 hover:text-foreground transition-colors py-2"
+                className="text-sm font-medium text-[#596780] hover:text-[#0A2540] transition-colors py-2"
               >
                 Back
               </button>
@@ -124,23 +124,23 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
           <Sparkles className="w-7 h-7 text-accent" strokeWidth={1.5} />
         </div>
 
-        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-foreground leading-tight">
+        <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight">
           Hey {firstName}, we went through your website and got a sense of what {companyName} does.
         </h1>
 
         {hasCustomers ? (
-          <p className="text-base sm:text-lg text-warm-500 leading-relaxed mt-5">
+          <p className="text-base sm:text-lg text-[#596780] leading-relaxed mt-5">
             We spotted customers like{" "}
             {customers.slice(0, 3).map((name, i, arr) => (
               <span key={name}>
-                <span className="font-semibold text-foreground">{name}</span>
+                <span className="font-semibold text-[#0A2540]">{name}</span>
                 {i < arr.length - 1 ? (i === arr.length - 2 ? ", and " : ", ") : ""}
               </span>
             ))}
             {" "}in your network — and built a rough ICP for you as a starting point.
           </p>
         ) : (
-          <p className="text-base sm:text-lg text-warm-500 leading-relaxed mt-5">
+          <p className="text-base sm:text-lg text-[#596780] leading-relaxed mt-5">
             We&apos;ve built a rough ICP for you as a starting point based on what we found.
           </p>
         )}
@@ -162,14 +162,14 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
           <Button
             onClick={onNext}
             size="lg"
-            className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-[#1B4332] text-white font-semibold hover:bg-[#1B4332]/90 active:scale-[0.98] transition-all shadow-sm"
+            className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
           >
             Review your ICP →
           </Button>
           <div>
             <button
               onClick={onBack}
-              className="text-sm font-medium text-warm-500 hover:text-foreground transition-colors py-2"
+              className="text-sm font-medium text-[#596780] hover:text-[#0A2540] transition-colors py-2"
             >
               Back
             </button>

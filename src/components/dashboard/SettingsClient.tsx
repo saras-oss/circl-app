@@ -68,17 +68,17 @@ function TagEditor({
   }
 
   return (
-    <div className="min-h-[52px] px-3 py-2 rounded-2xl border-2 border-border bg-surface flex flex-wrap gap-2 items-center input-ring transition-all focus-within:border-accent/50">
+    <div className="min-h-[52px] px-3 py-2 bg-white border border-[#E3E8EF] rounded-lg flex flex-wrap gap-2 items-center transition-all focus-within:border-[#0ABF53] focus-within:ring-2 focus-within:ring-[#0ABF53]/20">
       {tags.map((tag, i) => (
         <span
           key={i}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20"
         >
           {tag}
           <button
             type="button"
             onClick={() => removeTag(i)}
-            className="hover:text-accent/70 transition-colors"
+            className="hover:text-[#089E45]/70 transition-colors"
           >
             <X className="w-3 h-3" />
           </button>
@@ -90,7 +90,7 @@ function TagEditor({
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={tags.length === 0 ? placeholder : "Add more..."}
-        className="flex-1 min-w-[120px] bg-transparent text-sm text-foreground placeholder:text-warm-400 outline-none py-1"
+        className="flex-1 min-w-[120px] bg-transparent text-sm text-[#0A2540] placeholder:text-[#96A0B5] outline-none py-1"
       />
     </div>
   );
@@ -245,27 +245,27 @@ export default function SettingsClient({
   };
 
   const inputClasses =
-    "w-full h-[52px] px-4 rounded-2xl border-2 border-border bg-surface text-sm font-medium text-foreground placeholder:text-warm-400 input-ring transition-all";
+    "w-full h-[52px] px-4 py-2.5 bg-white border border-[#E3E8EF] rounded-lg text-sm font-medium text-[#0A2540] placeholder:text-[#96A0B5] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none transition-all";
 
   return (
     <div className="animate-fade-in">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
+        <h1 className="text-2xl font-semibold text-[#0A2540]">
           Settings
         </h1>
       </div>
 
       <div className="space-y-6 stagger-children">
         {/* Profile */}
-        <div className="card-elevated p-6 sm:p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8">
           <div className="flex items-center gap-3.5 mb-8">
-            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-              <User className="w-5 h-5 text-accent" />
+            <div className="w-11 h-11 bg-[#E6F9EE] rounded-lg flex items-center justify-center">
+              <User className="w-5 h-5 text-[#0ABF53]" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Profile</h2>
-              <p className="text-xs text-warm-400 font-medium">
+              <h2 className="font-semibold text-[#0A2540]">Profile</h2>
+              <p className="text-xs text-[#96A0B5] font-medium">
                 Your personal and company details
               </p>
             </div>
@@ -273,7 +273,7 @@ export default function SettingsClient({
 
           <form onSubmit={handleSaveProfile} className="space-y-5">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+              <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                 Full Name
               </label>
               <input
@@ -284,7 +284,7 @@ export default function SettingsClient({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+              <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                 LinkedIn URL
               </label>
               <input
@@ -296,7 +296,7 @@ export default function SettingsClient({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+                <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                   Company Name
                 </label>
                 <input
@@ -307,7 +307,7 @@ export default function SettingsClient({
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+                <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                   Role / Title
                 </label>
                 <input
@@ -319,7 +319,7 @@ export default function SettingsClient({
               </div>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+              <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                 Company Website
               </label>
               <input
@@ -332,7 +332,7 @@ export default function SettingsClient({
             <button
               type="submit"
               disabled={saving}
-              className="h-[52px] px-8 rounded-2xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2 min-w-[140px] justify-center"
+              className="h-[52px] px-8 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-sm font-semibold hover:opacity-90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2 min-w-[140px] justify-center"
             >
               {saving ? (
                 "Saving..."
@@ -349,17 +349,17 @@ export default function SettingsClient({
         </div>
 
         {/* ICP */}
-        <div id="icp" ref={icpRef} className="card-elevated p-6 sm:p-8 scroll-mt-6">
+        <div id="icp" ref={icpRef} className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 scroll-mt-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-                <Target className="w-5 h-5 text-accent" />
+              <div className="w-11 h-11 bg-[#E6F9EE] rounded-lg flex items-center justify-center">
+                <Target className="w-5 h-5 text-[#0ABF53]" />
               </div>
               <div>
-                <h2 className="font-semibold text-foreground">
+                <h2 className="font-semibold text-[#0A2540]">
                   Ideal Customer Profile
                 </h2>
-                <p className="text-xs text-warm-400 font-medium">
+                <p className="text-xs text-[#96A0B5] font-medium">
                   Your targeting criteria for matches
                 </p>
               </div>
@@ -369,7 +369,7 @@ export default function SettingsClient({
               Object.keys(rawIcp).length > 0 && (
                 <button
                   onClick={() => setIcpEditing(true)}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-accent/80 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-semibold text-[#0ABF53] hover:text-[#0ABF53]/80 transition-colors"
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   Edit
@@ -382,7 +382,7 @@ export default function SettingsClient({
               {(Object.keys(ICP_FIELD_LABELS) as (keyof IcpFields)[]).map(
                 (field) => (
                   <div key={field}>
-                    <label className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3 block">
+                    <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                       {ICP_FIELD_LABELS[field]}
                     </label>
                     <TagEditor
@@ -397,7 +397,7 @@ export default function SettingsClient({
                 <button
                   onClick={handleSaveIcp}
                   disabled={icpSaving}
-                  className="h-[44px] px-6 rounded-2xl bg-accent text-white text-sm font-semibold hover:bg-accent/90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2"
+                  className="h-[44px] px-6 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-sm font-semibold hover:opacity-90 transition-all duration-150 disabled:opacity-50 active:scale-[0.98] flex items-center gap-2"
                 >
                   {icpSaving ? (
                     "Saving..."
@@ -422,7 +422,7 @@ export default function SettingsClient({
                       triggers: (rawIcp?.triggers as string[]) || [],
                     });
                   }}
-                  className="h-[44px] px-6 rounded-2xl border-2 border-border text-sm font-semibold text-warm-500 hover:text-foreground hover:border-border-strong transition-all"
+                  className="h-[44px] px-6 rounded-lg border border-[#E3E8EF] text-sm font-semibold text-[#596780] hover:text-[#0A2540] hover:border-[#596780] transition-all"
                 >
                   Cancel
                 </button>
@@ -437,7 +437,7 @@ export default function SettingsClient({
                   .replace(/^./, (s) => s.toUpperCase());
                 return (
                   <div key={key}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-warm-400 mb-3">
+                    <p className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3">
                       {label}
                     </p>
                     <div className="flex flex-wrap gap-2">
@@ -445,13 +445,13 @@ export default function SettingsClient({
                         value.map((v: string) => (
                           <span
                             key={v}
-                            className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10"
+                            className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20"
                           >
                             {v}
                           </span>
                         ))
                       ) : (
-                        <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-accent-light text-accent border border-accent/10">
+                        <span className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20">
                           {String(value)}
                         </span>
                       )}
@@ -462,12 +462,12 @@ export default function SettingsClient({
             </div>
           ) : (
             <div className="py-6 text-center">
-              <p className="text-sm text-warm-400 font-medium mb-3">
+              <p className="text-sm text-[#96A0B5] font-medium mb-3">
                 No ICP defined yet
               </p>
               <button
                 onClick={() => setIcpEditing(true)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-accent/80 transition-colors"
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#0ABF53] hover:text-[#0ABF53]/80 transition-colors"
               >
                 <Plus className="w-4 h-4" />
                 Define your ICP
@@ -477,30 +477,30 @@ export default function SettingsClient({
         </div>
 
         {/* Subscription & Billing */}
-        <div id="billing" className="card-elevated p-6 sm:p-8 scroll-mt-6">
+        <div id="billing" className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 scroll-mt-6">
           <div className="flex items-center gap-3.5 mb-8">
-            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-accent" />
+            <div className="w-11 h-11 bg-[#E6F9EE] rounded-lg flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-[#0ABF53]" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Subscription</h2>
-              <p className="text-xs text-warm-400 font-medium">
+              <h2 className="font-semibold text-[#0A2540]">Subscription</h2>
+              <p className="text-xs text-[#96A0B5] font-medium">
                 Your plan and billing details
               </p>
             </div>
           </div>
 
-          <div className="space-y-0 divide-y divide-border/60">
+          <div className="space-y-0 divide-y divide-[#E3E8EF]/60">
             <div className="flex items-center justify-between py-4 first:pt-0">
-              <span className="text-sm text-warm-500 font-medium">Plan</span>
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm text-[#596780] font-medium">Plan</span>
+              <span className="text-sm font-semibold text-[#0A2540]">
                 {tierLabels[profile.subscription_tier as string] || "None"}
               </span>
             </div>
             <div className="flex items-center justify-between py-4">
-              <span className="text-sm text-warm-500 font-medium">Status</span>
+              <span className="text-sm text-[#596780] font-medium">Status</span>
               <span
-                className={`text-sm font-semibold ${profile.subscription_status === "active" ? "text-green" : "text-warm-400"}`}
+                className={`text-sm font-semibold ${profile.subscription_status === "active" ? "text-[#0ABF53]" : "text-[#96A0B5]"}`}
               >
                 {profile.subscription_status === "active"
                   ? "Active"
@@ -508,10 +508,10 @@ export default function SettingsClient({
               </span>
             </div>
             <div className="flex items-center justify-between py-4">
-              <span className="text-sm text-warm-500 font-medium">
+              <span className="text-sm text-[#596780] font-medium">
                 Connections Analyzed
               </span>
-              <span className="text-sm font-semibold text-foreground">
+              <span className="text-sm font-semibold text-[#0A2540]">
                 {(
                   (profile.enriched_connections as number) || 0
                 ).toLocaleString()}{" "}
@@ -523,10 +523,10 @@ export default function SettingsClient({
             </div>
             {payment && (
               <div className="flex items-center justify-between py-4 last:pb-0">
-                <span className="text-sm text-warm-500 font-medium">
+                <span className="text-sm text-[#596780] font-medium">
                   Last Payment
                 </span>
-                <span className="text-sm font-semibold text-foreground">
+                <span className="text-sm font-semibold text-[#0A2540]">
                   ${((payment.amount as number) / 100).toFixed(0)} on{" "}
                   {new Date(
                     payment.created_at as string
@@ -537,11 +537,11 @@ export default function SettingsClient({
           </div>
 
           {profile.subscription_tier === "free" && (
-            <div className="mt-6 p-5 rounded-2xl bg-gradient-to-br from-accent-light to-accent/5 border border-accent/10">
-              <p className="text-sm font-semibold text-foreground">
+            <div className="mt-6 p-5 rounded-2xl bg-[#E6F9EE] border border-[#0ABF53]/10">
+              <p className="text-sm font-semibold text-[#0A2540]">
                 Upgrade your plan
               </p>
-              <p className="text-xs text-warm-500 mt-1 leading-relaxed">
+              <p className="text-xs text-[#596780] mt-1 leading-relaxed">
                 Analyze all{" "}
                 {(
                   (profile.total_connections as number) || 0
@@ -553,14 +553,14 @@ export default function SettingsClient({
         </div>
 
         {/* Usage & Limits */}
-        <div id="usage" className="card-elevated p-6 sm:p-8 scroll-mt-6">
+        <div id="usage" className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 scroll-mt-6">
           <div className="flex items-center gap-3.5 mb-8">
-            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-accent" />
+            <div className="w-11 h-11 bg-[#E6F9EE] rounded-lg flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-[#0ABF53]" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">Usage & Limits</h2>
-              <p className="text-xs text-warm-400 font-medium">
+              <h2 className="font-semibold text-[#0A2540]">Usage & Limits</h2>
+              <p className="text-xs text-[#96A0B5] font-medium">
                 Your pipeline usage
               </p>
             </div>
@@ -568,59 +568,59 @@ export default function SettingsClient({
 
           {usageStats ? (
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
-                <p className="text-2xl font-bold text-foreground">
+              <div className="text-center p-4 rounded-xl bg-[#F6F8FA] border border-[#E3E8EF]">
+                <p className="text-2xl font-bold text-[#0A2540]">
                   {usageStats.uploaded.toLocaleString()}
                 </p>
-                <p className="text-xs text-warm-400 font-medium mt-1">
+                <p className="text-xs text-[#96A0B5] font-medium mt-1">
                   Uploaded
                 </p>
               </div>
-              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
-                <p className="text-2xl font-bold text-foreground">
+              <div className="text-center p-4 rounded-xl bg-[#F6F8FA] border border-[#E3E8EF]">
+                <p className="text-2xl font-bold text-[#0A2540]">
                   {usageStats.enriched.toLocaleString()}
                 </p>
-                <p className="text-xs text-warm-400 font-medium mt-1">
+                <p className="text-xs text-[#96A0B5] font-medium mt-1">
                   Enriched
                 </p>
               </div>
-              <div className="text-center p-4 rounded-2xl bg-warm-50 border border-warm-100">
-                <p className="text-2xl font-bold text-foreground">
+              <div className="text-center p-4 rounded-xl bg-[#F6F8FA] border border-[#E3E8EF]">
+                <p className="text-2xl font-bold text-[#0A2540]">
                   {usageStats.scored.toLocaleString()}
                 </p>
-                <p className="text-xs text-warm-400 font-medium mt-1">
+                <p className="text-xs text-[#96A0B5] font-medium mt-1">
                   Scored
                 </p>
               </div>
             </div>
           ) : (
             <div className="flex items-center justify-center py-6">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-warm-200 border-t-accent" />
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#E3E8EF] border-t-[#0ABF53]" />
             </div>
           )}
         </div>
 
         {/* Re-upload CSV */}
-        <div className="card-elevated p-6 sm:p-8">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8">
           <div className="flex items-center gap-3.5 mb-6">
-            <div className="w-11 h-11 bg-accent-light rounded-xl flex items-center justify-center">
-              <Upload className="w-5 h-5 text-accent" />
+            <div className="w-11 h-11 bg-[#E6F9EE] rounded-lg flex items-center justify-center">
+              <Upload className="w-5 h-5 text-[#0ABF53]" />
             </div>
             <div>
-              <h2 className="font-semibold text-foreground">
+              <h2 className="font-semibold text-[#0A2540]">
                 Re-upload Connections
               </h2>
-              <p className="text-xs text-warm-400 font-medium">
+              <p className="text-xs text-[#96A0B5] font-medium">
                 Update your network with a new LinkedIn export
               </p>
             </div>
           </div>
-          <p className="text-sm text-warm-500 mb-4 leading-relaxed">
+          <p className="text-sm text-[#596780] mb-4 leading-relaxed">
             Export your latest connections from LinkedIn and upload them here.
             New connections will be added incrementally.
           </p>
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gold-light text-gold text-xs font-semibold border border-gold/15">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FFF8E6] text-[#B8860B] text-xs font-semibold border border-[#FFBB38]/20">
+            <Sparkles className="w-3.5 h-3.5 text-[#FFBB38]" />
             Coming in Phase 2
           </div>
         </div>

@@ -408,14 +408,14 @@ export default function CsvUploadStep({
     <div className="animate-fade-in space-y-8">
       {/* Header */}
       <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 animate-scale-in">
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
           <Upload className="h-7 w-7 text-accent" strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
             Upload your connections
           </h1>
-          <p className="text-sm sm:text-base text-warm-500 max-w-md mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-[#596780] max-w-md mx-auto leading-relaxed">
             Upload the Connections.csv file you downloaded from LinkedIn.
           </p>
         </div>
@@ -424,10 +424,10 @@ export default function CsvUploadStep({
       {/* LinkedIn export guide — collapsible */}
       {!uploadComplete && (
         <details className="mt-2 mb-4">
-          <summary className="text-sm text-[#1B4332] font-medium cursor-pointer hover:underline">
+          <summary className="text-sm text-[#089E45] font-medium cursor-pointer hover:underline">
             How to export your LinkedIn connections
           </summary>
-          <div className="mt-2 rounded-lg border border-gray-200 overflow-hidden">
+          <div className="mt-2 rounded-lg border border-[#E3E8EF] overflow-hidden">
             <img
               src="/guides/linkedin-export-guide.gif"
               alt="How to export LinkedIn connections"
@@ -446,12 +446,12 @@ export default function CsvUploadStep({
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           className={`
-            relative rounded-2xl border-2 border-dashed p-10 sm:p-14 text-center cursor-pointer
+            relative rounded-xl border border-dashed p-10 sm:p-14 text-center cursor-pointer
             transition-all duration-300 ease-out group
             ${
               isDragging
                 ? "border-accent bg-accent-light scale-[1.01] shadow-lg shadow-accent/10"
-                : "border-warm-300 bg-warm-50 hover:border-accent hover:bg-accent-light/50"
+                : "border-[#D1D9E6] bg-[#F6F8FA] hover:border-accent hover:bg-accent-light/50"
             }
           `}
         >
@@ -466,31 +466,31 @@ export default function CsvUploadStep({
           <div className="flex flex-col items-center gap-4">
             <div
               className={`
-                flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300
-                ${isDragging ? "bg-accent/15 scale-110" : "bg-warm-100 group-hover:bg-accent/10"}
+                flex h-16 w-16 items-center justify-center rounded-xl transition-all duration-300
+                ${isDragging ? "bg-accent/15 scale-110" : "bg-[#F0F3F7] group-hover:bg-accent/10"}
               `}
             >
               <FileSpreadsheet
                 className={`h-7 w-7 transition-colors duration-300 ${
                   isDragging
                     ? "text-accent"
-                    : "text-warm-400 group-hover:text-accent"
+                    : "text-[#96A0B5] group-hover:text-accent"
                 }`}
                 strokeWidth={1.5}
               />
             </div>
             <div className="space-y-1.5">
-              <p className="text-sm sm:text-base font-semibold text-foreground">
+              <p className="text-sm sm:text-base font-semibold text-[#0A2540]">
                 Drop your Connections.csv here
               </p>
-              <p className="text-sm text-warm-400">
+              <p className="text-sm text-[#96A0B5]">
                 or{" "}
                 <span className="text-accent font-medium underline underline-offset-2">
                   click to browse
                 </span>
               </p>
             </div>
-            <span className="rounded-full bg-warm-100 px-3 py-1.5 text-xs font-medium text-warm-500">
+            <span className="rounded-full bg-[#F0F3F7] px-3 py-1.5 text-xs font-medium text-[#596780]">
               CSV files only
             </span>
           </div>
@@ -499,24 +499,24 @@ export default function CsvUploadStep({
 
       {/* Parsing / uploading progress */}
       {(parsing || uploading) && (
-        <div className="card-elevated p-6 sm:p-8 space-y-5 animate-fade-in-up">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-5 animate-fade-in-up">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 flex items-center justify-center">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-warm-200 border-t-accent" />
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E3E8EF] border-t-accent" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-semibold text-[#0A2540]">
                 {parsing
                   ? "Parsing CSV file..."
                   : `Uploading ${connectionCount?.toLocaleString()} connections...`}
               </p>
               {fileName && (
-                <p className="text-xs text-warm-400 mt-0.5">{fileName}</p>
+                <p className="text-xs text-[#96A0B5] mt-0.5">{fileName}</p>
               )}
             </div>
           </div>
           {uploading && (
-            <div className="h-2 rounded-full bg-warm-100 overflow-hidden">
+            <div className="h-2 rounded-full bg-[#F0F3F7] overflow-hidden">
               <div
                 className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
                 style={{ width: `${uploadProgress}%` }}
@@ -528,7 +528,7 @@ export default function CsvUploadStep({
 
       {/* Success state */}
       {uploadComplete && connectionCount !== null && (
-        <div className="card-elevated p-6 sm:p-8 space-y-4 animate-scale-in">
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-4 animate-scale-in">
           <div className="flex flex-col items-center text-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 animate-scale-in">
               <CheckCircle
@@ -537,10 +537,10 @@ export default function CsvUploadStep({
               />
             </div>
             <div className="space-y-1">
-              <p className="text-xl font-bold text-foreground">
+              <p className="text-xl font-bold text-[#0A2540]">
                 {connectionCount.toLocaleString()} connections uploaded
               </p>
-              <p className="text-sm text-warm-400">
+              <p className="text-sm text-[#96A0B5]">
                 {skippedCount > 0
                   ? `${skippedCount} row${skippedCount > 1 ? "s" : ""} skipped \u2014 missing data`
                   : `Successfully uploaded from ${fileName}`}
@@ -552,9 +552,9 @@ export default function CsvUploadStep({
 
       {/* Error state */}
       {error && (
-        <div className="rounded-2xl bg-destructive/5 border border-destructive/20 p-4 flex items-start gap-3 animate-fade-in">
-          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-          <p className="text-sm text-destructive">{error}</p>
+        <div className="rounded-xl bg-[#FDE8EC] border border-[#ED5F74]/20 p-4 flex items-start gap-3 animate-fade-in">
+          <AlertCircle className="h-5 w-5 text-[#ED5F74] shrink-0 mt-0.5" />
+          <p className="text-sm text-[#ED5F74]">{error}</p>
         </div>
       )}
 
@@ -564,7 +564,7 @@ export default function CsvUploadStep({
           onClick={onBack}
           variant="outline"
           size="lg"
-          className="h-[52px] rounded-2xl border-2 border-border hover:border-border-strong transition-all"
+          className="h-[52px] rounded-xl border border-[#E3E8EF] hover:border-[#596780] transition-all"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -573,7 +573,7 @@ export default function CsvUploadStep({
           <Button
             onClick={onNext}
             size="lg"
-            className="flex-1 h-[52px] rounded-2xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
+            className="flex-1 h-[52px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >
             Continue
           </Button>

@@ -75,17 +75,15 @@ export default function Sidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-[260px] md:fixed md:inset-y-0 bg-surface border-r border-border">
-        <div className="flex items-center gap-2.5 h-16 px-6 border-b border-border">
-          <div className="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
-            <span className="text-white font-bold text-xs">C</span>
-          </div>
-          <Link href="/dashboard" className="text-lg font-bold tracking-tight">
+      <aside className="hidden md:flex md:flex-col md:w-[240px] md:fixed md:inset-y-0 bg-white border-r border-[#E3E8EF]">
+        <div className="flex items-center gap-2.5 h-16 px-6 border-b border-[#F0F3F7]">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#0ABF53]" />
+          <Link href="/dashboard" className="text-lg font-bold tracking-tight text-[#0A2540]">
             Circl
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-5 space-y-0.5">
+        <nav className="flex-1 px-3 py-5 space-y-1">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -94,15 +92,15 @@ export default function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 h-11 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                className={`flex items-center gap-3 px-3 h-10 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                   isActive
-                    ? "bg-foreground text-white shadow-sm"
-                    : "text-warm-500 hover:text-foreground hover:bg-warm-100"
+                    ? "bg-[#E6F9EE] text-[#0A2540] font-semibold border-l-[3px] border-[#0ABF53] pl-[9px]"
+                    : "text-[#596780] hover:text-[#0A2540] hover:bg-[#F6F8FA]"
                 }`}
               >
                 <item.icon
-                  className="w-[18px] h-[18px]"
-                  strokeWidth={isActive ? 2.2 : 1.8}
+                  className={`w-5 h-5 ${isActive ? "text-[#0ABF53]" : ""}`}
+                  strokeWidth={isActive ? 2 : 1.8}
                 />
                 {item.label}
               </Link>
@@ -111,15 +109,15 @@ export default function Sidebar() {
           {isAdmin && (
             <Link
               href="/dashboard/admin"
-              className={`flex items-center gap-3 px-3 h-11 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+              className={`flex items-center gap-3 px-3 h-10 rounded-lg text-[13px] font-medium transition-all duration-200 ${
                 pathname === "/dashboard/admin"
-                  ? "bg-foreground text-white shadow-sm"
-                  : "text-warm-500 hover:text-foreground hover:bg-warm-100"
+                  ? "bg-[#E6F9EE] text-[#0A2540] font-semibold border-l-[3px] border-[#0ABF53] pl-[9px]"
+                  : "text-[#596780] hover:text-[#0A2540] hover:bg-[#F6F8FA]"
               }`}
             >
               <Shield
-                className="w-[18px] h-[18px]"
-                strokeWidth={pathname === "/dashboard/admin" ? 2.2 : 1.8}
+                className={`w-5 h-5 ${pathname === "/dashboard/admin" ? "text-[#0ABF53]" : ""}`}
+                strokeWidth={pathname === "/dashboard/admin" ? 2 : 1.8}
               />
               Admin
             </Link>
@@ -135,7 +133,7 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 glass border-t border-border z-50 safe-area-bottom">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#E3E8EF] z-50 safe-area-bottom">
         <div className="flex items-center justify-around h-[64px]">
           {mobileNavItems.map((item) => {
             const isActive =
@@ -146,7 +144,7 @@ export default function Sidebar() {
                 key={item.href}
                 href={item.href}
                 className={`flex flex-col items-center justify-center gap-1 min-w-[64px] min-h-[44px] transition-all duration-200 ${
-                  isActive ? "text-accent" : "text-warm-400"
+                  isActive ? "text-[#0ABF53]" : "text-[#96A0B5]"
                 }`}
               >
                 <item.icon

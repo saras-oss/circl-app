@@ -118,7 +118,7 @@ export default function OnboardingPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 animate-fade-in">
           <div className="w-10 h-10 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-warm-500 font-medium">
+          <p className="text-sm text-[#596780] font-medium">
             Loading your workspace...
           </p>
         </div>
@@ -130,7 +130,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-background">
       {/* Progress header */}
       {step <= 6 && (
-        <div className="sticky top-0 z-50 glass border-b border-border">
+        <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-sm border-b border-[#E3E8EF]">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
@@ -142,10 +142,10 @@ export default function OnboardingPage() {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-warm-500">
+                <span className="text-xs font-semibold text-[#596780]">
                   {Math.min(step, 6)}/6
                 </span>
-                <span className="text-xs text-warm-400">
+                <span className="text-xs text-[#96A0B5]">
                   {stepLabels[Math.min(step, 6) - 1]}
                 </span>
               </div>
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
               {stepLabels.map((_, i) => (
                 <div
                   key={i}
-                  className="flex-1 h-1 rounded-full overflow-hidden bg-warm-200"
+                  className="flex-1 h-1 rounded-full overflow-hidden bg-[#E3E8EF]"
                 >
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
