@@ -93,7 +93,7 @@ Experience: ${profile?.total_experience_years || "Unknown"} years
 Industry (from profile): ${profile?.industry || "Not specified"}`;
 
   return `
-SELLER: ${userData.company_name || "Unknown"} (${userData.website_url || "Unknown"})
+SELLER: ${userData.company_name || "Unknown"} (${userData.company_website || "Unknown"})
 
 ICP (Ideal Customer Profile):
 Target Industries: ${icpData.industries?.join(", ") || "Not specified"}
@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     // Get user's ICP data + company info
     const { data: userData, error: userError } = await supabaseAdmin
       .from("users")
-      .select("id, icp_data, icp_confirmed, company_name, website_url")
+      .select("id, icp_data, icp_confirmed, company_name, company_website")
       .eq("id", userId)
       .single();
 
