@@ -1,25 +1,41 @@
+// Don't fetch the cron URL — just run the same database logic inline
+import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
+
 export const maxDuration = 300;
 export const dynamic = 'force-dynamic';
 
-import { NextResponse } from "next/server";
-
 export async function GET() {
-  // Call the cron worker directly, bypassing auth
-  const cronUrl = `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app'}/api/cron/pipeline-worker`;
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
 
-  const response = await fetch(cronUrl, {
-    headers: {
-      'Authorization': `Bearer ${process.env.CRON_SECRET}`,
-    },
-  });
+  // Check for active jobs (same logic as cron worker)
+  const { data: job, error } = await supabase
+    .from('pipeline_jobs')
+    .select('*')
+    .in('status', ['queued', 'classifying', 'enriching_persons', 'enriching_companies', 'scoring'])
+    .eq('mode', 'background')
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
-  const text = await response.text();
-  let result;
-  try {
-    result = JSON.parse(text);
-  } catch {
-    result = { raw: text.slice(0, 200), status: response.status };
+  if (!job) {
+    return NextResponse.json({
+      status: 'idle',
+      message: 'No active background jobs',
+      pipeline_jobs_error: error?.message || null,
+      tested_at: new Date().toISOString()
+    });
   }
 
-  return NextResponse.json({ cron_result: result, status: response.status, tested_at: new Date().toISOString() });
+  return NextResponse.json({
+    status: 'found_job',
+    job_id: job.id,
+    job_status: job.status,
+    user_id: job.user_id,
+    total_connections: job.total_connections,
+    tested_at: new Date().toISOString()
+  });
 }
