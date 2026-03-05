@@ -129,28 +129,43 @@ export async function POST(request: Request) {
     }
 
     // Get user's ICP data + company info
-    const { data: userData } = await supabaseAdmin
+    const { data: userData, error: userError } = await supabaseAdmin
       .from("users")
-      .select("icp_data, icp_confirmed, company_name, website_url")
+      .select("id, icp_data, icp_confirmed, company_name, website_url")
       .eq("id", userId)
       .single();
 
-    // Safety parse: handle icp_data as string or object
-    const rawIcp = userData?.icp_data;
+    console.log("SCORE: Raw user query result:", {
+      hasData: !!userData,
+      error: userError?.message,
+      dataKeys: userData ? Object.keys(userData) : [],
+      icp_data_type: typeof userData?.icp_data,
+      icp_confirmed: userData?.icp_confirmed,
+    });
+
+    if (userError || !userData) {
+      console.error("SCORE: Failed to fetch user:", userError?.message);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Safety parse — icp_data might be string or object
     const icpData = (
-      typeof rawIcp === "string" ? JSON.parse(rawIcp) : rawIcp || {}
-    ) as IcpData;
+      typeof userData.icp_data === "string"
+        ? JSON.parse(userData.icp_data)
+        : userData.icp_data
+    ) as IcpData | null;
+
+    console.log("SCORE: User loaded", {
+      userId,
+      hasIcpData: !!icpData,
+      icpDataType: typeof icpData,
+      industries: icpData?.industries?.length || 0,
+      icp_confirmed: userData.icp_confirmed,
+    });
 
     // HARD GUARD: Do not score without ICP
-    if (!icpData.industries || icpData.industries.length === 0) {
-      console.log("SCORE: ICP guard triggered — no industries found.", {
-        userId,
-        icpDataType: typeof rawIcp,
-        icpDataKeys: rawIcp
-          ? Object.keys(typeof rawIcp === "string" ? JSON.parse(rawIcp) : rawIcp)
-          : [],
-        icp_confirmed: userData?.icp_confirmed,
-      });
+    if (!icpData?.industries || icpData.industries.length === 0) {
+      console.log("SCORE: ICP guard triggered — no industries found.");
       return NextResponse.json({
         scored: 0,
         remaining: 0,
@@ -158,13 +173,6 @@ export async function POST(request: Request) {
         skipReason: "icp_empty",
       });
     }
-
-    console.log(
-      "SCORE: ICP industries:",
-      icpData.industries?.length,
-      "confirmed:",
-      userData?.icp_confirmed
-    );
 
     // Find unscored enriched connections — NO OTHER FILTERS
     const { data: connections, error: fetchError } = await supabaseAdmin
