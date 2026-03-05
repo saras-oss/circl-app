@@ -440,8 +440,8 @@ export async function POST(request: Request) {
 
     const subscriptionTier = userData?.subscription_tier || "free";
 
-    // For free tier, select top 100 if not already done
-    if (subscriptionTier === "free") {
+    // For free tier, select top 100 if not already done (skip for cron)
+    if (!isCronCall && subscriptionTier === "free") {
       await selectFreeTierConnections(userId);
     }
 
@@ -472,13 +472,16 @@ export async function POST(request: Request) {
       .order("id", { ascending: true })
       .limit(effectiveBatchSize);
 
-    if (subscriptionTier === "free") {
-      query = query.eq("is_free_tier_selection", true);
-    } else if (!isCronCall) {
-      // Instant mode — only enrich tier1/tier2
-      query = query.in("enrichment_tier", ["tier1", "tier2"]);
+    if (!isCronCall) {
+      // Only apply subscription/free-tier filters for browser calls
+      if (subscriptionTier === "free") {
+        query = query.eq("is_free_tier_selection", true);
+      } else {
+        // Instant mode — only enrich tier1/tier2
+        query = query.in("enrichment_tier", ["tier1", "tier2"]);
+      }
     }
-    // Background mode (cron) — enrich all pending connections.
+    // Cron calls: no filter — process ALL pending connections.
     // Recent-half tier3/tier4 are already marked 'skipped' by classification,
     // so they won't appear in this pending query.
 
@@ -618,26 +621,33 @@ export async function POST(request: Request) {
       .eq("user_id", userId)
       .eq("enrichment_status", "pending");
 
-    if (subscriptionTier === "free") {
-      remainingQuery = remainingQuery.eq("is_free_tier_selection", true);
-    } else if (!isCronCall) {
-      remainingQuery = remainingQuery.in("enrichment_tier", ["tier1", "tier2"]);
+    if (!isCronCall) {
+      if (subscriptionTier === "free") {
+        remainingQuery = remainingQuery.eq("is_free_tier_selection", true);
+      } else {
+        remainingQuery = remainingQuery.in("enrichment_tier", ["tier1", "tier2"]);
+      }
     }
 
     const { count: remaining } = await remainingQuery;
 
     // Update processing progress
-    const { count: totalEligible } = await supabaseAdmin
+    let totalEligibleQuery = supabaseAdmin
       .from("user_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .in("enrichment_status", ["enriched", "cached", "pending", "failed"])
-      .in(
+      .in("enrichment_status", ["enriched", "cached", "pending", "failed"]);
+
+    if (!isCronCall) {
+      totalEligibleQuery = totalEligibleQuery.in(
         "enrichment_tier",
         subscriptionTier === "free"
           ? ["tier1", "tier2", "tier3", "tier4"]
           : ["tier1", "tier2"]
       );
+    }
+
+    const { count: totalEligible } = await totalEligibleQuery;
 
     const enrichedSoFar = (totalEligible || 0) - (remaining || 0);
     const progress =
