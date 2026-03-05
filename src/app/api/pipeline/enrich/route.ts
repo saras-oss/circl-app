@@ -441,14 +441,23 @@ export async function POST(request: Request) {
       await selectFreeTierConnections(userId);
     }
 
-    // Build query for next batch of connections to enrich
+    // DEBUG: Raw count of pending connections for this user
+    const { count: rawPendingCount } = await supabaseAdmin
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('enrichment_status', 'pending');
+
     console.log('ENRICH DEBUG:', {
       userId,
-      isCronCall: request.headers.get('x-cron-secret') === process.env.CRON_SECRET,
+      rawPendingCount,
+      isCronCall,
+      subscriptionTier,
       cronSecretHeader: request.headers.get('x-cron-secret')?.slice(0, 10),
       envCronSecret: process.env.CRON_SECRET?.slice(0, 10),
     });
 
+    // Build query for next batch of connections to enrich
     let query = supabaseAdmin
       .from("user_connections")
       .select(
