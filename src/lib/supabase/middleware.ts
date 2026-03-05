@@ -31,8 +31,16 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // Public routes
-  const publicRoutes = ["/login", "/auth/callback", "/api/webhooks/razorpay"];
+  // Public routes (no auth required)
+  const publicRoutes = [
+    "/login",
+    "/auth/callback",
+    "/api/webhooks/razorpay",
+    "/api/cron",
+    "/api/debug",
+    "/api/pipeline/track",
+    "/track",
+  ];
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
   const isApiRoute = pathname.startsWith("/api/");
 
