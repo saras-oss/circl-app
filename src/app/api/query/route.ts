@@ -12,6 +12,29 @@ import {
 } from "@/lib/query-engine/prompts";
 import { QueryIntent, AggregationResult } from "@/lib/query-engine/types";
 
+/** Robustly extract JSON from Haiku responses that may include code fences */
+function extractJSON(text: string): any {
+  const trimmed = text.trim();
+
+  // Try parsing as-is first (happy path)
+  try { return JSON.parse(trimmed); } catch {}
+
+  // Strip markdown code fences
+  const stripped = trimmed
+    .replace(/^```(?:json|JSON)?\s*\n?/, "")
+    .replace(/\n?\s*```\s*$/, "")
+    .trim();
+  try { return JSON.parse(stripped); } catch {}
+
+  // Try to extract a JSON object from anywhere in the text
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[0]); } catch {}
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
   // Auth
   const supabase = await createClient();
@@ -68,13 +91,8 @@ User question: "${question}"`,
         : "";
 
     let intent: QueryIntent;
-    try {
-      const cleaned = intentText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
-        .trim();
-      intent = JSON.parse(cleaned);
-    } catch {
+    const parsedIntent = extractJSON(intentText);
+    if (!parsedIntent) {
       console.error("QUERY: Failed to parse intent JSON:", intentText.slice(0, 500));
       return NextResponse.json(
         {
@@ -84,6 +102,7 @@ User question: "${question}"`,
         { status: 422 }
       );
     }
+    intent = parsedIntent;
 
     // ── Execute Query ──
     // Use supabaseAdmin since the view might not have RLS configured for the anon client
@@ -185,16 +204,17 @@ ${synthesisInput}`,
       display_type: string;
       follow_up_suggestions: string[];
     };
-    try {
-      const cleaned = synthesisText
-        .replace(/```json\n?/g, "")
-        .replace(/```\n?/g, "")
+    const parsedSynthesis = extractJSON(synthesisText);
+    if (parsedSynthesis && parsedSynthesis.text) {
+      synthesis = parsedSynthesis;
+    } else {
+      // If all JSON extraction failed, clean up and use as raw text
+      const cleanedText = synthesisText
+        .replace(/```(?:json|JSON)?/g, "")
+        .replace(/```/g, "")
         .trim();
-      synthesis = JSON.parse(cleaned);
-    } catch {
-      // If synthesis JSON fails, use the raw text
       synthesis = {
-        text: synthesisText || "Here are your results.",
+        text: cleanedText || "Here are your results.",
         display_type: results.count <= 5 ? "cards" : "table",
         follow_up_suggestions: [],
       };

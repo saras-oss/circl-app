@@ -69,7 +69,13 @@ Return ONLY a valid JSON object. No explanation, no markdown backticks, no pream
 - "recently connected" → sort by connected_on desc, limit 20
 - "old connections" / "long-time" → sort by connected_on asc
 - "hit list" / "matches" / "best matches" → match_score_min: 7
-- "how many" → query_type: "aggregate", metric: "count"
+- "how many" does NOT always mean aggregate. Apply this test:
+  - If the user wants a LIST OF SPECIFIC PEOPLE → query_type: "filter"
+    Examples: "how many investors do I have", "how many CTOs in my network", "how many decision makers in Mumbai", "how many VPs do I know", "how many people at Google"
+  - If the user wants a BREAKDOWN/DISTRIBUTION across categories → query_type: "aggregate"
+    Examples: "how many per industry", "industry breakdown", "seniority mix", "what's the distribution of roles", "how many connections in each country"
+  The distinction: "how many [specific type of person]" = filter (returns people). "How many [per category]" = aggregate (returns chart).
+  When query_type is "filter" for a "how many" question, include all relevant filters so the results are the actual matching people.
 - "breakdown" / "distribution" / "mix" → query_type: "aggregate"
 - "large companies" → company_size_min: 1000
 - "startups" → company_size_max: 200
@@ -89,6 +95,22 @@ Return ONLY a valid JSON object. No explanation, no markdown backticks, no pream
 - "who should I reach out to" / "who should I contact" → match_score_min: 7, sort by match_score desc
 - No explicit limit mentioned → default limit: 20 for filter, 10 for aggregate
 - If the query is ambiguous, return your best interpretation. Never return an error.
+
+## Role-specific query rules
+
+When the user asks about a specific ROLE or FUNCTION ("recruiting leaders", "engineering managers", "sales directors", "product people"), use title_keywords with precise terms for that function AND set the appropriate function_category. Be STRICT — do not broaden to unrelated titles.
+
+Role mapping:
+- "recruiting leaders" / "talent people" / "HR leaders" → title_keywords: ["Recruiter", "Recruiting", "Talent Acquisition", "Talent Partner", "Head of Talent", "HR Director", "People Operations", "Head of People", "Chief People Officer", "CHRO"], function_category: ["HR & People"]
+- "engineering leaders" / "tech leaders" → title_keywords: ["CTO", "VP Engineering", "Director of Engineering", "Head of Engineering", "SVP Engineering", "Chief Technology"], function_category: ["Engineering & Technology"], seniority_tier: ["C-suite", "VP/Director"]
+- "sales leaders" → title_keywords: ["VP Sales", "Sales Director", "Head of Sales", "CRO", "Chief Revenue", "SVP Sales"], function_category: ["Sales & BD"], seniority_tier: ["C-suite", "VP/Director"]
+- "marketing leaders" → title_keywords: ["CMO", "VP Marketing", "Director of Marketing", "Head of Marketing", "Chief Marketing"], function_category: ["Marketing"], seniority_tier: ["C-suite", "VP/Director"]
+- "product leaders" / "product people" → title_keywords: ["CPO", "VP Product", "Director of Product", "Head of Product", "Chief Product"], function_category: ["Product"], seniority_tier: ["C-suite", "VP/Director"]
+- "finance leaders" → title_keywords: ["CFO", "VP Finance", "Director of Finance", "Head of Finance", "Chief Financial", "Controller"], function_category: ["Finance"], seniority_tier: ["C-suite", "VP/Director"]
+
+When a role-specific query ALSO mentions a company ("recruiting leaders at HealthEdge"), apply BOTH the title/function filter AND the company filter. Results must match BOTH criteria.
+
+When a role query mentions "leaders" or "senior", always include seniority_tier: ["C-suite", "VP/Director"] to filter out junior/IC level people in that function.
 
 ## sales_intent detection
 
