@@ -442,6 +442,13 @@ export async function POST(request: Request) {
     }
 
     // Build query for next batch of connections to enrich
+    console.log('ENRICH DEBUG:', {
+      userId,
+      isCronCall: request.headers.get('x-cron-secret') === process.env.CRON_SECRET,
+      cronSecretHeader: request.headers.get('x-cron-secret')?.slice(0, 10),
+      envCronSecret: process.env.CRON_SECRET?.slice(0, 10),
+    });
+
     let query = supabaseAdmin
       .from("user_connections")
       .select(
@@ -463,6 +470,15 @@ export async function POST(request: Request) {
     // so they won't appear in this pending query.
 
     const { data: connections, error: fetchError } = await query;
+
+    console.log('ENRICH QUERY RESULT:', {
+      connectionsFound: connections?.length || 0,
+      firstConnection: connections?.[0] ? {
+        id: connections[0].id,
+        status: (connections[0] as any).enrichment_status,
+        tier: connections[0].enrichment_tier,
+      } : null,
+    });
 
     if (fetchError) {
       return NextResponse.json(
