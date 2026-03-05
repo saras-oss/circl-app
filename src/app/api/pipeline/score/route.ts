@@ -289,12 +289,41 @@ export async function POST(request: Request) {
           })
           .eq("id", conn.id);
 
+        // If match_type constraint fails, retry without it
         if (updateError) {
           console.error(
-            `SCORE: DB update failed for ${conn.first_name}:`,
+            `SCORE: DB update failed for ${conn.first_name}, retrying without match_type:`,
             updateError.message
           );
-          continue;
+
+          const { error: retryError } = await supabaseAdmin
+            .from("user_connections")
+            .update({
+              match_score: scoreResult.score,
+              match_type: null,
+              match_reasons: Array.isArray(scoreResult.reasons)
+                ? scoreResult.reasons
+                : [scoreResult.reasons],
+              suggested_approach: scoreResult.suggested_approach,
+              scored_at: new Date().toISOString(),
+            })
+            .eq("id", conn.id);
+
+          if (retryError) {
+            console.error(
+              `SCORE: Retry also failed for ${conn.first_name}:`,
+              retryError.message
+            );
+            // Mark as failed so we don't retry forever
+            await supabaseAdmin
+              .from("user_connections")
+              .update({
+                match_score: -1,
+                scored_at: new Date().toISOString(),
+              })
+              .eq("id", conn.id);
+            continue;
+          }
         }
 
         scoredCount++;
