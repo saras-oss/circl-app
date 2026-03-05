@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Users,
   CheckCircle,
@@ -14,6 +14,14 @@ import {
   Copy,
   Check,
   ListFilter,
+  Pause,
+  Play,
+  Square,
+  RefreshCw,
+  RotateCcw,
+  CheckCircle2,
+  FileText,
+  Activity,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -74,6 +82,426 @@ interface PromptRun {
   output_tokens: number;
   duration_ms: number;
   created_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline Jobs types & section
+// ---------------------------------------------------------------------------
+
+interface PipelineJob {
+  id: string;
+  user_id: string;
+  status: string;
+  mode: string;
+  total_connections: number;
+  classified_count: number;
+  enriched_persons_count: number;
+  enriched_companies_count: number;
+  scored_count: number;
+  hits_count: number;
+  skipped_count: number;
+  failed_items_count: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  last_tick_at: string | null;
+  estimated_completion: string | null;
+  error_log: Array<{ step?: string; error?: string; timestamp?: string }> | null;
+  admin_action: string | null;
+  admin_note: string | null;
+  cost_enrichlayer: number | null;
+  cost_anthropic_tokens: number | null;
+  consecutive_failures: number;
+  users: { full_name: string; email: string; company_name: string } | null;
+}
+
+function relativeTime(dateStr: string | null): string {
+  if (!dateStr) return "—";
+  const diff = Date.now() - new Date(dateStr).getTime();
+  if (diff < 0) return "just now";
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return `${secs}s ago`;
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ${mins % 60}m ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function MiniProgress({
+  label,
+  current,
+  total,
+}: {
+  label: string;
+  current: number;
+  total: number;
+}) {
+  const pct = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
+  const done = total > 0 && current >= total;
+  return (
+    <div className="flex items-center gap-2 text-[12px]">
+      <span className="text-[#596780] w-[80px] shrink-0">{label}</span>
+      <div className="flex-1 h-2 rounded-full bg-[#E3E8EF] overflow-hidden">
+        <div
+          className="h-full rounded-full bg-[#0ABF53] transition-all duration-500"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-[#596780] tabular-nums whitespace-nowrap w-[80px] text-right">
+        {current.toLocaleString()}/{total.toLocaleString()}
+        {done ? " ✅" : ""}
+      </span>
+    </div>
+  );
+}
+
+const JOB_STATUS_BADGES: Record<string, { bg: string; text: string; label: string }> = {
+  queued: { bg: "bg-[#F0F3F7]", text: "text-[#596780]", label: "Queued" },
+  classifying: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Classifying" },
+  enriching_persons: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Enriching" },
+  enriching_companies: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Companies" },
+  scoring: { bg: "bg-[#F3E8FF]", text: "text-[#7C3AED]", label: "Scoring" },
+  completed: { bg: "bg-[#E6F9EE]", text: "text-[#089E45]", label: "Completed ✅" },
+  failed: { bg: "bg-[#FDE8EC]", text: "text-[#ED5F74]", label: "Failed ❌" },
+  paused: { bg: "bg-[#FFF8E6]", text: "text-[#B8860B]", label: "Paused ⏸" },
+  cancelled: { bg: "bg-[#F0F3F7]", text: "text-[#96A0B5]", label: "Cancelled" },
+};
+
+function JobStatusBadge({ status }: { status: string }) {
+  const s = JOB_STATUS_BADGES[status] || JOB_STATUS_BADGES.queued;
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${s.bg} ${s.text}`}
+    >
+      {s.label}
+    </span>
+  );
+}
+
+function JobCard({
+  job,
+  onAction,
+  onViewErrors,
+}: {
+  job: PipelineJob;
+  onAction: (jobId: string, action: string) => void;
+  onViewErrors: (job: PipelineJob) => void;
+}) {
+  const userName = job.users?.full_name?.split(" ")[0] || job.users?.email?.split("@")[0] || "Unknown";
+  const companyName = job.users?.company_name || "";
+  const isActive = ["queued", "classifying", "enriching_persons", "enriching_companies", "scoring"].includes(job.status);
+  const isPaused = job.status === "paused";
+  const isCompleted = job.status === "completed";
+  const isCancelled = job.status === "cancelled";
+  const hasFailed = (job.failed_items_count || 0) > 0;
+  const hasErrors = job.error_log && job.error_log.length > 0;
+
+  // Overall progress percentage
+  const totalSteps = job.total_connections * 4; // classify + enrich person + enrich company + score
+  const doneSteps =
+    (job.classified_count || 0) +
+    (job.enriched_persons_count || 0) +
+    (job.enriched_companies_count || 0) +
+    (job.scored_count || 0);
+  const overallPct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+
+  // Duration
+  const startTime = job.started_at || job.created_at;
+  const endTime = job.completed_at;
+  let duration = "";
+  if (startTime && endTime) {
+    const ms = new Date(endTime).getTime() - new Date(startTime).getTime();
+    const secs = Math.floor(ms / 1000);
+    if (secs < 60) duration = `${secs}s`;
+    else if (secs < 3600) duration = `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    else duration = `${Math.floor(secs / 3600)}h ${Math.floor((secs % 3600) / 60)}m`;
+  }
+
+  // Compact view for completed/cancelled
+  if (isCompleted || isCancelled) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="text-[13px] font-semibold text-[#0A2540]">
+              {userName}
+            </span>
+            {companyName && (
+              <span className="text-[12px] text-[#96A0B5]">· {companyName}</span>
+            )}
+            <JobStatusBadge status={job.status} />
+          </div>
+          <div className="flex items-center gap-3 text-[12px] text-[#596780]">
+            <span>{job.total_connections.toLocaleString()} connections{job.mode === "instant" ? " (instant)" : ""}</span>
+            {isCompleted && (
+              <>
+                <span>· Hits: {job.hits_count || 0}</span>
+                <span>· Scored: {job.scored_count || 0}</span>
+                {duration && <span>· Took: {duration}</span>}
+              </>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <ActionButton label="Restart" icon={<RefreshCw className="w-3 h-3" />} onClick={() => onAction(job.id, "restart")} />
+          {hasErrors && (
+            <ActionButton label="Errors" icon={<FileText className="w-3 h-3" />} onClick={() => onViewErrors(job)} variant="muted" />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Full card for active/paused/failed jobs
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 sm:p-6 space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-[14px] font-semibold text-[#0A2540]">
+            {userName}
+          </span>
+          {companyName && (
+            <span className="text-[12px] text-[#96A0B5]">· {companyName}</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <JobStatusBadge status={job.status} />
+          {isActive && (
+            <span className="text-[12px] font-medium text-[#0A2540]">{overallPct}%</span>
+          )}
+        </div>
+      </div>
+
+      {/* Connection count */}
+      <p className="text-[12px] text-[#596780]">
+        {job.total_connections.toLocaleString()} connections
+        {job.mode === "instant" ? " (instant mode)" : ""}
+      </p>
+
+      {/* Progress bars */}
+      <div className="space-y-2">
+        <MiniProgress label="Classified:" current={job.classified_count || 0} total={job.total_connections} />
+        <MiniProgress label="Enriched:" current={job.enriched_persons_count || 0} total={job.total_connections} />
+        <MiniProgress label="Companies:" current={job.enriched_companies_count || 0} total={job.total_connections} />
+        <MiniProgress label="Scored:" current={job.scored_count || 0} total={job.total_connections} />
+      </div>
+
+      {/* Stats */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[#596780]">
+        <span>Hits: <strong className="text-[#0A2540]">{job.hits_count || 0}</strong></span>
+        {hasFailed && (
+          <span>Failed: <strong className="text-[#ED5F74]">{job.failed_items_count}</strong></span>
+        )}
+        {(job.cost_enrichlayer || job.cost_anthropic_tokens) && (
+          <span>
+            Cost: ${((job.cost_enrichlayer || 0) + (job.cost_anthropic_tokens || 0)).toFixed(2)}
+          </span>
+        )}
+      </div>
+
+      {/* Timing */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[#96A0B5]">
+        <span>Last tick: {relativeTime(job.last_tick_at)}</span>
+        <span>· Started: {relativeTime(job.started_at || job.created_at)}</span>
+        {job.estimated_completion && (
+          <span>· ETA: {relativeTime(job.estimated_completion)}</span>
+        )}
+      </div>
+
+      {/* Admin note */}
+      {job.admin_note && (
+        <p className="text-[11px] text-[#96A0B5] italic">{job.admin_note}</p>
+      )}
+
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-2 pt-1">
+        {isActive && (
+          <ActionButton label="Pause" icon={<Pause className="w-3 h-3" />} onClick={() => onAction(job.id, "pause")} />
+        )}
+        {isPaused && (
+          <ActionButton label="Resume" icon={<Play className="w-3 h-3" />} onClick={() => onAction(job.id, "resume")} variant="primary" />
+        )}
+        {(isActive || isPaused) && (
+          <ActionButton label="Cancel" icon={<Square className="w-3 h-3" />} onClick={() => onAction(job.id, "cancel")} variant="danger" />
+        )}
+        <ActionButton label="Restart" icon={<RefreshCw className="w-3 h-3" />} onClick={() => onAction(job.id, "restart")} />
+        {hasFailed && (
+          <ActionButton label="Retry Failed" icon={<RotateCcw className="w-3 h-3" />} onClick={() => onAction(job.id, "retry_failed")} />
+        )}
+        {(isActive || isPaused) && (
+          <ActionButton label="Force Complete" icon={<CheckCircle2 className="w-3 h-3" />} onClick={() => onAction(job.id, "force_complete")} variant="muted" />
+        )}
+        {hasErrors && (
+          <ActionButton label="Errors" icon={<FileText className="w-3 h-3" />} onClick={() => onViewErrors(job)} variant="muted" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  icon,
+  onClick,
+  variant = "default",
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  variant?: "default" | "primary" | "danger" | "muted";
+}) {
+  const styles = {
+    default: "bg-white border-[#E3E8EF] text-[#596780] hover:border-[#96A0B5] hover:text-[#0A2540]",
+    primary: "bg-[#0A2540] border-[#0A2540] text-white hover:bg-[#0A2540]/90",
+    danger: "bg-white border-[#FDE8EC] text-[#ED5F74] hover:border-[#ED5F74] hover:bg-[#FDE8EC]",
+    muted: "bg-[#F6F8FA] border-[#E3E8EF] text-[#96A0B5] hover:text-[#596780] hover:border-[#96A0B5]",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all ${styles[variant]}`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function ErrorLogModal({
+  job,
+  onClose,
+}: {
+  job: PipelineJob;
+  onClose: () => void;
+}) {
+  const errors = job.error_log || [];
+  const jsonText = JSON.stringify(errors, null, 2);
+  const userName = job.users?.full_name || job.users?.email || "Unknown";
+
+  return (
+    <Modal title={`Error Log — ${userName}`} onClose={onClose}>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[11px] text-[#96A0B5]">{errors.length} error(s)</p>
+        <CopyButton text={jsonText} />
+      </div>
+      {errors.length === 0 ? (
+        <p className="text-sm text-[#96A0B5] py-8 text-center">No errors logged.</p>
+      ) : (
+        <div className="space-y-2 max-h-[60vh] overflow-auto">
+          {errors.map((entry, i) => (
+            <div
+              key={i}
+              className="bg-[#F6F8FA] rounded-lg p-3 border border-[#E3E8EF] text-[11px] font-mono"
+            >
+              {entry.step && (
+                <span className="text-[#7C3AED] font-semibold">[{entry.step}] </span>
+              )}
+              <span className="text-[#ED5F74]">{entry.error || "Unknown error"}</span>
+              {entry.timestamp && (
+                <div className="text-[#96A0B5] mt-1 text-[10px]">
+                  {new Date(entry.timestamp).toLocaleString()}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function PipelineJobsSection() {
+  const [jobs, setJobs] = useState<PipelineJob[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [errorJob, setErrorJob] = useState<PipelineJob | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/pipeline-jobs");
+      if (res.ok) {
+        const data = await res.json();
+        setJobs(data.jobs || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchJobs();
+    intervalRef.current = setInterval(fetchJobs, 10000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [fetchJobs]);
+
+  async function handleAction(jobId: string, action: string) {
+    setActionLoading(jobId);
+    try {
+      const res = await fetch("/api/admin/pipeline-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: jobId, action }),
+      });
+      if (res.ok) {
+        await fetchJobs();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setActionLoading(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Activity className="w-4 h-4 text-[#635BFF]" />
+          <h2 className="text-base font-semibold text-[#0A2540]">Pipeline Jobs</h2>
+        </div>
+        <div className="flex items-center gap-2">
+          {actionLoading && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#96A0B5]" />
+          )}
+          <span className="text-[10px] text-[#96A0B5]">Auto-refreshes every 10s</span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] flex items-center justify-center py-12">
+          <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
+        </div>
+      ) : jobs.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] flex items-center justify-center py-12">
+          <p className="text-sm text-[#96A0B5]">No pipeline jobs yet</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {jobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              onAction={handleAction}
+              onViewErrors={setErrorJob}
+            />
+          ))}
+        </div>
+      )}
+
+      {errorJob && (
+        <ErrorLogModal job={errorJob} onClose={() => setErrorJob(null)} />
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -538,6 +966,9 @@ export default function AdminDashboard() {
     <div className="space-y-5">
       {/* Header */}
       <h1 className="text-xl font-semibold text-[#0A2540]">Admin Pipeline Monitor</h1>
+
+      {/* Pipeline Jobs */}
+      <PipelineJobsSection />
 
       {/* Stats Bar */}
       {stats && (
