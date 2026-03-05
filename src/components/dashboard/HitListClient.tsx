@@ -294,9 +294,9 @@ export default function HitListClient({
   function getSeniorityColor(tier: string | null) {
     switch (tier) {
       case "C-suite":
-        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
+        return "bg-[#F3E8FF] text-[#7C3AED] border border-[#7C3AED]/20";
       case "VP/Director":
-        return "bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20";
+        return "bg-[#EFF6FF] text-[#2563EB] border border-[#2563EB]/20";
       case "Manager":
         return "bg-[#FFF8E6] text-[#B8860B] border border-[#FFBB38]/20";
       default:
@@ -459,7 +459,7 @@ export default function HitListClient({
             onClick={() => setMatchFilter(f)}
             className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
               matchFilter === f
-                ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                ? "bg-[#0A2540] text-white border-[#0A2540]"
                 : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
             }`}
           >
@@ -481,7 +481,7 @@ export default function HitListClient({
               onClick={() => setSeniorityFilter(f)}
               className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
                 seniorityFilter === f
-                  ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                  ? "bg-[#0A2540] text-white border-[#0A2540]"
                   : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
               }`}
             >
@@ -501,7 +501,7 @@ export default function HitListClient({
             onClick={() => setShowIndustryDropdown(!showIndustryDropdown)}
             className={`h-8 px-3.5 rounded-full text-xs font-semibold border transition-all ${
               industryFilter !== "all"
-                ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                ? "bg-[#0A2540] text-white border-[#0A2540]"
                 : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
             }`}
           >

@@ -70,8 +70,8 @@ interface DashboardClientProps {
 }
 
 const SENIORITY_COLORS = [
-  "#0ABF53",
-  "#34D399",
+  "#7C3AED",
+  "#2563EB",
   "#FFBB38",
   "#96A0B5",
   "#D1D9E6",

@@ -82,8 +82,8 @@ interface PromptRun {
 
 function SeniorityBadge({ tier }: { tier: string }) {
   const styles: Record<string, string> = {
-    "C-Suite": "bg-[#E6F9EE] text-[#089E45]",
-    "VP/Director": "bg-[#E6F9EE] text-[#089E45]",
+    "C-Suite": "bg-[#F3E8FF] text-[#7C3AED]",
+    "VP/Director": "bg-[#EFF6FF] text-[#2563EB]",
     Manager: "bg-[#FFF8E6] text-[#B8860B]",
     IC: "bg-[#F0F3F7] text-[#596780]",
     Other: "bg-[#F0F3F7] text-[#96A0B5]",
@@ -557,7 +557,7 @@ export default function AdminDashboard() {
                 onClick={() => setUserFilter(userFilter === u.email ? "" : u.email)}
                 className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
                   userFilter === u.email
-                    ? "bg-[#0ABF53] text-white border-[#0ABF53]"
+                    ? "bg-[#0A2540] text-white border-[#0A2540]"
                     : "bg-white text-[#596780] border-[#E3E8EF] hover:border-[#96A0B5]"
                 }`}
               >
