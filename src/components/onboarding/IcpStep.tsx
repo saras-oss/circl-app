@@ -160,7 +160,7 @@ function TogglePill({
       onClick={onToggle}
       className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 h-[38px] ${
         selected
-          ? "bg-[#0ABF53] text-white"
+          ? "bg-[#0A2540] text-white"
           : "bg-white text-[#0A2540] border border-[#E3E8EF] hover:bg-[#F6F8FA]"
       }`}
     >
@@ -209,7 +209,7 @@ function PillGroupEditable({
         {pills.map((pill) => (
           <span
             key={pill}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#0ABF53] text-white px-3.5 py-1.5 text-xs font-medium"
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#0A2540] text-white px-3.5 py-1.5 text-xs font-medium"
           >
             {pill}
             <button
@@ -239,13 +239,13 @@ function PillGroupEditable({
                 setNewValue("");
               }
             }}
-            className="h-9 w-36 rounded-full border border-[#E3E8EF] bg-white px-3 text-xs font-medium text-[#0A2540] focus:outline-none focus:border-[#0ABF53]"
+            className="h-9 w-36 rounded-full border border-[#E3E8EF] bg-white px-3 text-xs font-medium text-[#0A2540] focus:outline-none focus:border-[#635BFF]"
             placeholder="Type and press Enter"
           />
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#D1D9E6] px-3.5 py-1.5 text-xs font-medium text-[#96A0B5] hover:border-[#0ABF53] hover:text-[#089E45] transition-colors h-[38px]"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#D1D9E6] px-3.5 py-1.5 text-xs font-medium text-[#96A0B5] hover:border-[#635BFF] hover:text-[#635BFF] transition-colors h-[38px]"
           >
             <Plus className="h-3 w-3" />
             Add
@@ -282,7 +282,7 @@ function IcpSummaryReadOnly({ icp }: { icp: IcpState }) {
               {pills.map((pill) => (
                 <span
                   key={pill}
-                  className="inline-flex items-center rounded-full bg-[#E6F9EE] text-[#089E45] px-2.5 py-1 text-[11px] font-medium"
+                  className="inline-flex items-center rounded-full bg-[#EEF2FF] text-[#635BFF] px-2.5 py-1 text-[11px] font-medium"
                 >
                   {pill}
                 </span>
@@ -577,7 +577,7 @@ export default function IcpStep({
                   onClick={() => toggleTheme(theme)}
                   className={`text-left p-4 rounded-xl border transition-all duration-200 ${
                     isSelected
-                      ? "bg-[#0ABF53] text-white border-[#0ABF53] shadow-lg shadow-[#0ABF53]/15"
+                      ? "bg-[#0A2540] text-white border-[#0A2540] shadow-lg shadow-[#0A2540]/15"
                       : "bg-white border-[#E3E8EF] hover:border-[#96A0B5] hover:shadow-sm"
                   }`}
                 >
@@ -634,7 +634,7 @@ export default function IcpStep({
               value={industrySearch}
               onChange={(e) => setIndustrySearch(e.target.value)}
               placeholder="Search more industries..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E3E8EF] bg-white text-sm focus:outline-none focus:border-[#0ABF53]"
+              className="w-full h-11 pl-10 pr-4 rounded-xl border border-[#E3E8EF] bg-white text-sm focus:outline-none focus:border-[#635BFF]"
             />
           </div>
         </div>
@@ -760,7 +760,7 @@ export default function IcpStep({
                   onClick={() => toggleItem("triggers", trigger)}
                   className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-medium transition-all duration-200 text-left ${
                     icp.triggers.includes(trigger)
-                      ? "bg-[#0ABF53] text-white"
+                      ? "bg-[#0A2540] text-white"
                       : "bg-white text-[#0A2540] border border-[#E3E8EF] hover:bg-[#F6F8FA]"
                   }`}
                 >
@@ -803,7 +803,7 @@ export default function IcpStep({
                   lookingForInvestors: !prev.lookingForInvestors,
                 }))
               }
-              className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-[#0ABF53]" : "bg-[#D1D9E6]"}`}
+              className={`relative h-7 w-12 rounded-full transition-colors duration-200 min-w-[48px] ${icp.lookingForInvestors ? "bg-[#635BFF]" : "bg-[#D1D9E6]"}`}
             >
               <span
                 className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white transition-transform duration-200 shadow-sm ${icp.lookingForInvestors ? "translate-x-5" : "translate-x-0"}`}
@@ -812,7 +812,7 @@ export default function IcpStep({
           </div>
 
           {icp.lookingForInvestors && (
-            <div className="ml-4 space-y-4 border-l-2 border-[#0ABF53]/20 pl-5 animate-fade-in">
+            <div className="ml-4 space-y-4 border-l-2 border-[#635BFF]/20 pl-5 animate-fade-in">
               <PillGroupEditable
                 label="Fund Types"
                 pills={icp.investorFundTypes}
@@ -888,7 +888,7 @@ export default function IcpStep({
           onClick={confirmIcp}
           size="lg"
           loading={confirming}
-          className="w-full sm:w-auto sm:min-w-[280px] sm:mx-auto sm:flex h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+          className="w-full sm:w-auto sm:min-w-[280px] sm:mx-auto sm:flex h-12 rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all shadow-sm"
         >
           Find my matches
           <ArrowRight className="h-4 w-4 ml-1" />
@@ -927,7 +927,7 @@ export default function IcpStep({
           <div className="relative w-full h-full md:h-auto md:max-h-[85vh] md:max-w-[600px] md:mx-4 md:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden">
             <div className="flex items-center justify-between p-4 border-b border-[#E3E8EF] shrink-0">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#0ABF53]" />
+                <Sparkles className="h-4 w-4 text-[#635BFF]" />
                 <h2 className="text-sm font-bold text-[#0A2540]">
                   Refine your ICP
                 </h2>
@@ -956,7 +956,7 @@ export default function IcpStep({
                   <div
                     className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                       msg.role === "user"
-                        ? "bg-[#0ABF53] text-white"
+                        ? "bg-[#0A2540] text-white"
                         : "bg-[#F0F3F7] text-[#0A2540]"
                     }`}
                   >
@@ -984,7 +984,7 @@ export default function IcpStep({
                   <button
                     key={chip}
                     onClick={() => sendChatMessage(chip)}
-                    className="text-xs px-3.5 py-2 rounded-full bg-[#E6F9EE] text-[#089E45] hover:bg-[#0ABF53]/20 transition-all font-medium"
+                    className="text-xs px-3.5 py-2 rounded-full bg-[#EEF2FF] text-[#635BFF] hover:bg-[#635BFF]/20 transition-all font-medium"
                   >
                     {chip}
                   </button>
@@ -1010,7 +1010,7 @@ export default function IcpStep({
                   onClick={() => sendChatMessage()}
                   size="lg"
                   disabled={!chatInput.trim() || chatLoading}
-                  className="h-[44px] w-[44px] rounded-xl bg-[#0ABF53] text-white hover:opacity-90 shrink-0 p-0"
+                  className="h-[44px] w-[44px] rounded-xl bg-[#0A2540] text-white hover:opacity-90 shrink-0 p-0"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -1021,7 +1021,7 @@ export default function IcpStep({
               <Button
                 onClick={() => setShowChatModal(false)}
                 size="lg"
-                className="w-full h-[44px] rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+                className="w-full h-[44px] rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
               >
                 Apply changes
               </Button>

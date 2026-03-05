@@ -136,9 +136,9 @@ export default function ExportGuideStep({
     return (
       <div className="animate-fade-in space-y-8">
         <div className="flex flex-col items-center text-center space-y-4">
-          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
+          <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#E6F9EE] animate-scale-in">
             <CheckCircle
-              className="h-7 w-7 text-accent"
+              className="h-7 w-7 text-[#0ABF53]"
               strokeWidth={1.5}
             />
           </div>
@@ -165,7 +165,7 @@ export default function ExportGuideStep({
           <Button
             onClick={onNext}
             size="lg"
-            className="w-full h-[52px] rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+            className="w-full h-[52px] rounded-lg bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
           >
             I already have my data
             <ArrowRight className="h-4 w-4" />
@@ -203,9 +203,9 @@ export default function ExportGuideStep({
     <div className="animate-fade-in space-y-8">
       {/* Header */}
       <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#FFF4ED] animate-scale-in">
           <ExternalLink
-            className="h-7 w-7 text-accent"
+            className="h-7 w-7 text-[#E8590C]"
             strokeWidth={1.5}
           />
         </div>
@@ -224,18 +224,18 @@ export default function ExportGuideStep({
         href="https://www.linkedin.com/mypreferences/d/download-my-data"
         target="_blank"
         rel="noopener noreferrer"
-        className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] hover:shadow-md transition-shadow p-5 flex items-center gap-4 text-accent font-bold text-base min-h-[56px] border-accent/20 hover:border-accent/40 transition-all"
+        className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] hover:shadow-md p-5 flex items-center gap-4 text-[#0A2540] font-bold text-base min-h-[56px] hover:border-[#635BFF]/40 transition-all"
       >
-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-[#EEF2FF] flex items-center justify-center shrink-0">
           <ExternalLink
-            className="h-5 w-5 text-accent"
+            className="h-5 w-5 text-[#635BFF]"
             strokeWidth={1.5}
           />
         </div>
         <span className="flex-1">
           Click here to export your data from LinkedIn
         </span>
-        <ArrowRight className="h-4 w-4 shrink-0" />
+        <ArrowRight className="h-4 w-4 text-[#635BFF] shrink-0" />
       </a>
 
       {/* Split layout: steps (40%) + GIF placeholder (60%) */}
@@ -244,7 +244,7 @@ export default function ExportGuideStep({
         <div className="md:w-[40%] space-y-1">
           {directSteps.map((step, i) => (
             <div key={i} className="flex items-start gap-3 py-2.5">
-              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white mt-0.5">
+              <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#0A2540] text-[11px] font-bold text-white mt-0.5">
                 {i + 1}
               </span>
               <p className="text-sm text-[#596780] leading-relaxed">{step}</p>
@@ -252,21 +252,15 @@ export default function ExportGuideStep({
           ))}
         </div>
 
-        {/* GIF placeholder */}
+        {/* GIF walkthrough */}
         <div className="md:w-[60%]">
-          <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden min-h-[350px] md:min-h-[400px] border-dashed flex items-center justify-center">
-            {/* Replace this placeholder with: <img src="/images/linkedin-export-guide.gif" alt="LinkedIn export walkthrough" className="max-w-full rounded-xl" /> */}
-            <div className="flex flex-col items-center justify-center p-6 text-center">
-              <div className="w-16 h-16 bg-[#F0F3F7] rounded-xl flex items-center justify-center mb-4">
-                <ExternalLink
-                  className="h-7 w-7 text-[#96A0B5]"
-                  strokeWidth={1.5}
-                />
-              </div>
-              <p className="text-sm text-[#96A0B5]">
-                Video walkthrough coming soon
-              </p>
-            </div>
+          <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden">
+            <img
+              src="/guides/linkedin-export-guide.gif"
+              alt="How to export LinkedIn connections"
+              className="w-full"
+              loading="lazy"
+            />
           </div>
         </div>
       </div>
@@ -324,7 +318,7 @@ export default function ExportGuideStep({
         <Button
           onClick={handleRequestedExport}
           size="lg"
-          className="w-full h-[52px] rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+          className="w-full h-[52px] rounded-lg bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
         >
           I&apos;ve requested the export
         </Button>
@@ -403,14 +397,14 @@ export default function ExportGuideStep({
                     type="tel"
                     value={mobileNumber}
                     onChange={(e) => setMobileNumber(e.target.value)}
-                    className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+                    className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
                   />
 
                   <Button
                     onClick={() => handleSaveReminder(false)}
                     size="lg"
                     loading={saving}
-                    className="w-full h-[52px] rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+                    className="w-full h-[52px] rounded-lg bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
                   >
                     Remind me
                   </Button>

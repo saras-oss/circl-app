@@ -165,8 +165,8 @@ export default function PaymentStep({
     <div className="animate-fade-in space-y-8">
       {/* Header */}
       <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
-          <CreditCard className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#F5F3FF] animate-scale-in">
+          <CreditCard className="h-7 w-7 text-[#7C3AED]" strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
@@ -181,13 +181,13 @@ export default function PaymentStep({
       {/* Premium pricing card */}
       <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden">
         {/* Accent top stripe */}
-        <div className="h-1.5 bg-gradient-to-r from-accent via-green to-accent animate-gradient" />
+        <div className="h-1.5 bg-gradient-to-r from-[#635BFF] via-[#7C3AED] to-[#635BFF] animate-gradient" />
 
         <div className="p-6 sm:p-8 space-y-6">
           {/* Connection count */}
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10">
-              <Users className="h-5 w-5 text-accent" strokeWidth={1.5} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#EEF2FF]">
+              <Users className="h-5 w-5 text-[#635BFF]" strokeWidth={1.5} />
             </div>
             <div>
               <p className="text-2xl font-bold text-[#0A2540]">
@@ -234,7 +234,7 @@ export default function PaymentStep({
         onClick={handlePaidCheckout}
         size="lg"
         loading={processing}
-        className="w-full h-[56px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-accent/20"
+        className="w-full h-[56px] rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-[#0A2540]/20"
       >
         <Sparkles className="h-4.5 w-4.5" />
         Analyze all {totalConnections.toLocaleString()} connections &mdash; ${price}/year

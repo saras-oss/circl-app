@@ -53,8 +53,8 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
   if (isLoading || retrying) {
     return (
       <div className="animate-fade-in pt-16 pb-10 text-center">
-        <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Loader2 className="w-7 h-7 text-accent animate-spin" />
+        <div className="w-16 h-16 bg-[#EEF2FF] rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Loader2 className="w-7 h-7 text-[#635BFF] animate-spin" />
         </div>
         <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight max-w-lg mx-auto">
           Analyzing your website...
@@ -89,7 +89,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
               <Button
                 onClick={handleRetry}
                 size="lg"
-                className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+                className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all shadow-sm"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Retry website analysis
@@ -98,7 +98,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
             <div>
               <button
                 onClick={onNext}
-                className="text-sm font-medium text-accent hover:text-accent/80 transition-colors py-2"
+                className="text-sm font-medium text-[#635BFF] hover:text-[#635BFF]/80 transition-colors py-2"
               >
                 Skip and define your ICP manually →
               </button>
@@ -120,8 +120,8 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
   return (
     <div className="animate-fade-in pt-16 pb-10">
       <div className="text-center max-w-lg mx-auto">
-        <div className="w-16 h-16 bg-accent-light rounded-2xl flex items-center justify-center mx-auto mb-6">
-          <Sparkles className="w-7 h-7 text-accent" strokeWidth={1.5} />
+        <div className="w-16 h-16 bg-[#FFFBEB] rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Sparkles className="w-7 h-7 text-[#D97706]" strokeWidth={1.5} />
         </div>
 
         <h1 className="text-[28px] sm:text-[34px] font-bold tracking-tight text-[#0A2540] leading-tight">
@@ -150,7 +150,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
             {customers.slice(3, 8).map((name) => (
               <span
                 key={name}
-                className="inline-flex items-center rounded-full bg-accent-light text-accent px-3.5 py-1.5 text-xs font-semibold border border-accent/10"
+                className="inline-flex items-center rounded-full bg-[#EEF2FF] text-[#635BFF] px-3.5 py-1.5 text-xs font-semibold border border-[#635BFF]/10"
               >
                 {name}
               </span>
@@ -162,7 +162,7 @@ export default function IcpReveal({ userData, onNext, onBack }: IcpRevealProps) 
           <Button
             onClick={onNext}
             size="lg"
-            className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all shadow-sm"
+            className="w-full sm:w-auto sm:min-w-[280px] h-12 rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all shadow-sm"
           >
             Review your ICP →
           </Button>

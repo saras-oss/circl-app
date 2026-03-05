@@ -413,8 +413,8 @@ export default function CsvUploadStep({
     <div className="animate-fade-in space-y-8">
       {/* Header */}
       <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
-          <Upload className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#F5F3FF] animate-scale-in">
+          <Upload className="h-7 w-7 text-[#7C3AED]" strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
@@ -429,7 +429,7 @@ export default function CsvUploadStep({
       {/* LinkedIn export guide — collapsible */}
       {!uploadComplete && (
         <details className="mt-2 mb-4">
-          <summary className="text-sm text-[#089E45] font-medium cursor-pointer hover:underline">
+          <summary className="text-sm text-[#635BFF] font-medium cursor-pointer hover:underline">
             How to export your LinkedIn connections
           </summary>
           <div className="mt-2 rounded-lg border border-[#E3E8EF] overflow-hidden">
@@ -455,8 +455,8 @@ export default function CsvUploadStep({
             transition-all duration-300 ease-out group
             ${
               isDragging
-                ? "border-accent bg-accent-light scale-[1.01] shadow-lg shadow-accent/10"
-                : "border-[#D1D9E6] bg-[#F6F8FA] hover:border-accent hover:bg-accent-light/50"
+                ? "border-[#635BFF] bg-[#EEF2FF] scale-[1.01] shadow-lg shadow-[#635BFF]/10"
+                : "border-[#D1D9E6] bg-[#F6F8FA] hover:border-[#635BFF] hover:bg-[#EEF2FF]/50"
             }
           `}
         >
@@ -472,14 +472,14 @@ export default function CsvUploadStep({
             <div
               className={`
                 flex h-16 w-16 items-center justify-center rounded-xl transition-all duration-300
-                ${isDragging ? "bg-accent/15 scale-110" : "bg-[#F0F3F7] group-hover:bg-accent/10"}
+                ${isDragging ? "bg-[#635BFF]/15 scale-110" : "bg-[#F0F3F7] group-hover:bg-[#635BFF]/10"}
               `}
             >
               <FileSpreadsheet
                 className={`h-7 w-7 transition-colors duration-300 ${
                   isDragging
-                    ? "text-accent"
-                    : "text-[#96A0B5] group-hover:text-accent"
+                    ? "text-[#635BFF]"
+                    : "text-[#96A0B5] group-hover:text-[#635BFF]"
                 }`}
                 strokeWidth={1.5}
               />
@@ -490,7 +490,7 @@ export default function CsvUploadStep({
               </p>
               <p className="text-sm text-[#96A0B5]">
                 or{" "}
-                <span className="text-accent font-medium underline underline-offset-2">
+                <span className="text-[#635BFF] font-medium underline underline-offset-2">
                   click to browse
                 </span>
               </p>
@@ -578,7 +578,7 @@ export default function CsvUploadStep({
           <Button
             onClick={() => onNext(uploadMode ? { mode: uploadMode, connections: connectionCount || 0, tracking_token: trackingToken || undefined } : undefined)}
             size="lg"
-            className="flex-1 h-[52px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
+            className="flex-1 h-[52px] rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
           >
             Continue
           </Button>

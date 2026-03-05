@@ -99,8 +99,8 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
     <div className="animate-fade-in space-y-8">
       {/* Branded illustration header */}
       <div className="flex flex-col items-center text-center space-y-4">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
-          <User className="h-7 w-7 text-accent" strokeWidth={1.5} />
+        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-[#EEF2FF] animate-scale-in">
+          <User className="h-7 w-7 text-[#635BFF]" strokeWidth={1.5} />
         </div>
         <div className="space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
@@ -117,7 +117,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
         {/* Personal details card */}
         <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-6">
           <div className="flex items-center gap-2 mb-2">
-            <User className="h-4 w-4 text-accent" strokeWidth={2} />
+            <User className="h-4 w-4 text-[#635BFF]" strokeWidth={2} />
             <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
               Personal Details
             </span>
@@ -130,7 +130,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               error={fieldErrors.fullName}
-              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
             />
 
             <Input
@@ -139,7 +139,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
               value={linkedinUrl}
               onChange={(e) => setLinkedinUrl(e.target.value)}
               error={fieldErrors.linkedinUrl}
-              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
             />
 
             <Input
@@ -148,7 +148,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
               value={roleTitle}
               onChange={(e) => setRoleTitle(e.target.value)}
               error={fieldErrors.roleTitle}
-              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
             />
           </div>
         </div>
@@ -156,7 +156,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
         {/* Company details card */}
         <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-6">
           <div className="flex items-center gap-2 mb-2">
-            <Briefcase className="h-4 w-4 text-accent" strokeWidth={2} />
+            <Briefcase className="h-4 w-4 text-[#635BFF]" strokeWidth={2} />
             <span className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5]">
               Company Details
             </span>
@@ -169,7 +169,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
               value={companyName}
               onChange={(e) => setCompanyName(e.target.value)}
               error={fieldErrors.companyName}
-              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
             />
 
             <Input
@@ -178,7 +178,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
               value={companyWebsite}
               onChange={(e) => setCompanyWebsite(e.target.value)}
               helperText="Optional, but helps us understand your business"
-              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none"
+              className="h-[52px] rounded-xl border border-[#E3E8EF] focus:border-[#635BFF] focus:ring-2 focus:ring-[#635BFF]/20 outline-none"
             />
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function ProfileStep({ userId, userData, onNext }: ProfileStepPro
           type="submit"
           size="lg"
           loading={saving}
-          className="w-full h-[52px] rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all"
+          className="w-full h-[52px] rounded-lg bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
         >
           Continue
         </Button>

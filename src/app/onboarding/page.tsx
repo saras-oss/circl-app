@@ -118,7 +118,7 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 animate-fade-in">
-          <div className="w-10 h-10 border-[2.5px] border-accent border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-[2.5px] border-[#635BFF] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-[#596780] font-medium">
             Loading your workspace...
           </p>
@@ -135,7 +135,7 @@ export default function OnboardingPage() {
           <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-accent flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-[#0A2540] flex items-center justify-center">
                   <span className="text-white font-bold text-[10px]">C</span>
                 </div>
                 <span className="font-bold text-sm tracking-tight">
@@ -160,7 +160,7 @@ export default function OnboardingPage() {
                 >
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      i + 1 <= step ? "bg-accent" : "bg-transparent"
+                      i + 1 <= step ? "bg-[#635BFF]" : "bg-transparent"
                     }`}
                     style={{
                       width:
