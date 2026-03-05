@@ -10,9 +10,7 @@ import { createClient } from "@supabase/supabase-js";
 // Helpers
 // ---------------------------------------------------------------------------
 
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
 
 const CRON_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json',
