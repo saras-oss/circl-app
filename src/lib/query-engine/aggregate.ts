@@ -8,8 +8,15 @@ export function aggregateResults(
 ): AggregationResult[] {
   const groups = new Map<string, number[]>();
 
+  // Map intent field names to actual database column names
+  const columnMap: Record<string, string> = {
+    industry: "company_industry",
+    country: "country_full_name",
+  };
+  const actualColumn = columnMap[groupBy] || groupBy;
+
   for (const row of data) {
-    const key = String(row[groupBy] || "Unknown");
+    const key = String(row[actualColumn] || "Unknown");
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(row.match_score || 0);
   }

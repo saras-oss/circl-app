@@ -40,6 +40,24 @@ async function getEnrichmentCoverage(
   return { enriched: enriched || 0, total: total || 0 };
 }
 
+/** Map intent field names to actual network_view column names */
+function mapColumnName(field: string): string {
+  const columnMap: Record<string, string> = {
+    industry: "company_industry",
+    company_industry: "company_industry",
+    country: "country_full_name",
+    country_full_name: "country_full_name",
+    hq_country: "hq_country",
+    company_name: "company_name",
+    seniority_tier: "seniority_tier",
+    function_category: "function_category",
+    match_type: "match_type",
+    company_type: "company_type",
+    latest_funding_type: "latest_funding_type",
+  };
+  return columnMap[field] || field;
+}
+
 /** Build OR filter string for ilike across multiple columns */
 function buildIlikeOr(columns: string[], keywords: string[]): string {
   return keywords
@@ -134,8 +152,11 @@ export async function buildAndExecuteQuery(
 
   // For aggregation, fetch more rows to compute accurate counts
   const isAggregate = intent.query_type === "aggregate";
+  const aggregateGroupBy = isAggregate
+    ? mapColumnName(intent.aggregation?.group_by || "seniority_tier")
+    : "";
   const selectColumns = isAggregate
-    ? `${intent.aggregation?.group_by || "seniority_tier"}, match_score, connection_id`
+    ? `${aggregateGroupBy}, match_score, connection_id`
     : FULL_COLUMNS;
 
   let query = supabase
@@ -273,7 +294,7 @@ export async function buildAndExecuteQuery(
 
   // ── Sorting ──
   if (intent.sort) {
-    query = query.order(intent.sort.field, {
+    query = query.order(mapColumnName(intent.sort.field), {
       ascending: intent.sort.direction === "asc",
       nullsFirst: false,
     });

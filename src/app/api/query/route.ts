@@ -247,9 +247,13 @@ ${synthesisInput}`,
     ]);
 
     // ── Return ──
+    // Force "profile" display_type for person lookups so disambiguation triggers
+    const finalDisplayType =
+      intent.query_type === "person_lookup" ? "profile" : synthesis.display_type;
+
     return NextResponse.json({
       text: synthesis.text,
-      display_type: synthesis.display_type,
+      display_type: finalDisplayType,
       follow_up_suggestions: synthesis.follow_up_suggestions || [],
       results: results.data,
       aggregation: aggregationData,
