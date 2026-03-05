@@ -29,19 +29,27 @@ function assignEnrichmentTier(seniorityTier: string, position: string): string {
 
 export async function POST(request: Request) {
   try {
+    // Read body first (can only be read once)
+    const body = await request.json();
+    const { userId, offset } = body;
+
+    // Auth: session-based (browser orchestrator) OR cron-secret (background worker)
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCronCall =
+      cronSecret && process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET;
+
+    if (user?.id) {
+      // Session auth — verify userId matches
+      if (userId !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else if (!isCronCall || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { userId, offset } = await request.json();
-
-    if (userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Fetch unclassified connections

@@ -403,19 +403,26 @@ async function selectFreeTierConnections(userId: string): Promise<void> {
 
 export async function POST(request: Request) {
   try {
+    // Read body first (can only be read once)
+    const body = await request.json();
+    const { userId, batchSize } = body;
+
+    // Auth: session-based (browser orchestrator) OR cron-secret (background worker)
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
+    const cronSecret = request.headers.get("x-cron-secret");
+    const isCronCall =
+      cronSecret && process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET;
+
+    if (user?.id) {
+      if (userId !== user.id) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+    } else if (!isCronCall || !userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { userId, batchSize } = await request.json();
-
-    if (userId !== user.id) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const effectiveBatchSize = batchSize || DEFAULT_BATCH_SIZE;

@@ -4,13 +4,78 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const BASE_URL = process.env.VERCEL_URL
+  ? `https://${process.env.VERCEL_URL}`
+  : process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
+
+const CRON_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/json',
+  'x-cron-secret': process.env.CRON_SECRET || '',
+};
+
+const CHUNK_SIZE = 500;
+
+/** Safely call a pipeline endpoint — handles HTML/non-JSON responses */
+async function callEndpoint(
+  endpoint: string,
+  body: Record<string, unknown>,
+): Promise<{ data: any; ok: boolean }> {
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      method: 'POST',
+      headers: CRON_HEADERS,
+      body: JSON.stringify(body),
+    });
+
+    const text = await response.text();
+
+    try {
+      const data = JSON.parse(text);
+      if (!response.ok && data.error) {
+        throw new Error(`${endpoint} returned ${response.status}: ${data.error}`);
+      }
+      return { data, ok: response.ok };
+    } catch (parseErr) {
+      // Got HTML back — likely deployment protection
+      console.warn(`CRON: ${endpoint} returned non-JSON (status ${response.status}). Body: ${text.slice(0, 200)}`);
+      throw new Error(`${endpoint} returned non-JSON response (status ${response.status})`);
+    }
+  } catch (err: any) {
+    if (err.message?.includes('returned non-JSON') || err.message?.includes('returned')) {
+      throw err;
+    }
+    throw new Error(`${endpoint} fetch failed: ${err.message}`);
+  }
+}
+
+/** Chunk large ID arrays for .in() calls (Supabase URL length limit) */
+async function chunkedUpdate(
+  supabase: any,
+  table: string,
+  ids: string[],
+  update: Record<string, unknown>,
+) {
+  for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + CHUNK_SIZE);
+    await supabase.from(table).update(update).in('id', chunk);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main GET handler — cron entry point
+// ---------------------------------------------------------------------------
+
 export async function GET(request: Request) {
-  // 1. Verify this is a legitimate cron call (Vercel sends CRON_SECRET)
+  // 1. Verify this is a legitimate cron call
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
 
-  // Vercel crons send the secret automatically
-  // Also allow manual calls with Bearer token
   const isAuthorized =
     authHeader === `Bearer ${cronSecret}` ||
     !cronSecret; // If CRON_SECRET isn't set, allow (for testing)
@@ -25,28 +90,23 @@ export async function GET(request: Request) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 2. Find the oldest active background job
+  // 2. Always handle pending admin actions first (even on paused jobs)
+  await handleAdminActions(supabase);
+
+  // 3. Find the oldest active background job
   const { data: job, error: jobError } = await supabase
     .from('pipeline_jobs')
     .select('*')
     .in('status', ['queued', 'classifying', 'enriching_persons',
                    'enriching_companies', 'scoring'])
     .eq('mode', 'background')
-    .is('admin_action', null)  // skip jobs with pending admin actions
+    .is('admin_action', null)
     .order('created_at', { ascending: true })
     .limit(1)
     .single();
 
   if (jobError || !job) {
-    // Check for admin actions on paused/active jobs
-    await handleAdminActions(supabase);
     return NextResponse.json({ status: 'idle', message: 'No active jobs' });
-  }
-
-  // 3. Handle admin actions first
-  if (job.admin_action) {
-    await processAdminAction(supabase, job);
-    return NextResponse.json({ status: 'admin_action', action: job.admin_action });
   }
 
   // 4. Auto-pause on repeated failures
@@ -102,29 +162,34 @@ export async function GET(request: Request) {
       error_log: [...(job.error_log || []), {
         step: job.status,
         error: err.message,
-        at: new Date().toISOString(),
+        timestamp: new Date().toISOString(),
       }],
     }).eq('id', job.id);
   }
 
-  // 7. Calculate and update ETA
-  await updateETA(supabase, job);
+  // 7. Calculate and update ETA (re-read job for latest counts)
+  const { data: updatedJob } = await supabase
+    .from('pipeline_jobs')
+    .select('*')
+    .eq('id', job.id)
+    .single();
+
+  if (updatedJob) {
+    await updateETA(supabase, updatedJob);
+  }
 
   return NextResponse.json({
     status: 'processed',
     job_id: job.id,
-    step: job.status
+    step: job.status,
   });
 }
 
-// --- Step Functions ---
-
-const BASE_URL = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
+// ---------------------------------------------------------------------------
+// Step: Start Job — split connections into old/recent halves
+// ---------------------------------------------------------------------------
 
 async function startJob(supabase: any, job: any) {
-  // Split connections by connected_on date
   const { data: connections } = await supabase
     .from('user_connections')
     .select('id, connected_on')
@@ -132,59 +197,57 @@ async function startJob(supabase: any, job: any) {
     .order('connected_on', { ascending: true });
 
   if (!connections || connections.length === 0) {
-    await supabase.from('pipeline_jobs').update({ status: 'failed', admin_note: 'No connections found' }).eq('id', job.id);
+    await supabase.from('pipeline_jobs').update({
+      status: 'failed',
+      admin_note: 'No connections found for this user',
+    }).eq('id', job.id);
     return;
   }
 
-  // Find median date
+  // Find median date to split old vs recent
   const midIndex = Math.floor(connections.length / 2);
   const medianDate = connections[midIndex].connected_on;
 
-  // Tag old vs recent
-  const oldIds = connections.filter((c: any) => c.connected_on < medianDate).map((c: any) => c.id);
-  const recentIds = connections.filter((c: any) => c.connected_on >= medianDate).map((c: any) => c.id);
+  const oldIds = connections
+    .filter((c: any) => c.connected_on < medianDate)
+    .map((c: any) => c.id);
+  const recentIds = connections
+    .filter((c: any) => c.connected_on >= medianDate)
+    .map((c: any) => c.id);
 
-  // Batch update — old half
+  // Chunked batch updates for large connection sets
   if (oldIds.length > 0) {
-    await supabase
-      .from('user_connections')
-      .update({ recent_half: false })
-      .in('id', oldIds);
+    await chunkedUpdate(supabase, 'user_connections', oldIds, { recent_half: false });
   }
-
-  // Batch update — recent half
   if (recentIds.length > 0) {
-    await supabase
-      .from('user_connections')
-      .update({ recent_half: true })
-      .in('id', recentIds);
+    await chunkedUpdate(supabase, 'user_connections', recentIds, { recent_half: true });
   }
 
-  // Update job
   await supabase.from('pipeline_jobs').update({
     status: 'classifying',
     started_at: new Date().toISOString(),
     recent_cutoff_date: medianDate,
     recent_count: recentIds.length,
     old_count: oldIds.length,
+    total_connections: connections.length,
   }).eq('id', job.id);
 
   console.log(`CRON: Job ${job.id} started — ${oldIds.length} old, ${recentIds.length} recent, cutoff: ${medianDate}`);
 }
 
+// ---------------------------------------------------------------------------
+// Step: Classify Batch
+// ---------------------------------------------------------------------------
+
 async function processClassifyBatch(supabase: any, job: any) {
-  // Only classify recent half
-  // Call existing classify endpoint
-  const response = await fetch(`${BASE_URL}/api/pipeline/classify`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: job.user_id }),
+  // Call existing classify endpoint with cron auth
+  const { data: result } = await callEndpoint('/api/pipeline/classify', {
+    userId: job.user_id,
   });
 
-  const result = await response.json();
   console.log(`CRON: Classify result:`, result);
 
-  // Check if classification is complete for recent half
+  // Check if classification is complete
   const { count: pendingRecent } = await supabase
     .from('user_connections')
     .select('id', { count: 'exact', head: true })
@@ -196,7 +259,6 @@ async function processClassifyBatch(supabase: any, job: any) {
     .from('user_connections')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', job.user_id)
-    .eq('recent_half', true)
     .not('classification_status', 'eq', 'pending');
 
   await supabase.from('pipeline_jobs').update({
@@ -212,7 +274,6 @@ async function processClassifyBatch(supabase: any, job: any) {
       .eq('recent_half', true)
       .in('enrichment_tier', ['tier3', 'tier4']);
 
-    // Count skipped
     const { count: skippedCount } = await supabase
       .from('user_connections')
       .select('id', { count: 'exact', head: true })
@@ -228,15 +289,15 @@ async function processClassifyBatch(supabase: any, job: any) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Step: Enrich Person Batch
+// ---------------------------------------------------------------------------
+
 async function processEnrichPersonBatch(supabase: any, job: any) {
-  // Call existing enrich endpoint
-  const response = await fetch(`${BASE_URL}/api/pipeline/enrich`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: job.user_id }),
+  const { data: result } = await callEndpoint('/api/pipeline/enrich', {
+    userId: job.user_id,
   });
 
-  const result = await response.json();
   console.log(`CRON: Enrich result:`, result);
 
   // Count enriched
@@ -264,60 +325,62 @@ async function processEnrichPersonBatch(supabase: any, job: any) {
 
     console.log(`CRON: Person enrichment complete. Moving to company enrichment.`);
   }
+
+  // Send 50% progress email at enrichment midpoint
+  const totalToEnrich = enrichedCount || 0;
+  const totalConnections = job.total_connections || 1;
+  if (!job.email_sent_progress && totalToEnrich > totalConnections / 3) {
+    await sendProgressEmail(supabase, job);
+    await supabase.from('pipeline_jobs').update({
+      email_sent_progress: true,
+    }).eq('id', job.id);
+  }
 }
 
+// ---------------------------------------------------------------------------
+// Step: Enrich Company Batch (company enrichment happens inline during person
+// enrichment — this step is a safety pass + transition to scoring)
+// ---------------------------------------------------------------------------
+
 async function processEnrichCompanyBatch(supabase: any, job: any) {
-  // Find unique company URLs that need enrichment
-  const { data: profiles } = await supabase
-    .from('enriched_profiles')
-    .select('current_company_linkedin')
-    .in('linkedin_url',
-      supabase
-        .from('user_connections')
-        .select('linkedin_url')
-        .eq('user_id', job.user_id)
-        .in('enrichment_status', ['enriched', 'cached'])
-    );
+  // Call enrich once more — if all persons done, this is a no-op but may
+  // catch any remaining company enrichments from the cached path
+  try {
+    const { data: result } = await callEndpoint('/api/pipeline/enrich', {
+      userId: job.user_id,
+    });
+    console.log(`CRON: Company enrich pass:`, result);
+  } catch (err: any) {
+    // Non-fatal — company enrichment is best-effort
+    console.error(`CRON: Company enrichment error (non-fatal):`, err.message);
+  }
 
-  // This is complex — instead, call the enrich endpoint again
-  // The existing enrich endpoint already handles company enrichment
-  // If all persons are enriched, the enrich endpoint will process companies
-
-  // Simple approach: just call enrich again — it handles companies too
-  const response = await fetch(`${BASE_URL}/api/pipeline/enrich`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: job.user_id }),
-  });
-
-  const result = await response.json();
-  console.log(`CRON: Company enrich result:`, result);
-
-  // Count enriched companies
+  // Count enriched companies (global count)
   const { count: companyCount } = await supabase
     .from('enriched_companies')
     .select('id', { count: 'exact', head: true });
 
+  // Move to scoring regardless
   await supabase.from('pipeline_jobs').update({
     enriched_companies_count: companyCount || 0,
-    status: 'scoring',  // Move to scoring — company enrichment is best-effort
+    status: 'scoring',
   }).eq('id', job.id);
 
-  console.log(`CRON: Company enrichment done. Moving to scoring.`);
+  console.log(`CRON: Company enrichment done. Moving to scoring. Companies: ${companyCount}`);
 }
 
+// ---------------------------------------------------------------------------
+// Step: Score Batch
+// ---------------------------------------------------------------------------
+
 async function processScoreBatch(supabase: any, job: any) {
-  // Call existing score endpoint
-  const response = await fetch(`${BASE_URL}/api/pipeline/score`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId: job.user_id }),
+  const { data: result } = await callEndpoint('/api/pipeline/score', {
+    userId: job.user_id,
   });
 
-  const result = await response.json();
   console.log(`CRON: Score result:`, result);
 
-  // Count scored + hits
+  // Count scored + hits (always from DB, not from result)
   const { count: scoredCount } = await supabase
     .from('user_connections')
     .select('id', { count: 'exact', head: true })
@@ -336,25 +399,30 @@ async function processScoreBatch(supabase: any, job: any) {
   }).eq('id', job.id);
 
   // Check if scoring is complete
-  if (!result.hasMore) {
+  const hasMore = result?.hasMore !== false && (result?.remaining || 0) > 0;
+
+  if (!hasMore) {
     await supabase.from('pipeline_jobs').update({
       status: 'completed',
       completed_at: new Date().toISOString(),
+      scored_count: scoredCount || 0,
       hits_count: hitsCount || 0,
     }).eq('id', job.id);
 
-    // Update user processing_status
+    // Update user status
     await supabase.from('users').update({
       processing_status: 'completed',
+      onboarding_completed: true,
     }).eq('id', job.user_id);
 
     // Send completion email
-    await sendCompletionEmail(supabase, job);
+    await sendCompletionEmail(supabase, job, hitsCount || 0, scoredCount || 0);
 
-    console.log(`CRON: Job ${job.id} COMPLETED. ${hitsCount} hits found.`);
+    console.log(`CRON: Job ${job.id} COMPLETED. Scored: ${scoredCount}, Hits: ${hitsCount}`);
+    return;
   }
 
-  // Send 50% progress email
+  // Send 50% scoring progress email
   const totalToScore = job.enriched_persons_count || 1;
   if (!job.email_sent_progress && (scoredCount || 0) > totalToScore / 2) {
     await sendProgressEmail(supabase, job);
@@ -364,17 +432,18 @@ async function processScoreBatch(supabase: any, job: any) {
   }
 }
 
-// --- Admin Action Handler ---
+// ---------------------------------------------------------------------------
+// Admin Action Handler
+// ---------------------------------------------------------------------------
 
 async function handleAdminActions(supabase: any) {
-  // Find jobs with pending admin actions
   const { data: jobs } = await supabase
     .from('pipeline_jobs')
     .select('*')
     .not('admin_action', 'is', null)
-    .limit(5);
+    .limit(10);
 
-  if (!jobs) return;
+  if (!jobs || jobs.length === 0) return;
 
   for (const job of jobs) {
     await processAdminAction(supabase, job);
@@ -382,6 +451,8 @@ async function handleAdminActions(supabase: any) {
 }
 
 async function processAdminAction(supabase: any, job: any) {
+  console.log(`CRON: Processing admin action '${job.admin_action}' for job ${job.id}`);
+
   switch (job.admin_action) {
     case 'pause':
       await supabase.from('pipeline_jobs').update({
@@ -401,13 +472,15 @@ async function processAdminAction(supabase: any, job: any) {
       console.log(`CRON: Job ${job.id} CANCELLED by ${job.admin_action_by}`);
       break;
 
-    case 'restart':
-      // Reset all connection scores and statuses
+    case 'restart': {
+      // Reset all connection statuses for this user
       await supabase.from('user_connections').update({
         match_score: null, scored_at: null, match_type: null,
         match_reasons: null, suggested_approach: null,
         enrichment_status: 'pending', classification_status: 'pending',
-        recent_half: null,
+        recent_half: null, seniority_tier: null, enrichment_tier: null,
+        function_category: null, decision_maker_likelihood: null,
+        connection_type_signal: null,
       }).eq('user_id', job.user_id);
 
       await supabase.from('pipeline_jobs').update({
@@ -416,18 +489,21 @@ async function processAdminAction(supabase: any, job: any) {
         classified_count: 0, enriched_persons_count: 0,
         enriched_companies_count: 0, scored_count: 0,
         hits_count: 0, skipped_count: 0, failed_items_count: 0,
-        consecutive_failures: 0, error_log: '[]',
+        consecutive_failures: 0, error_log: [],
         started_at: null, completed_at: null,
+        email_sent_progress: false, email_sent_complete: false,
       }).eq('id', job.id);
       console.log(`CRON: Job ${job.id} RESTARTED by ${job.admin_action_by}`);
       break;
+    }
 
-    case 'retry_failed':
-      // Reset only failed items
+    case 'retry_failed': {
+      // Reset only failed enrichments
       await supabase.from('user_connections').update({
         enrichment_status: 'pending', enrichment_error: null,
       }).eq('user_id', job.user_id).eq('enrichment_status', 'failed');
 
+      // Reset failed scores (score = -1)
       await supabase.from('user_connections').update({
         match_score: null, scored_at: null,
       }).eq('user_id', job.user_id).eq('match_score', -1);
@@ -446,46 +522,72 @@ async function processAdminAction(supabase: any, job: any) {
       }).eq('id', job.id);
       console.log(`CRON: Job ${job.id} RETRY_FAILED by ${job.admin_action_by}`);
       break;
+    }
 
-    case 'force_complete':
+    case 'force_complete': {
       const { count: hits } = await supabase
         .from('user_connections')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', job.user_id)
         .gte('match_score', 7);
 
+      const { count: scored } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .not('match_score', 'is', null);
+
       await supabase.from('pipeline_jobs').update({
         status: 'completed',
         admin_action: null,
         completed_at: new Date().toISOString(),
         hits_count: hits || 0,
+        scored_count: scored || 0,
         admin_note: `Force completed by ${job.admin_action_by}`,
       }).eq('id', job.id);
 
       await supabase.from('users').update({
         processing_status: 'completed',
+        onboarding_completed: true,
       }).eq('id', job.user_id);
+
+      // Send completion email
+      await sendCompletionEmail(supabase, job, hits || 0, scored || 0);
 
       console.log(`CRON: Job ${job.id} FORCE_COMPLETED by ${job.admin_action_by}`);
       break;
+    }
   }
 }
 
-// --- ETA Calculator ---
+// ---------------------------------------------------------------------------
+// ETA Calculator
+// ---------------------------------------------------------------------------
 
 async function updateETA(supabase: any, job: any) {
   if (!job.started_at) return;
+  // Don't update ETA for completed/failed/paused jobs
+  if (['completed', 'failed', 'paused', 'cancelled'].includes(job.status)) return;
 
   const elapsed = Date.now() - new Date(job.started_at).getTime();
   const totalItems = job.total_connections || 1;
-  const processedItems = (job.classified_count || 0) + (job.enriched_persons_count || 0) + (job.scored_count || 0);
-  const totalSteps = totalItems * 3; // classify + enrich + score
 
-  if (processedItems === 0) return;
+  // Weight each stage: classify = 1x, enrich = 3x (slowest), score = 2x
+  const classifyWeight = 1;
+  const enrichWeight = 3;
+  const scoreWeight = 2;
+  const totalWeight = totalItems * (classifyWeight + enrichWeight + scoreWeight);
 
-  const msPerItem = elapsed / processedItems;
-  const remainingItems = totalSteps - processedItems;
-  const estimatedMs = remainingItems * msPerItem;
+  const processedWeight =
+    (job.classified_count || 0) * classifyWeight +
+    (job.enriched_persons_count || 0) * enrichWeight +
+    (job.scored_count || 0) * scoreWeight;
+
+  if (processedWeight === 0) return;
+
+  const msPerWeightUnit = elapsed / processedWeight;
+  const remainingWeight = totalWeight - processedWeight;
+  const estimatedMs = remainingWeight * msPerWeightUnit;
 
   const eta = new Date(Date.now() + estimatedMs);
 
@@ -494,10 +596,13 @@ async function updateETA(supabase: any, job: any) {
   }).eq('id', job.id);
 }
 
-// --- Email Functions ---
+// ---------------------------------------------------------------------------
+// Email Functions
+// ---------------------------------------------------------------------------
 
-async function sendCompletionEmail(supabase: any, job: any) {
-  // Get user info
+async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, scoredCount: number) {
+  if (!process.env.RESEND_API_KEY) return;
+
   const { data: user } = await supabase
     .from('users')
     .select('email, full_name, company_name')
@@ -505,6 +610,9 @@ async function sendCompletionEmail(supabase: any, job: any) {
     .single();
 
   if (!user?.email) return;
+
+  const firstName = user.full_name?.split(' ')[0] || 'there';
+  const dashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -516,29 +624,27 @@ async function sendCompletionEmail(supabase: any, job: any) {
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
         to: user.email,
-        subject: `Your hit list is ready — ${job.hits_count} matches found`,
+        subject: `Your hit list is ready — ${hitsCount} matches found`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
             <h2 style="color: #0A2540; margin-bottom: 8px;">Your hit list is ready!</h2>
             <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              Hey ${user.full_name?.split(' ')[0] || 'there'},
+              Hey ${firstName},
             </p>
             <p style="color: #596780; font-size: 15px; line-height: 1.6;">
               We analyzed <strong>${job.total_connections}</strong> connections and found
-              <strong style="color: #0ABF53;">${job.hits_count} strong matches</strong> for ${user.company_name || 'your business'}.
+              <strong style="color: #0ABF53;">${hitsCount} strong matches</strong> for ${user.company_name || 'your business'}.
             </p>
             <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${job.scored_count}</strong> connections scored</p>
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong style="color: #0ABF53;">${job.hits_count}</strong> matches (score 7+)</p>
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${job.enriched_persons_count}</strong> profiles enriched</p>
+              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${scoredCount}</strong> connections scored</p>
+              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong style="color: #0ABF53;">${hitsCount}</strong> matches (score 7+)</p>
+              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${job.enriched_persons_count || 0}</strong> profiles enriched</p>
             </div>
-            <a href="https://circl-app-five.vercel.app/dashboard/hit-list"
-               style="display: inline-block; background: linear-gradient(135deg, #0ABF53, #34D399); color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin-top: 8px;">
+            <a href="${dashboardUrl}/dashboard/hit-list"
+               style="display: inline-block; background: #0A2540; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin-top: 8px;">
               View your hit list
             </a>
-            <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">
-              — Team Circl
-            </p>
+            <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
           </div>
         `,
       }),
@@ -556,13 +662,21 @@ async function sendCompletionEmail(supabase: any, job: any) {
 }
 
 async function sendProgressEmail(supabase: any, job: any) {
+  if (!process.env.RESEND_API_KEY) return;
+
   const { data: user } = await supabase
     .from('users')
-    .select('email, full_name, company_name')
+    .select('email, full_name')
     .eq('id', job.user_id)
     .single();
 
   if (!user?.email) return;
+
+  const firstName = user.full_name?.split(' ')[0] || 'there';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
+  const trackUrl = job.tracking_token
+    ? `${baseUrl}/track/${job.tracking_token}`
+    : `${baseUrl}/dashboard`;
 
   try {
     await fetch('https://api.resend.com/emails', {
@@ -574,19 +688,16 @@ async function sendProgressEmail(supabase: any, job: any) {
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
         to: user.email,
-        subject: `Halfway there — ${job.scored_count} connections scored`,
+        subject: `Halfway there — ${job.enriched_persons_count || 0} profiles enriched`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
-            <h2 style="color: #0A2540;">Halfway there!</h2>
+            <h2 style="color: #0A2540;">Quick update</h2>
             <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              Hey ${user.full_name?.split(' ')[0] || 'there'}, quick update: we've scored
-              <strong>${job.scored_count}</strong> of your connections so far.
+              Hey ${firstName}, we've enriched <strong>${job.enriched_persons_count || 0}</strong> profiles
+              and found <strong style="color: #0ABF53;">${job.hits_count || 0} matches</strong> so far.
             </p>
-            <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              <strong style="color: #0ABF53;">${job.hits_count} strong matches</strong> found so far.
-              We'll send your full results soon.
-            </p>
-            <a href="https://circl-app-five.vercel.app/track/${job.tracking_token}"
+            <p style="color: #596780; font-size: 15px;">We'll send your full results soon.</p>
+            <a href="${trackUrl}"
                style="display: inline-block; background: #F6F8FA; color: #0A2540; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; border: 1px solid #E3E8EF; margin-top: 12px;">
               Track progress
             </a>
