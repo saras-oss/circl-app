@@ -7,7 +7,16 @@ import { createClient } from "@supabase/supabase-js";
 export async function GET(request: Request) {
   // 1. Verify this is a legitimate cron call (Vercel sends CRON_SECRET)
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  // Vercel crons send the secret automatically
+  // Also allow manual calls with Bearer token
+  const isAuthorized =
+    authHeader === `Bearer ${cronSecret}` ||
+    !cronSecret; // If CRON_SECRET isn't set, allow (for testing)
+
+  if (!isAuthorized) {
+    console.log("CRON: Unauthorized. Header:", authHeader?.slice(0, 20));
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

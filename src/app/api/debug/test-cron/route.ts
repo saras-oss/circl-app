@@ -13,6 +13,13 @@ export async function GET() {
     },
   });
 
-  const result = await response.json();
-  return NextResponse.json({ cron_result: result, tested_at: new Date().toISOString() });
+  const text = await response.text();
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch {
+    result = { raw: text.slice(0, 200), status: response.status };
+  }
+
+  return NextResponse.json({ cron_result: result, status: response.status, tested_at: new Date().toISOString() });
 }
