@@ -34,29 +34,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Provide first_name or company" }, { status: 400 });
     }
 
-    // Build filter: user_prompt ILIKE '%{first_name}%' AND user_prompt ILIKE '%{company}%'
+    console.log("PROMPT_LOG: Searching for", { firstName, company, promptType });
+
+    // Search by prompt_type (try both "scoring" and "matching" for backwards compat)
+    // Then OR-match on first_name or company in user_prompt
+    const orParts: string[] = [];
+    if (firstName) orParts.push(`user_prompt.ilike.%${firstName}%`);
+    if (company) orParts.push(`user_prompt.ilike.%${company}%`);
+
     let query = supabaseAdmin
       .from("prompt_runs")
       .select(
         "id, prompt_type, model, user_prompt, response, input_tokens, output_tokens, duration_ms, created_at"
       )
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(5);
 
     if (promptType) {
-      query = query.eq("prompt_type", promptType);
+      // Search both the requested type and common aliases
+      const types = [promptType];
+      if (promptType === "matching") types.push("scoring");
+      if (promptType === "scoring") types.push("matching");
+      query = query.in("prompt_type", types);
     }
 
-    // Supabase doesn't support AND on the same column with ilike directly via chaining,
-    // so we use .ilike() for each term
-    if (firstName) {
-      query = query.ilike("user_prompt", `%${firstName}%`);
-    }
-    if (company) {
-      query = query.ilike("user_prompt", `%${company}%`);
+    if (orParts.length > 0) {
+      query = query.or(orParts.join(","));
     }
 
     const { data: prompts, error: fetchError } = await query;
+
+    console.log("PROMPT_LOG: Found", prompts?.length, "results");
 
     if (fetchError) {
       return NextResponse.json({ error: fetchError.message }, { status: 500 });
