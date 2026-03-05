@@ -183,6 +183,57 @@ export async function POST(request: Request) {
 
       if (job) {
         console.log(`PIPELINE: Created background job ${job.id} for ${connectionCount} connections`);
+
+        // Send start email
+        if (job.tracking_token && process.env.RESEND_API_KEY) {
+          const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app'}/track/${job.tracking_token}`;
+          const { data: emailUser } = await supabaseAdmin
+            .from('users')
+            .select('email, full_name, company_name')
+            .eq('id', userId)
+            .single();
+
+          if (emailUser?.email) {
+            const firstName = emailUser.full_name?.split(' ')[0] || 'there';
+            try {
+              await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
+                  to: emailUser.email,
+                  subject: `We're analyzing your ${connectionCount} connections`,
+                  html: `
+                    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+                      <h2 style="color: #0A2540; margin-bottom: 8px;">We're on it!</h2>
+                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">Hey ${firstName},</p>
+                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">
+                        We've received your <strong>${connectionCount}</strong> connections and started analyzing them.
+                      </p>
+                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">Here's what's happening:</p>
+                      <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
+                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">1. Classifying seniority levels</p>
+                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">2. Enriching profiles with company data</p>
+                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">3. Scoring every connection against your ICP</p>
+                      </div>
+                      <p style="color: #596780; font-size: 15px;">We'll email you when your hit list is ready.</p>
+                      <a href="${trackingUrl}" style="display: inline-block; background: linear-gradient(135deg, #0ABF53, #34D399); color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin-top: 8px;">
+                        Track progress
+                      </a>
+                      <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
+                    </div>
+                  `,
+                }),
+              });
+              console.log(`EMAIL: Start email sent to ${emailUser.email}`);
+            } catch (emailErr: unknown) {
+              console.error(`EMAIL: Start email failed:`, emailErr instanceof Error ? emailErr.message : emailErr);
+            }
+          }
+        }
       }
 
       return NextResponse.json({

@@ -18,6 +18,8 @@ const CRON_HEADERS: Record<string, string> = {
 };
 
 const CHUNK_SIZE = 500;
+const MAX_LOOP_MS = 240_000; // 240s — leave 60s buffer from 300s limit
+const COMPANY_PASSES = 3; // best-effort company enrichment passes
 
 /** Safely call a pipeline endpoint — handles HTML/non-JSON responses */
 async function callEndpoint(
@@ -63,6 +65,11 @@ async function chunkedUpdate(
     const chunk = ids.slice(i, i + CHUNK_SIZE);
     await supabase.from(table).update(update).in('id', chunk);
   }
+}
+
+/** Shorthand for updating pipeline_jobs */
+async function updateJob(supabase: any, jobId: string, update: Record<string, unknown>) {
+  await supabase.from('pipeline_jobs').update(update).eq('id', jobId);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,200 +232,254 @@ async function startJob(supabase: any, job: any) {
 }
 
 // ---------------------------------------------------------------------------
-// Step: Classify Batch
+// Step: Classify Batch (loops until done or 240s timeout)
 // ---------------------------------------------------------------------------
 
 async function processClassifyBatch(supabase: any, job: any) {
-  // Call existing classify endpoint with cron auth
-  const { data: result } = await callEndpoint('/api/pipeline/classify', {
-    userId: job.user_id,
-  });
+  const loopStart = Date.now();
+  let totalProcessedThisTick = 0;
 
-  console.log(`CRON: Classify result:`, result);
-
-  // Check if classification is complete
-  const { count: pendingRecent } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .eq('recent_half', true)
-    .eq('classification_status', 'pending');
-
-  const { count: classifiedCount } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .not('classification_status', 'eq', 'pending');
-
-  await supabase.from('pipeline_jobs').update({
-    classified_count: classifiedCount || 0,
-  }).eq('id', job.id);
-
-  if (pendingRecent === 0) {
-    // Mark recent tier3/tier4 as skipped for enrichment
-    await supabase
-      .from('user_connections')
-      .update({ enrichment_status: 'skipped' })
-      .eq('user_id', job.user_id)
-      .eq('recent_half', true)
-      .in('enrichment_tier', ['tier3', 'tier4']);
-
-    const { count: skippedCount } = await supabase
+  while (Date.now() - loopStart < MAX_LOOP_MS) {
+    // Check if classification is complete
+    const { count: pendingCount } = await supabase
       .from('user_connections')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', job.user_id)
-      .eq('enrichment_status', 'skipped');
+      .eq('recent_half', true)
+      .eq('classification_status', 'pending');
 
-    await supabase.from('pipeline_jobs').update({
-      status: 'enriching_persons',
-      skipped_count: skippedCount || 0,
-    }).eq('id', job.id);
+    if ((pendingCount || 0) === 0) {
+      // Mark recent tier3/tier4 as skipped for enrichment
+      await supabase
+        .from('user_connections')
+        .update({ enrichment_status: 'skipped' })
+        .eq('user_id', job.user_id)
+        .eq('recent_half', true)
+        .in('enrichment_tier', ['tier3', 'tier4']);
 
-    console.log(`CRON: Classification complete. Moving to enrichment. Skipped: ${skippedCount}`);
+      const { count: skippedCount } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .eq('enrichment_status', 'skipped');
+
+      const { count: classifiedTotal } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .eq('recent_half', true)
+        .not('classification_status', 'eq', 'pending');
+
+      await updateJob(supabase, job.id, {
+        status: 'enriching_persons',
+        classified_count: classifiedTotal || 0,
+        skipped_count: skippedCount || 0,
+      });
+
+      console.log(`CRON: Classification DONE for job ${job.id}. Classified: ${classifiedTotal}, Skipped: ${skippedCount}. Processed ${totalProcessedThisTick} this tick.`);
+      return;
+    }
+
+    // Call classify endpoint
+    const { data: result } = await callEndpoint('/api/pipeline/classify', {
+      userId: job.user_id,
+    });
+
+    totalProcessedThisTick += result?.processed || 0;
+
+    // Update progress
+    const { count: classifiedSoFar } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .eq('recent_half', true)
+      .not('classification_status', 'eq', 'pending');
+
+    await updateJob(supabase, job.id, {
+      classified_count: classifiedSoFar || 0,
+    });
   }
+
+  console.log(`CRON: Classification tick timeout. Processed ${totalProcessedThisTick}. Continuing next tick.`);
 }
 
 // ---------------------------------------------------------------------------
-// Step: Enrich Person Batch
+// Step: Enrich Person Batch (loops until done or 240s timeout)
 // ---------------------------------------------------------------------------
 
 async function processEnrichPersonBatch(supabase: any, job: any) {
-  const { data: result } = await callEndpoint('/api/pipeline/enrich', {
-    userId: job.user_id,
-  });
+  const loopStart = Date.now();
+  let totalProcessedThisTick = 0;
+  let progressEmailSent = job.email_sent_progress;
 
-  console.log(`CRON: Enrich result:`, result);
+  while (Date.now() - loopStart < MAX_LOOP_MS) {
+    // Check if all eligible connections are enriched
+    const { count: pendingEnrich } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .eq('enrichment_status', 'pending');
 
-  // Count enriched
-  const { count: enrichedCount } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .in('enrichment_status', ['enriched', 'cached']);
+    if ((pendingEnrich || 0) === 0) {
+      const { count: enrichedCount } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .in('enrichment_status', ['enriched', 'cached']);
 
-  await supabase.from('pipeline_jobs').update({
-    enriched_persons_count: enrichedCount || 0,
-  }).eq('id', job.id);
+      await updateJob(supabase, job.id, {
+        status: 'enriching_companies',
+        enriched_persons_count: enrichedCount || 0,
+      });
 
-  // Check if all eligible connections are enriched
-  const { count: pendingEnrich } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .eq('enrichment_status', 'pending');
+      console.log(`CRON: Person enrichment DONE for job ${job.id}. Enriched: ${enrichedCount}. Processed ${totalProcessedThisTick} this tick.`);
+      return;
+    }
 
-  if (pendingEnrich === 0) {
-    await supabase.from('pipeline_jobs').update({
-      status: 'enriching_companies',
-    }).eq('id', job.id);
-
-    console.log(`CRON: Person enrichment complete. Moving to company enrichment.`);
-  }
-
-  // Send 50% progress email at enrichment midpoint
-  const totalToEnrich = enrichedCount || 0;
-  const totalConnections = job.total_connections || 1;
-  if (!job.email_sent_progress && totalToEnrich > totalConnections / 3) {
-    await sendProgressEmail(supabase, job);
-    await supabase.from('pipeline_jobs').update({
-      email_sent_progress: true,
-    }).eq('id', job.id);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Step: Enrich Company Batch (company enrichment happens inline during person
-// enrichment — this step is a safety pass + transition to scoring)
-// ---------------------------------------------------------------------------
-
-async function processEnrichCompanyBatch(supabase: any, job: any) {
-  // Call enrich once more — if all persons done, this is a no-op but may
-  // catch any remaining company enrichments from the cached path
-  try {
+    // Call enrich endpoint
     const { data: result } = await callEndpoint('/api/pipeline/enrich', {
       userId: job.user_id,
     });
-    console.log(`CRON: Company enrich pass:`, result);
-  } catch (err: any) {
-    // Non-fatal — company enrichment is best-effort
-    console.error(`CRON: Company enrichment error (non-fatal):`, err.message);
+
+    totalProcessedThisTick += result?.processed || 0;
+
+    // Update progress
+    const { count: enrichedCount } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .in('enrichment_status', ['enriched', 'cached']);
+
+    await updateJob(supabase, job.id, {
+      enriched_persons_count: enrichedCount || 0,
+    });
+
+    // Send progress email at ~33% enrichment
+    const totalConnections = job.total_connections || 1;
+    if (!progressEmailSent && (enrichedCount || 0) > totalConnections / 3) {
+      await sendProgressEmail(supabase, job);
+      await updateJob(supabase, job.id, { email_sent_progress: true });
+      progressEmailSent = true;
+    }
   }
 
-  // Count enriched companies (global count)
+  console.log(`CRON: Enrichment tick timeout. Processed ${totalProcessedThisTick}. Continuing next tick.`);
+}
+
+// ---------------------------------------------------------------------------
+// Step: Enrich Company Batch (best-effort cleanup pass, then move to scoring)
+// ---------------------------------------------------------------------------
+
+async function processEnrichCompanyBatch(supabase: any, job: any) {
+  // Do a few best-effort passes — companies are enriched inline during
+  // person enrichment, this is just a cleanup pass
+  for (let i = 0; i < COMPANY_PASSES; i++) {
+    try {
+      const { data: result } = await callEndpoint('/api/pipeline/enrich', {
+        userId: job.user_id,
+      });
+      console.log(`CRON: Company enrich pass ${i + 1}:`, result);
+      // If nothing left to process, stop early
+      if (!result?.hasMore && (result?.remaining || 0) === 0) break;
+    } catch (err: any) {
+      console.error(`CRON: Company enrichment error (non-fatal):`, err.message);
+      break;
+    }
+  }
+
+  // Count enriched companies for this user's connections
   const { count: companyCount } = await supabase
     .from('enriched_companies')
     .select('id', { count: 'exact', head: true });
 
   // Move to scoring regardless
-  await supabase.from('pipeline_jobs').update({
+  await updateJob(supabase, job.id, {
     enriched_companies_count: companyCount || 0,
     status: 'scoring',
-  }).eq('id', job.id);
+  });
 
   console.log(`CRON: Company enrichment done. Moving to scoring. Companies: ${companyCount}`);
 }
 
 // ---------------------------------------------------------------------------
-// Step: Score Batch
+// Step: Score Batch (loops until done or 240s timeout)
 // ---------------------------------------------------------------------------
 
 async function processScoreBatch(supabase: any, job: any) {
-  const { data: result } = await callEndpoint('/api/pipeline/score', {
-    userId: job.user_id,
-  });
+  const loopStart = Date.now();
+  let totalProcessedThisTick = 0;
 
-  console.log(`CRON: Score result:`, result);
+  while (Date.now() - loopStart < MAX_LOOP_MS) {
+    // Check if any unscored enriched connections remain
+    const { count: unscoredCount } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .in('enrichment_status', ['enriched', 'cached'])
+      .is('match_score', null);
 
-  // Count scored + hits (always from DB, not from result)
-  const { count: scoredCount } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .not('match_score', 'is', null);
+    if ((unscoredCount || 0) === 0) {
+      // ALL SCORING DONE
+      const { count: hitsCount } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .gte('match_score', 7);
 
-  const { count: hitsCount } = await supabase
-    .from('user_connections')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', job.user_id)
-    .gte('match_score', 7);
+      const { count: scoredTotal } = await supabase
+        .from('user_connections')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', job.user_id)
+        .not('match_score', 'is', null);
 
-  await supabase.from('pipeline_jobs').update({
-    scored_count: scoredCount || 0,
-    hits_count: hitsCount || 0,
-  }).eq('id', job.id);
+      await updateJob(supabase, job.id, {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+        scored_count: scoredTotal || 0,
+        hits_count: hitsCount || 0,
+      });
 
-  // Check if scoring is complete
-  const hasMore = result?.hasMore !== false && (result?.remaining || 0) > 0;
+      // Mark user as complete
+      await supabase.from('users').update({
+        processing_status: 'completed',
+        onboarding_completed: true,
+      }).eq('id', job.user_id);
 
-  if (!hasMore) {
-    await supabase.from('pipeline_jobs').update({
-      status: 'completed',
-      completed_at: new Date().toISOString(),
+      // Send completion email
+      console.log(`CRON: SENDING COMPLETION EMAIL. job_id: ${job.id}, RESEND_API_KEY: ${!!process.env.RESEND_API_KEY}, user_id: ${job.user_id}`);
+      await sendCompletionEmail(supabase, job, hitsCount || 0, scoredTotal || 0);
+
+      console.log(`CRON: Job ${job.id} COMPLETED. Scored: ${scoredTotal}, Hits: ${hitsCount}. Processed ${totalProcessedThisTick} this tick.`);
+      return;
+    }
+
+    // Call score endpoint
+    const { data: result } = await callEndpoint('/api/pipeline/score', {
+      userId: job.user_id,
+    });
+
+    totalProcessedThisTick += result?.scored || 0;
+
+    // Update progress
+    const { count: scoredCount } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .not('match_score', 'is', null);
+
+    const { count: hitsCount } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .gte('match_score', 7);
+
+    await updateJob(supabase, job.id, {
       scored_count: scoredCount || 0,
       hits_count: hitsCount || 0,
-    }).eq('id', job.id);
-
-    // Update user status
-    await supabase.from('users').update({
-      processing_status: 'completed',
-      onboarding_completed: true,
-    }).eq('id', job.user_id);
-
-    // Send completion email
-    await sendCompletionEmail(supabase, job, hitsCount || 0, scoredCount || 0);
-
-    console.log(`CRON: Job ${job.id} COMPLETED. Scored: ${scoredCount}, Hits: ${hitsCount}`);
-    return;
+    });
   }
 
-  // Send 50% scoring progress email
-  const totalToScore = job.enriched_persons_count || 1;
-  if (!job.email_sent_progress && (scoredCount || 0) > totalToScore / 2) {
-    await sendProgressEmail(supabase, job);
-    await supabase.from('pipeline_jobs').update({
-      email_sent_progress: true,
-    }).eq('id', job.id);
-  }
+  console.log(`CRON: Scoring tick timeout. Processed ${totalProcessedThisTick}. Continuing next tick.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -590,7 +651,11 @@ async function updateETA(supabase: any, job: any) {
 // ---------------------------------------------------------------------------
 
 async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, scoredCount: number) {
-  if (!process.env.RESEND_API_KEY) return;
+  console.log(`CRON: sendCompletionEmail called. RESEND_API_KEY: ${!!process.env.RESEND_API_KEY}, job_id: ${job.id}, user_id: ${job.user_id}`);
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`CRON: No RESEND_API_KEY — skipping completion email`);
+    return;
+  }
 
   const { data: user } = await supabase
     .from('users')
@@ -598,6 +663,7 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
     .eq('id', job.user_id)
     .single();
 
+  console.log(`CRON: User for email: ${user?.email || 'NOT FOUND'}, name: ${user?.full_name || 'N/A'}`);
   if (!user?.email) return;
 
   const firstName = user.full_name?.split(' ')[0] || 'there';

@@ -94,6 +94,8 @@ interface PipelineJob {
   status: string;
   mode: string;
   total_connections: number;
+  recent_count: number;
+  old_count: number;
   classified_count: number;
   enriched_persons_count: number;
   enriched_companies_count: number;
@@ -283,10 +285,18 @@ function JobCard({
 
       {/* Progress bars */}
       <div className="space-y-2">
-        <MiniProgress label="Classified:" current={job.classified_count || 0} total={job.total_connections} />
-        <MiniProgress label="Enriched:" current={job.enriched_persons_count || 0} total={job.total_connections} />
-        <MiniProgress label="Companies:" current={job.enriched_companies_count || 0} total={job.total_connections} />
-        <MiniProgress label="Scored:" current={job.scored_count || 0} total={job.total_connections} />
+        <MiniProgress label="Classified:" current={job.classified_count || 0} total={job.recent_count || job.total_connections} />
+        <MiniProgress label="Enriched:" current={job.enriched_persons_count || 0} total={Math.max((job.old_count || 0) + ((job.classified_count || 0) - (job.skipped_count || 0)), job.enriched_persons_count || 0, 1)} />
+        <div className="flex items-center gap-2 text-[12px]">
+          <span className="text-[#596780] w-[80px] shrink-0">Companies:</span>
+          <div className="flex-1 h-2 rounded-full bg-[#E3E8EF] overflow-hidden">
+            <div className="h-full rounded-full bg-[#0ABF53] transition-all duration-500" style={{ width: (job.enriched_companies_count || 0) > 0 ? '100%' : '0%' }} />
+          </div>
+          <span className="text-[#596780] tabular-nums whitespace-nowrap w-[80px] text-right">
+            {(job.enriched_companies_count || 0).toLocaleString()} enriched
+          </span>
+        </div>
+        <MiniProgress label="Scored:" current={job.scored_count || 0} total={Math.max(job.enriched_persons_count || 0, 1)} />
       </div>
 
       {/* Stats */}
