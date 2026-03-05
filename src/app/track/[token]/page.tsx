@@ -8,7 +8,6 @@ import {
   ArrowRight,
   Users,
   Brain,
-  Building2,
   Target,
   Clock,
 } from "lucide-react";
@@ -41,12 +40,11 @@ function formatTimeRemaining(eta: string): string {
   return `~${hours}h ${remainingMin}m`;
 }
 
-type StepKey = "classifying" | "enriching_persons" | "enriching_companies" | "scoring" | "completed";
+type StepKey = "classifying" | "enriching" | "scoring" | "completed";
 
 const STEP_ORDER: StepKey[] = [
   "classifying",
-  "enriching_persons",
-  "enriching_companies",
+  "enriching",
   "scoring",
   "completed",
 ];
@@ -56,11 +54,16 @@ const STEP_META: Record<
   { label: string; icon: typeof Users }
 > = {
   classifying: { label: "Classifying connections", icon: Users },
-  enriching_persons: { label: "Enriching profiles", icon: Brain },
-  enriching_companies: { label: "Enriching companies", icon: Building2 },
+  enriching: { label: "Enriching profiles & companies", icon: Brain },
   scoring: { label: "Scoring matches", icon: Target },
   completed: { label: "Complete", icon: CheckCircle },
 };
+
+/** Map legacy statuses to current step keys */
+function normalizeStatus(status: string): string {
+  if (status === "enriching_persons" || status === "enriching_companies") return "enriching";
+  return status;
+}
 
 export default function TrackPage() {
   const params = useParams();
@@ -203,18 +206,17 @@ export default function TrackPage() {
           {STEP_ORDER.map((stepKey) => {
             const meta = STEP_META[stepKey];
             const Icon = meta.icon;
-            const currentIdx = STEP_ORDER.indexOf(job.status as StepKey);
+            const normalizedJobStatus = normalizeStatus(job.status);
+            const currentIdx = STEP_ORDER.indexOf(normalizedJobStatus as StepKey);
             const stepIdx = STEP_ORDER.indexOf(stepKey);
             const isDone = stepIdx < currentIdx || isComplete;
-            const isActive = stepKey === job.status && !isComplete;
+            const isActive = stepKey === normalizedJobStatus && !isComplete;
 
             let countText = "";
             if (stepKey === "classifying" && job.classified_count > 0) {
               countText = `${job.classified_count}/${total}`;
-            } else if (stepKey === "enriching_persons" && job.enriched_persons_count > 0) {
+            } else if (stepKey === "enriching" && job.enriched_persons_count > 0) {
               countText = `${job.enriched_persons_count}`;
-            } else if (stepKey === "enriching_companies" && job.enriched_companies_count > 0) {
-              countText = `${job.enriched_companies_count}`;
             } else if (stepKey === "scoring" && job.scored_count > 0) {
               countText = `${job.scored_count}/${total}`;
             }
