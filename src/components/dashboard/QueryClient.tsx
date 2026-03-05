@@ -65,9 +65,6 @@ export default function QueryClient({ userId }: { userId: string }) {
 
   return (
     <div className="animate-fade-in">
-      {/* Enrichment banner */}
-      <EnrichmentBanner coverage={result?.enrichment_coverage} />
-
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
@@ -79,7 +76,7 @@ export default function QueryClient({ userId }: { userId: string }) {
         </p>
       </div>
 
-      {/* Query input */}
+      {/* Query input + enrichment note */}
       <div
         className="mb-8 animate-fade-in-up"
         style={{ animationDelay: "0.05s" }}
@@ -90,6 +87,7 @@ export default function QueryClient({ userId }: { userId: string }) {
           onSubmit={handleSubmit}
           isLoading={isLoading}
         />
+        <EnrichmentBanner coverage={result?.enrichment_coverage} />
       </div>
 
       {/* Error */}

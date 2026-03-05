@@ -21,6 +21,25 @@ function escapeIlike(value: string): string {
   return value.replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
 
+/** Get enrichment coverage for a user */
+async function getEnrichmentCoverage(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ enriched: number; total: number }> {
+  const [{ count: total }, { count: enriched }] = await Promise.all([
+    supabase
+      .from("user_connections")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    supabase
+      .from("user_connections")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .in("enrichment_status", ["enriched", "cached"]),
+  ]);
+  return { enriched: enriched || 0, total: total || 0 };
+}
+
 /** Build OR filter string for ilike across multiple columns */
 function buildIlikeOr(columns: string[], keywords: string[]): string {
   return keywords
@@ -81,7 +100,7 @@ async function executePersonLookup(
   if (lookup?.company) {
     const escaped = escapeIlike(lookup.company);
     query = query.or(
-      `csv_company.ilike.%${escaped}%,current_company.ilike.%${escaped}%`
+      `csv_company.ilike.%${escaped}%,current_company.ilike.%${escaped}%,company_name.ilike.%${escaped}%`
     );
   }
 
@@ -93,28 +112,13 @@ async function executePersonLookup(
   const { data, error, count } = await query;
   if (error) throw new Error(`Person lookup failed: ${error.message}`);
 
-  // Enrichment coverage
-  const [{ count: totalConnections }, { count: enrichedConnections }] =
-    await Promise.all([
-      supabase
-        .from("user_connections")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-      supabase
-        .from("user_connections")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("enrichment_status", ["enriched", "cached"]),
-    ]);
+  const coverage = await getEnrichmentCoverage(supabase, userId);
 
   return {
     data: data || [],
     count: data?.length || 0,
     total_available: count || 0,
-    enrichment_coverage: {
-      enriched: enrichedConnections || 0,
-      total: totalConnections || 0,
-    },
+    enrichment_coverage: coverage,
   };
 }
 
@@ -212,7 +216,7 @@ export async function buildAndExecuteQuery(
           `csv_company.ilike.%${escaped}%`,
           `current_company.ilike.%${escaped}%`,
           `company_name.ilike.%${escaped}%`,
-          `previous_companies::text.ilike.%${escaped}%`,
+          `previous_companies_text.ilike.%${escaped}%`,
         ].join(",");
       })
       .join(",");
@@ -242,7 +246,7 @@ export async function buildAndExecuteQuery(
     const schoolFilter = f.school_keywords
       .map(
         (kw) =>
-          `education_schools::text.ilike.%${escapeIlike(kw)}%`
+          `education_schools_text.ilike.%${escapeIlike(kw)}%`
       )
       .join(",");
     query = query.or(schoolFilter);
@@ -252,7 +256,7 @@ export async function buildAndExecuteQuery(
     const prevCoFilter = f.previous_company_keywords
       .map(
         (kw) =>
-          `previous_companies::text.ilike.%${escapeIlike(kw)}%`
+          `previous_companies_text.ilike.%${escapeIlike(kw)}%`
       )
       .join(",");
     query = query.or(prevCoFilter);
@@ -290,26 +294,12 @@ export async function buildAndExecuteQuery(
   if (error) throw new Error(`Query failed: ${error.message}`);
 
   // ── Enrichment coverage ──
-  const [{ count: totalConnections }, { count: enrichedConnections }] =
-    await Promise.all([
-      supabase
-        .from("user_connections")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId),
-      supabase
-        .from("user_connections")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .in("enrichment_status", ["enriched", "cached"]),
-    ]);
+  const coverage = await getEnrichmentCoverage(supabase, userId);
 
   return {
     data: data || [],
     count: data?.length || 0,
     total_available: count || 0,
-    enrichment_coverage: {
-      enriched: enrichedConnections || 0,
-      total: totalConnections || 0,
-    },
+    enrichment_coverage: coverage,
   };
 }

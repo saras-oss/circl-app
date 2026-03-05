@@ -86,7 +86,13 @@ function extractDomain(url: string | null): string {
 /** Parse work_history JSONB into displayable career entries */
 function parseWorkHistory(wh: any): { company: string; title: string; startYear: string; endYear: string }[] {
   if (!wh) return [];
-  const entries = Array.isArray(wh) ? wh : [];
+  let entries: any[] = [];
+  try {
+    const parsed = typeof wh === "string" ? JSON.parse(wh) : wh;
+    entries = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    entries = [];
+  }
   return entries
     .map((e: any) => ({
       company: e.company || e.company_name || "",
@@ -100,13 +106,35 @@ function parseWorkHistory(wh: any): { company: string; title: string; startYear:
 
 /** Zip education arrays into displayable entries */
 function parseEducation(schools: any, degrees: any, fields: any): { school: string; degree: string }[] {
-  if (!schools || !Array.isArray(schools) || schools.length === 0) return [];
+  let schoolArr: string[] = [];
+  try {
+    const parsed = typeof schools === "string" ? JSON.parse(schools) : schools;
+    schoolArr = Array.isArray(parsed) ? parsed : [];
+  } catch {
+    schoolArr = [];
+  }
+  if (schoolArr.length === 0) return [];
   const degreeArr = Array.isArray(degrees) ? degrees : [];
   const fieldArr = Array.isArray(fields) ? fields : [];
-  return schools.slice(0, 3).map((school: string, i: number) => {
+  return schoolArr.slice(0, 2).map((school: string, i: number) => {
     const parts = [degreeArr[i], fieldArr[i]].filter(Boolean);
-    return { school, degree: parts.join(" ") };
+    return { school, degree: parts.join(" in ") };
   });
+}
+
+/** Parse match_reasons JSONB safely */
+function parseMatchReasons(mr: any): string {
+  if (!mr) return "";
+  try {
+    const parsed = typeof mr === "string" ? JSON.parse(mr) : mr;
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) return parsed.join(". ");
+    if (parsed?.reasons) return Array.isArray(parsed.reasons) ? parsed.reasons.join(". ") : parsed.reasons;
+    if (parsed?.text) return parsed.text;
+    return JSON.stringify(parsed);
+  } catch {
+    return typeof mr === "string" ? mr : "";
+  }
 }
 
 interface ProfileCardsProps {
@@ -120,7 +148,8 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
         const workHistory = parseWorkHistory(r.work_history);
         const education = parseEducation(r.education_schools, r.education_degrees, r.education_fields);
         const hasCompanyData = r.company_name || r.company_industry || r.company_size_min != null || r.company_type || r.latest_funding_type || r.company_website;
-        const remainingRoles = Array.isArray(r.work_history) ? r.work_history.length - 4 : 0;
+        const whArr = (() => { try { const p = typeof r.work_history === "string" ? JSON.parse(r.work_history) : r.work_history; return Array.isArray(p) ? p : []; } catch { return []; } })();
+        const remainingRoles = whArr.length > 4 ? whArr.length - 4 : 0;
 
         return (
           <div
@@ -308,22 +337,18 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
               )}
 
               {/* ── Match Analysis Section ── */}
-              {r.match_reasons && (
-                <div className="mt-4 bg-[#F6F8FA] rounded-lg p-4">
-                  <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
-                    Why this match
-                  </p>
-                  {Array.isArray(r.match_reasons) ? (
-                    <ul className="text-sm text-[#596780] space-y-0.5 list-disc list-inside">
-                      {r.match_reasons.map((reason: string, j: number) => (
-                        <li key={j}>{reason}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-[#596780]">{r.match_reasons}</p>
-                  )}
-                </div>
-              )}
+              {r.match_score != null && r.match_reasons && (() => {
+                const reasons = parseMatchReasons(r.match_reasons);
+                if (!reasons) return null;
+                return (
+                  <div className="mt-4 bg-[#F6F8FA] rounded-lg p-4">
+                    <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
+                      Why this match
+                    </p>
+                    <p className="text-sm text-[#596780]">{reasons}</p>
+                  </div>
+                );
+              })()}
 
               {/* ── Suggested Approach Section ── */}
               {r.suggested_approach && (
