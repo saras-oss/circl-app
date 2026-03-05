@@ -2,6 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function updateSession(request: NextRequest) {
+  // Allow cron worker to call pipeline endpoints
+  const cronSecret = request.headers.get('x-cron-secret');
+  if (cronSecret && cronSecret === process.env.CRON_SECRET) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
