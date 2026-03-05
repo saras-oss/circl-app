@@ -260,13 +260,13 @@ export default function DashboardClient({
                   <Building2 className="w-4 h-4 text-[#94A3B8]" strokeWidth={1.5} />
                   Top Industries
                 </h3>
-                <div className="h-[140px]">
+                <div className="h-[220px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={insights.industry_breakdown.slice(0, 6)} layout="vertical" margin={{ left: 0, right: 10, top: 0, bottom: 0 }}>
                       <XAxis type="number" hide />
-                      <YAxis type="category" dataKey="industry" width={100} tick={{ fontSize: 11, fill: "#596780" }} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="industry" width={130} tick={{ fontSize: 11, fill: "#596780" }} tickLine={false} axisLine={false} interval={0} />
                       <Tooltip contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "1px solid #E3E8EF", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-                      <Bar dataKey="count" fill={CHART_BLUE} radius={[0, 6, 6, 0]} barSize={16} />
+                      <Bar dataKey="count" fill={CHART_BLUE} radius={[0, 6, 6, 0]} barSize={14} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
