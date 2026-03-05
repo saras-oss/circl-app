@@ -158,7 +158,7 @@ export default function PipelineProgress({
       </div>
 
       <p className="text-xs text-warm-400 text-center">
-        This usually takes 2\u20135 minutes
+        This usually takes 2-5 minutes
       </p>
 
       {state.error && (
