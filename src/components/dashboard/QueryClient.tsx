@@ -1,112 +1,133 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-
-const suggestedPrompts = [
-  "Who are the founders in my network?",
-  "Connections at companies that recently raised funding",
-  "VCs and angel investors in my connections",
-  "Senior leaders in my industry",
-  "Marketing directors at companies with 500+ employees",
-  "Indian CTOs at Series B+ companies",
-  "People who previously worked at McKinsey",
-  "Founders I've been connected with for 5+ years",
-];
+import { Sparkles } from "lucide-react";
+import type { QueryAPIResponse } from "@/lib/query-engine/types";
+import QueryInput from "@/components/query-engine/QueryInput";
+import SuggestedQuestions from "@/components/query-engine/SuggestedQuestions";
+import QueryResult from "@/components/query-engine/QueryResult";
+import EnrichmentBanner from "@/components/query-engine/EnrichmentBanner";
 
 export default function QueryClient({ userId }: { userId: string }) {
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get("q") || "");
-  const [promptIndex, setPromptIndex] = useState(0);
+  const [question, setQuestion] = useState(searchParams.get("q") || "");
+  const [isLoading, setIsLoading] = useState(false);
+  const [result, setResult] = useState<QueryAPIResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const autoSubmitDone = useRef(false);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setPromptIndex((prev) => (prev + 1) % suggestedPrompts.length);
-    }, 4000);
-    return () => clearInterval(interval);
+  const submitQuery = useCallback(async (queryText: string) => {
+    if (!queryText.trim()) return;
+
+    setIsLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const res = await fetch("/api/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: queryText }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Request failed (${res.status})`);
+      }
+
+      const data: QueryAPIResponse = await res.json();
+      setResult(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Query engine will be built in Phase 2
+  // Auto-submit if ?q= param is present
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q && !autoSubmitDone.current) {
+      autoSubmitDone.current = true;
+      submitQuery(q);
+    }
+  }, [searchParams, submitQuery]);
+
+  function handleSubmit() {
+    submitQuery(question);
+  }
+
+  function handleQuestionSelect(q: string) {
+    setQuestion(q);
+    submitQuery(q);
   }
 
   return (
     <div className="animate-fade-in">
+      {/* Enrichment banner */}
+      <EnrichmentBanner coverage={result?.enrichment_coverage} />
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-[#0A2540]">Query Your Network</h1>
-        <p className="text-sm text-[#596780] mt-1 font-medium">
-          Search your connections using natural language
+      <div className="mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <h1 className="text-2xl font-semibold text-[#0A2540]">Ask Circl</h1>
+          <Sparkles className="w-5 h-5 text-[#0ABF53]" />
+        </div>
+        <p className="text-sm text-[#596780] font-medium">
+          Ask anything about your network
         </p>
       </div>
 
-      {/* Search box */}
-      <form onSubmit={handleSubmit} className="mb-10 animate-fade-in-up" style={{ animationDelay: "0.05s" }}>
-        <div className="relative">
-          <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-[#96A0B5]" />
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={suggestedPrompts[promptIndex]}
-            className="w-full h-[56px] pl-13 pr-28 bg-white border border-[#E3E8EF] rounded-lg text-sm font-medium text-[#0A2540] placeholder:text-[#96A0B5] focus:border-[#0ABF53] focus:ring-2 focus:ring-[#0ABF53]/20 outline-none transition-all"
-          />
-          <button
-            type="submit"
-            className="absolute right-2 top-1/2 -translate-y-1/2 h-[44px] px-6 rounded-lg bg-gradient-to-r from-[#0ABF53] to-[#34D399] text-white text-sm font-semibold hover:opacity-90 transition-all duration-150 active:scale-[0.98]"
-          >
-            Search
-          </button>
-        </div>
-      </form>
-
-      {/* Suggested prompts */}
-      <div className="mb-10 animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#96A0B5] mb-3 flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-[#0ABF53]" />
-          Try these queries
-        </p>
-        <div className="flex flex-wrap gap-2 stagger-children">
-          {suggestedPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              onClick={() => setQuery(prompt)}
-              className="text-xs font-medium px-4 py-2.5 min-h-[44px] rounded-full bg-white border border-[#E3E8EF] hover:border-[#0ABF53]/30 hover:bg-[#E6F9EE] hover:text-[#089E45] transition-all duration-200 text-[#596780] active:scale-[0.98]"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
+      {/* Query input */}
+      <div
+        className="mb-8 animate-fade-in-up"
+        style={{ animationDelay: "0.05s" }}
+      >
+        <QueryInput
+          value={question}
+          onChange={setQuestion}
+          onSubmit={handleSubmit}
+          isLoading={isLoading}
+        />
       </div>
 
-      {/* Coming soon state */}
-      <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-10 sm:p-16 text-center relative overflow-hidden animate-fade-in-up" style={{ animationDelay: "0.15s" }}>
-        {/* Subtle decorative pattern */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: "radial-gradient(circle at 1px 1px, #0A2540 1px, transparent 0)",
-          backgroundSize: "24px 24px"
-        }} />
+      {/* Error */}
+      {error && (
+        <div className="mb-6 rounded-xl bg-[#FDE8EC] border border-[#ED5F74]/20 px-5 py-4 text-sm text-[#ED5F74] font-medium animate-fade-in">
+          {error}
+        </div>
+      )}
 
-        <div className="relative">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#E6F9EE] to-[#0ABF53]/10 flex items-center justify-center mx-auto mb-6">
-            <Sparkles className="w-9 h-9 text-[#0ABF53]" />
+      {/* Loading skeleton */}
+      {isLoading && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5">
+            <div className="h-4 w-3/4 rounded-lg animate-shimmer mb-3" />
+            <div className="h-4 w-1/2 rounded-lg animate-shimmer" />
           </div>
-          <h3 className="text-xl font-bold tracking-tight text-[#0A2540]">
-            Natural Language Query Engine
-          </h3>
-          <p className="text-sm text-[#596780] mt-3 max-w-md mx-auto leading-relaxed">
-            Type questions like &quot;Indian CTOs at Series B+
-            healthcare companies&quot; or &quot;VCs who invest in fintech&quot;
-            and get instant results from your network.
-          </p>
-          <div className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#FFF8E6] text-[#B8860B] text-xs font-semibold border border-[#FFBB38]/20">
-            <Sparkles className="w-3.5 h-3.5 text-[#FFBB38]" />
-            Coming in Phase 2
+          <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-5 space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg animate-shimmer shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 w-40 rounded animate-shimmer" />
+                  <div className="h-3 w-56 rounded animate-shimmer" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Results or suggestions */}
+      {!isLoading && result ? (
+        <QueryResult result={result} onFollowUp={handleQuestionSelect} />
+      ) : (
+        !isLoading && !error && (
+          <SuggestedQuestions onSelect={handleQuestionSelect} />
+        )
+      )}
     </div>
   );
 }

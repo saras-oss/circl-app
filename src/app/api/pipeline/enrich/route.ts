@@ -454,9 +454,13 @@ export async function POST(request: Request) {
 
     if (subscriptionTier === "free") {
       query = query.eq("is_free_tier_selection", true);
-    } else {
+    } else if (!isCronCall) {
+      // Instant mode — only enrich tier1/tier2
       query = query.in("enrichment_tier", ["tier1", "tier2"]);
     }
+    // Background mode (cron) — enrich all pending connections.
+    // Recent-half tier3/tier4 are already marked 'skipped' by classification,
+    // so they won't appear in this pending query.
 
     const { data: connections, error: fetchError } = await query;
 
@@ -585,7 +589,7 @@ export async function POST(request: Request) {
 
     if (subscriptionTier === "free") {
       remainingQuery = remainingQuery.eq("is_free_tier_selection", true);
-    } else {
+    } else if (!isCronCall) {
       remainingQuery = remainingQuery.in("enrichment_tier", ["tier1", "tier2"]);
     }
 

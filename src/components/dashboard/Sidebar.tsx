@@ -7,7 +7,7 @@ import {
   LayoutDashboard,
   Star,
   Users,
-  Search,
+  MessageSquareText,
   Shield,
   Settings,
 } from "lucide-react";
@@ -21,14 +21,14 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/hit-list", label: "Hit List", icon: Star },
   { href: "/dashboard/network", label: "My Network", icon: Users },
-  { href: "/dashboard/query", label: "Query", icon: Search },
+  { href: "/dashboard/query", label: "Ask Circl", icon: MessageSquareText },
 ];
 
 const mobileNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/hit-list", label: "Hit List", icon: Star },
   { href: "/dashboard/network", label: "Network", icon: Users },
-  { href: "/dashboard/query", label: "Query", icon: Search },
+  { href: "/dashboard/query", label: "Ask Circl", icon: MessageSquareText },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
