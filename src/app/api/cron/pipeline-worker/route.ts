@@ -347,7 +347,7 @@ async function processEnrichBatch(supabase: any, job: any) {
 
     // EDGE CASE: If enrich keeps returning 0 processed but pending > 0,
     // something is wrong. After 3 zero-result calls, mark remaining as failed and advance.
-    if (zeroProcessedCount >= 3) {
+    if (zeroProcessedCount >= 15) {
       console.error(`CRON: Enrichment stuck — ${pendingCount} pending but 3 consecutive zero-result calls. Marking remaining as failed.`);
 
       await supabase
@@ -483,7 +483,7 @@ async function processScoreBatch(supabase: any, job: any) {
     }
 
     // Edge case: scoring stuck
-    if (zeroProcessedCount >= 3) {
+    if (zeroProcessedCount >= 15) {
       console.error(`CRON: Scoring stuck — ${unscoredCount} unscored but 3 zero-result calls. Marking as -1.`);
 
       await supabase
