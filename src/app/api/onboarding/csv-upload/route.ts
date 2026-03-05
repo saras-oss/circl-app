@@ -166,7 +166,35 @@ export async function POST(request: Request) {
       .update({ total_connections: totalConnections || totalProcessed })
       .eq("id", userId);
 
-    return NextResponse.json({ success: true, count: totalProcessed });
+    const connectionCount = totalConnections || totalProcessed;
+
+    if (connectionCount >= 50) {
+      // Create a background pipeline job
+      const { data: job } = await supabaseAdmin
+        .from('pipeline_jobs')
+        .insert({
+          user_id: userId,
+          total_connections: connectionCount,
+          status: 'queued',
+          mode: 'background',
+        })
+        .select()
+        .single();
+
+      if (job) {
+        console.log(`PIPELINE: Created background job ${job.id} for ${connectionCount} connections`);
+      }
+
+      return NextResponse.json({
+        success: true,
+        count: connectionCount,
+        mode: 'background',
+        tracking_token: job?.tracking_token,
+      });
+    }
+
+    // Under 50 — use existing instant mode (browser orchestrator)
+    return NextResponse.json({ success: true, count: totalProcessed, mode: 'instant' });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Internal server error";

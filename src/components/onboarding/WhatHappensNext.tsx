@@ -8,6 +8,7 @@ interface WhatHappensNextProps {
   userId: string;
   connectionCount?: number;
   onContinue: () => void;
+  uploadResult?: { mode: string; connections: number; tracking_token?: string } | null;
 }
 
 function getTimeEstimate(connectionCount: number): string {
@@ -42,13 +43,72 @@ export default function WhatHappensNext({
   userId,
   connectionCount = 0,
   onContinue,
+  uploadResult,
 }: WhatHappensNextProps) {
   const [loading, setLoading] = useState(false);
+  const isBackground = uploadResult?.mode === 'background';
 
   async function handleGoToDashboard() {
     setLoading(true);
     // Pipeline orchestrator on the dashboard handles classify → enrich → match
     onContinue();
+  }
+
+  if (isBackground) {
+    return (
+      <div className="animate-fade-in flex flex-col items-center text-center space-y-10">
+        <div className="space-y-4">
+          <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-xl bg-accent/10 animate-scale-in">
+            <PartyPopper className="h-7 w-7 text-accent" strokeWidth={1.5} />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">
+              We&apos;re on it!
+            </h1>
+            <p className="text-sm sm:text-base text-[#596780] max-w-md mx-auto leading-relaxed">
+              Processing <strong className="text-[#0A2540]">{(uploadResult.connections || connectionCount).toLocaleString()} connections</strong> takes
+              a bit longer. We&apos;ll email you when your hit list is ready.
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-5">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 shrink-0">
+              <Bell className="h-6 w-6 text-accent" strokeWidth={1.5} />
+            </div>
+            <div className="text-left">
+              <h3 className="text-base font-semibold text-[#0A2540] mb-1">What happens now?</h3>
+              <p className="text-sm text-[#596780] leading-relaxed">
+                Our AI is classifying, enriching, and scoring every connection in the background.
+                You&apos;ll get an email at 50% progress and when it&apos;s complete.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="w-full space-y-3">
+          {uploadResult.tracking_token && (
+            <a
+              href={`/track/${uploadResult.tracking_token}`}
+              className="block w-full h-[52px] rounded-xl border border-[#E3E8EF] bg-white text-sm font-semibold text-[#0A2540] hover:border-[#596780] transition-all flex items-center justify-center gap-2"
+            >
+              Track progress
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          )}
+          <Button
+            onClick={handleGoToDashboard}
+            size="lg"
+            loading={loading}
+            className="w-full h-[56px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all text-base shadow-lg shadow-accent/20"
+          >
+            Go to Dashboard
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   return (

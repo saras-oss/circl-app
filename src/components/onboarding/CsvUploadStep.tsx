@@ -13,7 +13,7 @@ import {
 
 interface CsvUploadStepProps {
   userId: string;
-  onNext: () => void;
+  onNext: (uploadResult?: { mode: string; connections: number; tracking_token?: string }) => void;
   onBack: () => void;
 }
 
@@ -194,6 +194,8 @@ export default function CsvUploadStep({
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState<string | null>(null);
+  const [trackingToken, setTrackingToken] = useState<string | null>(null);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -348,13 +350,16 @@ export default function CsvUploadStep({
 
             setUploadProgress(80);
 
+            const data = await res.json().catch(() => ({}));
+
             if (!res.ok) {
-              const data = await res.json().catch(() => ({}));
               throw new Error(data.error || "Failed to upload connections");
             }
 
             setUploadProgress(100);
             setUploadComplete(true);
+            if (data.mode) setUploadMode(data.mode);
+            if (data.tracking_token) setTrackingToken(data.tracking_token);
           } catch (err) {
             setError(
               err instanceof Error
@@ -571,7 +576,7 @@ export default function CsvUploadStep({
         </Button>
         {uploadComplete && (
           <Button
-            onClick={onNext}
+            onClick={() => onNext(uploadMode ? { mode: uploadMode, connections: connectionCount || 0, tracking_token: trackingToken || undefined } : undefined)}
             size="lg"
             className="flex-1 h-[52px] rounded-xl bg-accent text-white font-semibold hover:bg-accent/90 active:scale-[0.98] transition-all"
           >

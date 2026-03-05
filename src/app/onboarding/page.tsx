@@ -25,6 +25,7 @@ export default function OnboardingPage() {
   const [userId, setUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<Record<string, unknown>>({});
+  const [uploadResult, setUploadResult] = useState<{ mode: string; connections: number; tracking_token?: string } | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -196,7 +197,10 @@ export default function OnboardingPage() {
           {step === 3 && (
             <CsvUploadStep
               userId={userId}
-              onNext={() => updateStep(4)}
+              onNext={(result) => {
+                if (result) setUploadResult(result);
+                updateStep(4);
+              }}
               onBack={() => updateStep(2)}
             />
           )}
@@ -228,6 +232,7 @@ export default function OnboardingPage() {
               userId={userId}
               connectionCount={(userData.total_connections as number) || 0}
               onContinue={finishOnboarding}
+              uploadResult={uploadResult}
             />
           )}
         </div>
