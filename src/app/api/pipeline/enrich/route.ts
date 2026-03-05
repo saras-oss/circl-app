@@ -407,6 +407,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { userId, batchSize } = body;
 
+    console.log('ENRICH ENTRY:', { userId, method: request.method });
+
     // Auth: session-based (browser orchestrator) OR cron-secret (background worker)
     const supabase = await createClient();
     const {
@@ -419,9 +421,11 @@ export async function POST(request: Request) {
 
     if (user?.id) {
       if (userId !== user.id) {
+        console.log('ENRICH EARLY RETURN:', { reason: 'userId mismatch with session user', userId, sessionUserId: user.id });
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     } else if (!isCronCall || !userId) {
+      console.log('ENRICH EARLY RETURN:', { reason: 'not authenticated and not valid cron call', isCronCall, userId });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -490,6 +494,7 @@ export async function POST(request: Request) {
     });
 
     if (fetchError) {
+      console.log('ENRICH EARLY RETURN:', { reason: 'fetchError from query', error: fetchError.message });
       return NextResponse.json(
         { error: fetchError.message },
         { status: 500 }
@@ -499,6 +504,7 @@ export async function POST(request: Request) {
     if (!connections || connections.length === 0) {
       // DO NOT set processing_status here — scoring still needs to run.
       // Only /api/pipeline/complete should set processing_status = "completed".
+      console.log('ENRICH EARLY RETURN:', { reason: 'no connections found', rawPendingCount, subscriptionTier, isCronCall, effectiveBatchSize });
       return NextResponse.json({
         processed: 0,
         remaining: 0,
