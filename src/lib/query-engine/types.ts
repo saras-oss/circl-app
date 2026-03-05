@@ -69,6 +69,8 @@ export interface QueryIntent {
   };
 
   limit?: number;
+
+  sales_intent?: boolean;
 }
 
 export interface QueryResult {
@@ -103,4 +105,5 @@ export interface QueryAPIResponse {
     enriched: number;
     total: number;
   };
+  sales_intent?: boolean;
 }

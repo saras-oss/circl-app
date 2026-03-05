@@ -101,22 +101,52 @@ User question: "${question}"`,
 
     // ── Pass 2: Response Synthesis ──
     // Truncate result data for token efficiency
+    const isIntroQuery = !!(intent.filters?.company_current_or_previous_keywords?.length);
+    const isPersonLookup = intent.query_type === "person_lookup";
+    const needsRichData = isIntroQuery || isPersonLookup;
+
     const truncatedData =
-      intent.query_type === "person_lookup"
+      isPersonLookup
         ? results.data
-        : results.data.map((row: any) => ({
-            first_name: row.first_name,
-            last_name: row.last_name,
-            current_title: row.current_title || row.csv_position,
-            current_company: row.current_company || row.csv_company,
-            match_score: row.match_score,
-            match_type: row.match_type,
-            match_reasons: row.match_reasons,
-            location_str: row.location_str,
-            company_industry: row.company_industry,
-            seniority_tier: row.seniority_tier,
-            suggested_approach: row.suggested_approach,
-          }));
+        : results.data.map((row: any) => {
+            const base: Record<string, any> = {
+              first_name: row.first_name,
+              last_name: row.last_name,
+              current_title: row.current_title || row.csv_position,
+              current_company: row.current_company || row.csv_company,
+              location_str: row.location_str,
+              company_industry: row.company_industry,
+              seniority_tier: row.seniority_tier,
+              connected_on: row.connected_on,
+              company_name: row.company_name,
+              company_description: row.company_description,
+              company_size_min: row.company_size_min,
+              company_size_max: row.company_size_max,
+              company_type: row.company_type,
+              latest_funding_type: row.latest_funding_type,
+              latest_funding_amount: row.latest_funding_amount,
+              total_funding_amount: row.total_funding_amount,
+              hq_city: row.hq_city,
+              hq_country: row.hq_country,
+            };
+
+            if (intent.sales_intent) {
+              base.match_score = row.match_score;
+              base.match_type = row.match_type;
+              base.match_reasons = row.match_reasons;
+              base.suggested_approach = row.suggested_approach;
+            }
+
+            if (needsRichData) {
+              base.work_history = row.work_history;
+              base.previous_companies = row.previous_companies;
+              base.total_experience_years = row.total_experience_years;
+              base.headline = row.headline;
+              base.education_schools = row.education_schools;
+            }
+
+            return base;
+          });
 
     const synthesisInput =
       intent.query_type === "aggregate"
@@ -132,6 +162,7 @@ User question: "${question}"`,
           {
             role: "user",
             content: `User's original question: "${question}"
+Sales intent: ${intent.sales_intent ? "true" : "false"}
 
 Total results matching: ${results.total_available}
 Results returned: ${results.count}
@@ -204,6 +235,7 @@ ${synthesisInput}`,
       aggregation: aggregationData,
       total_available: results.total_available,
       enrichment_coverage: results.enrichment_coverage,
+      sales_intent: intent.sales_intent || false,
     });
   } catch (err: unknown) {
     console.error("QUERY: Engine error:", err);

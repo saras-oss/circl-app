@@ -11,6 +11,7 @@ import {
   Briefcase,
   Factory,
   Calendar,
+  Building2,
 } from "lucide-react";
 
 function getScoreColor(score: number | null) {
@@ -21,15 +22,48 @@ function getScoreColor(score: number | null) {
   return "bg-[#96A0B5]";
 }
 
-type SortField = "name" | "title" | "company" | "industry" | "score";
+function formatFunding(amount: number | null): string {
+  if (!amount) return "";
+  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `$${Math.round(amount / 1_000_000)}M`;
+  if (amount >= 1_000) return `$${Math.round(amount / 1_000)}K`;
+  return `$${amount}`;
+}
+
+function parseJsonField(field: any): any[] {
+  if (!field) return [];
+  try {
+    const parsed = typeof field === "string" ? JSON.parse(field) : field;
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseMatchReasons(mr: any): string {
+  if (!mr) return "";
+  try {
+    const parsed = typeof mr === "string" ? JSON.parse(mr) : mr;
+    if (typeof parsed === "string") return parsed;
+    if (Array.isArray(parsed)) return parsed.join(". ");
+    if (parsed?.reasons) return Array.isArray(parsed.reasons) ? parsed.reasons.join(". ") : parsed.reasons;
+    if (parsed?.text) return parsed.text;
+    return JSON.stringify(parsed);
+  } catch {
+    return typeof mr === "string" ? mr : "";
+  }
+}
+
+type SortField = "name" | "title" | "company" | "industry" | "score" | "location";
 type SortDir = "asc" | "desc";
 
 interface ConnectionTableProps {
   results: any[];
+  salesIntent?: boolean;
 }
 
-export default function ConnectionTable({ results }: ConnectionTableProps) {
-  const [sortField, setSortField] = useState<SortField>("score");
+export default function ConnectionTable({ results, salesIntent = false }: ConnectionTableProps) {
+  const [sortField, setSortField] = useState<SortField>(salesIntent ? "score" : "name");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -54,6 +88,8 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
         return (r.company_industry || "").toLowerCase();
       case "score":
         return r.match_score ?? -1;
+      case "location":
+        return (r.city || r.location_str || "").toLowerCase();
     }
   }
 
@@ -75,6 +111,9 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
 
   const thClass =
     "text-left text-xs font-semibold text-[#96A0B5] uppercase tracking-wider px-4 py-3 cursor-pointer hover:text-[#0A2540] transition-colors select-none";
+
+  const lastColumnField = salesIntent ? "score" : "location";
+  const lastColumnLabel = salesIntent ? "Score" : "Location";
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden">
@@ -99,9 +138,9 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
               </th>
               <th
                 className={thClass}
-                onClick={() => handleSort("score")}
+                onClick={() => handleSort(lastColumnField)}
               >
-                Score <SortIcon field="score" />
+                {lastColumnLabel} <SortIcon field={lastColumnField} />
               </th>
               <th className="w-10" />
             </tr>
@@ -110,6 +149,16 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
             {sorted.map((r: any, i: number) => {
               const id = r.connection_id || String(i);
               const isExpanded = expandedId === id;
+              const workHistory = parseJsonField(r.work_history)
+                .map((e: any) => ({
+                  company: e.company || e.company_name || "",
+                  title: e.title || e.position || "",
+                  startYear: e.starts_at?.year?.toString() || e.start_year?.toString() || "",
+                  endYear: e.ends_at?.year?.toString() || e.end_year?.toString() || "present",
+                }))
+                .filter((e: any) => e.company)
+                .slice(0, 2);
+
               return (
                 <tr key={id} className="group">
                   <td colSpan={6} className="p-0">
@@ -130,11 +179,19 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
                         <span className="text-sm text-[#596780] truncate hidden sm:block">
                           {r.company_industry || "—"}
                         </span>
-                        {r.match_score != null && (
-                          <span
-                            className={`${getScoreColor(r.match_score)} text-white text-xs font-bold px-2 py-0.5 rounded-md w-fit`}
-                          >
-                            {r.match_score}
+                        {salesIntent ? (
+                          r.match_score != null ? (
+                            <span
+                              className={`${getScoreColor(r.match_score)} text-white text-xs font-bold px-2 py-0.5 rounded-md w-fit`}
+                            >
+                              {r.match_score}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-[#96A0B5]">—</span>
+                          )
+                        ) : (
+                          <span className="text-sm text-[#596780] truncate">
+                            {r.city || r.location_str || "—"}
                           </span>
                         )}
                         {r.linkedin_url && (
@@ -162,12 +219,7 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
                             )}
                             {r.total_experience_years != null && (
                               <span className="inline-flex items-center gap-1">
-                                <Briefcase className="w-3 h-3" /> {r.total_experience_years} years
-                              </span>
-                            )}
-                            {r.company_industry && (
-                              <span className="inline-flex items-center gap-1">
-                                <Factory className="w-3 h-3" /> {r.company_industry}
+                                <Briefcase className="w-3 h-3" /> {r.total_experience_years} years of experience
                               </span>
                             )}
                             {r.connected_on && (
@@ -177,17 +229,73 @@ export default function ConnectionTable({ results }: ConnectionTableProps) {
                               </span>
                             )}
                           </div>
-                          {r.match_reasons && (
-                            <div>
-                              <span className="font-semibold text-[#0A2540] text-xs">
-                                Match reasons:{" "}
-                              </span>
-                              {Array.isArray(r.match_reasons)
-                                ? r.match_reasons.join(" · ")
-                                : r.match_reasons}
+                          {/* Career — last 2 roles */}
+                          {workHistory.length > 0 && (
+                            <div className="text-xs text-[#596780]">
+                              {workHistory.map((entry, j) => (
+                                <p key={j}>
+                                  Previously: <span className="font-medium text-[#0A2540]">{entry.title}</span> at {entry.company}
+                                  {entry.startYear && ` (${entry.startYear}–${entry.endYear})`}
+                                </p>
+                              ))}
                             </div>
                           )}
-                          {r.suggested_approach && (
+                          {/* Company context */}
+                          {(r.company_industry || r.company_size_min != null || r.company_type || r.latest_funding_type) && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#596780]">
+                              {r.company_industry && (
+                                <span className="inline-flex items-center gap-1">
+                                  <Building2 className="w-3 h-3" /> {r.company_industry}
+                                </span>
+                              )}
+                              {r.company_size_min != null && r.company_size_max != null && (
+                                <span>{r.company_size_min.toLocaleString()}–{r.company_size_max.toLocaleString()} employees</span>
+                              )}
+                              {r.company_type && (
+                                <span>{r.company_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
+                              )}
+                              {r.latest_funding_type && (
+                                <span>
+                                  {r.latest_funding_type}
+                                  {r.latest_funding_amount ? ` · ${formatFunding(r.latest_funding_amount)}` : ""}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {/* LinkedIn link */}
+                          {r.linkedin_url && (
+                            <a
+                              href={r.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-[#0ABF53] hover:underline"
+                            >
+                              <ExternalLink className="w-3 h-3" /> LinkedIn Profile
+                            </a>
+                          )}
+                          {/* Sales-only: match reasons + approach */}
+                          {salesIntent && r.match_score != null && (
+                            <div className="pt-1 border-t border-[#E3E8EF] mt-2">
+                              <span
+                                className={`${getScoreColor(r.match_score)} text-white text-xs font-bold px-2 py-0.5 rounded-md inline-block mb-1`}
+                              >
+                                {r.match_score}/10
+                              </span>
+                            </div>
+                          )}
+                          {salesIntent && r.match_reasons && (() => {
+                            const reasons = parseMatchReasons(r.match_reasons);
+                            if (!reasons) return null;
+                            return (
+                              <div>
+                                <span className="font-semibold text-[#0A2540] text-xs">
+                                  Match reasons:{" "}
+                                </span>
+                                {reasons}
+                              </div>
+                            );
+                          })()}
+                          {salesIntent && r.suggested_approach && (
                             <div>
                               <span className="font-semibold text-[#0A2540] text-xs">
                                 Approach:{" "}

@@ -25,11 +25,13 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
     setSelectedPerson(null);
   }, [result]);
 
+  const salesIntent = result?.sales_intent || false;
+
   function renderStructuredDisplay() {
     // Profile display type — person lookup
     if (result.display_type === "profile" && result.results.length > 0) {
       if (result.results.length === 1) {
-        return <ProfileCards results={result.results} />;
+        return <ProfileCards results={result.results} salesIntent={salesIntent} />;
       } else if (selectedPerson) {
         return (
           <div>
@@ -40,7 +42,7 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
               <ArrowLeft className="w-3.5 h-3.5" />
               Back to all results
             </button>
-            <ProfileCards results={[selectedPerson]} />
+            <ProfileCards results={[selectedPerson]} salesIntent={salesIntent} />
           </div>
         );
       } else {
@@ -55,12 +57,12 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
 
     // Cards display type (1-5 filter results) → use rich ProfileCards
     if (result.display_type === "cards" && result.results.length > 0) {
-      return <ProfileCards results={result.results} />;
+      return <ProfileCards results={result.results} salesIntent={salesIntent} />;
     }
 
     // Table display type (6+ filter results)
     if (result.display_type === "table" && result.results.length > 0) {
-      return <ConnectionTable results={result.results} />;
+      return <ConnectionTable results={result.results} salesIntent={salesIntent} />;
     }
 
     // Chart display type (aggregation)

@@ -38,24 +38,15 @@ function getAvatarColor(first?: string, last?: string) {
   return AVATAR_COLORS[hashName(name) % AVATAR_COLORS.length];
 }
 
-function getScoreColor(score: number | null) {
-  if (!score) return "bg-[#96A0B5]";
-  if (score >= 9) return "bg-gradient-to-r from-[#0ABF53] to-[#34D399]";
-  if (score >= 7) return "bg-[#0ABF53]";
-  if (score >= 5) return "bg-[#FFBB38]";
-  return "bg-[#96A0B5]";
-}
-
-function getScoreLabel(score: number | null) {
-  if (!score) return "";
-  if (score >= 9) return "Exceptional";
-  if (score >= 7) return "Strong";
-  if (score >= 5) return "Moderate";
-  return "Low";
-}
-
 function initials(first?: string, last?: string) {
   return ((first?.[0] || "") + (last?.[0] || "")).toUpperCase() || "?";
+}
+
+function getScoreBadge(score: number): { classes: string; label: string } {
+  if (score >= 9) return { classes: "bg-[#E6F9EE] text-[#0ABF53] border border-[#0ABF53]/20", label: "Exceptional" };
+  if (score >= 7) return { classes: "bg-[#E6F9EE] text-[#0ABF53] border border-[#0ABF53]/20", label: "Strong" };
+  if (score >= 5) return { classes: "bg-[#FEF3E2] text-[#F59E0B] border border-[#F59E0B]/20", label: "Moderate" };
+  return { classes: "bg-[#F6F8FA] text-[#596780] border border-[#E3E8EF]", label: "Low" };
 }
 
 function formatDate(d: string | null) {
@@ -69,30 +60,27 @@ function formatDate(d: string | null) {
 function formatFunding(amount: number | null): string {
   if (!amount) return "";
   if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
-  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(0)}M`;
-  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  if (amount >= 1_000_000) return `$${Math.round(amount / 1_000_000)}M`;
+  if (amount >= 1_000) return `$${Math.round(amount / 1_000)}K`;
   return `$${amount}`;
 }
 
-function extractDomain(url: string | null): string {
-  if (!url) return "";
+function stripUrl(url: string): string {
+  return url.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+}
+
+function parseJsonField(field: any): any[] {
+  if (!field) return [];
   try {
-    return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace("www.", "");
+    const parsed = typeof field === "string" ? JSON.parse(field) : field;
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return url;
+    return [];
   }
 }
 
-/** Parse work_history JSONB into displayable career entries */
 function parseWorkHistory(wh: any): { company: string; title: string; startYear: string; endYear: string }[] {
-  if (!wh) return [];
-  let entries: any[] = [];
-  try {
-    const parsed = typeof wh === "string" ? JSON.parse(wh) : wh;
-    entries = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    entries = [];
-  }
+  const entries = parseJsonField(wh);
   return entries
     .map((e: any) => ({
       company: e.company || e.company_name || "",
@@ -104,25 +92,16 @@ function parseWorkHistory(wh: any): { company: string; title: string; startYear:
     .slice(0, 4);
 }
 
-/** Zip education arrays into displayable entries */
-function parseEducation(schools: any, degrees: any, fields: any): { school: string; degree: string }[] {
-  let schoolArr: string[] = [];
-  try {
-    const parsed = typeof schools === "string" ? JSON.parse(schools) : schools;
-    schoolArr = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    schoolArr = [];
-  }
+function parseEducation(schools: any, degrees: any): { school: string; degree: string }[] {
+  const schoolArr = parseJsonField(schools);
   if (schoolArr.length === 0) return [];
-  const degreeArr = Array.isArray(degrees) ? degrees : [];
-  const fieldArr = Array.isArray(fields) ? fields : [];
-  return schoolArr.slice(0, 2).map((school: string, i: number) => {
-    const parts = [degreeArr[i], fieldArr[i]].filter(Boolean);
-    return { school, degree: parts.join(" in ") };
-  });
+  const degreeArr = parseJsonField(degrees);
+  return schoolArr.slice(0, 2).map((school: string, i: number) => ({
+    school,
+    degree: degreeArr[i] || "",
+  }));
 }
 
-/** Parse match_reasons JSONB safely */
 function parseMatchReasons(mr: any): string {
   if (!mr) return "";
   try {
@@ -139,17 +118,18 @@ function parseMatchReasons(mr: any): string {
 
 interface ProfileCardsProps {
   results: any[];
+  salesIntent?: boolean;
 }
 
-export default function ProfileCards({ results }: ProfileCardsProps) {
+export default function ProfileCards({ results, salesIntent = false }: ProfileCardsProps) {
   return (
     <div className="space-y-4">
       {results.map((r: any, i: number) => {
         const workHistory = parseWorkHistory(r.work_history);
-        const education = parseEducation(r.education_schools, r.education_degrees, r.education_fields);
+        const education = parseEducation(r.education_schools, r.education_degrees);
         const hasCompanyData = r.company_name || r.company_industry || r.company_size_min != null || r.company_type || r.latest_funding_type || r.company_website;
-        const whArr = (() => { try { const p = typeof r.work_history === "string" ? JSON.parse(r.work_history) : r.work_history; return Array.isArray(p) ? p : []; } catch { return []; } })();
-        const remainingRoles = whArr.length > 4 ? whArr.length - 4 : 0;
+        const allWorkEntries = parseJsonField(r.work_history);
+        const remainingRoles = allWorkEntries.length > 4 ? allWorkEntries.length - 4 : 0;
 
         return (
           <div
@@ -163,11 +143,11 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
                   <img
                     src={r.profile_pic_url}
                     alt=""
-                    className="w-14 h-14 rounded-full object-cover shrink-0"
+                    className="w-[52px] h-[52px] rounded-full object-cover shrink-0"
                   />
                 ) : (
                   <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${getAvatarColor(r.first_name, r.last_name)}`}
+                    className={`w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${getAvatarColor(r.first_name, r.last_name)}`}
                   >
                     {initials(r.first_name, r.last_name)}
                   </div>
@@ -196,46 +176,44 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
                           ` at ${r.current_company || r.csv_company}`}
                       </p>
                     </div>
-                    {r.match_score != null && (
-                      <span
-                        className={`${getScoreColor(r.match_score)} text-white text-xs font-bold px-2.5 py-1 rounded-lg shrink-0`}
-                      >
-                        {r.match_score}/10 · {getScoreLabel(r.match_score)}
-                      </span>
-                    )}
+                    {salesIntent && r.match_score != null && (() => {
+                      const badge = getScoreBadge(r.match_score);
+                      return (
+                        <span className={`${badge.classes} text-xs font-bold px-2.5 py-1 rounded-lg shrink-0`}>
+                          {r.match_score}/10 · {badge.label}
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   {/* ── Meta Row ── */}
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[#596780]">
-                    {r.location_str && (
+                    {(r.city || r.location_str) && (
                       <span className="inline-flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" /> {r.location_str}
+                        <MapPin className="w-3.5 h-3.5" /> {r.city || r.location_str}
                       </span>
                     )}
-                    {(r.company_size_min != null || r.company_size_max != null) && (
+                    {r.total_experience_years != null && r.total_experience_years > 0 && (
+                      <span className="inline-flex items-center gap-1">
+                        <Briefcase className="w-3.5 h-3.5" /> {r.total_experience_years} yrs
+                      </span>
+                    )}
+                    {r.connected_on && (
+                      <span className="inline-flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" /> Connected {formatDate(r.connected_on)}
+                      </span>
+                    )}
+                    {r.company_industry && (
+                      <span className="inline-flex items-center gap-1">
+                        <Building2 className="w-3.5 h-3.5" /> {r.company_industry}
+                      </span>
+                    )}
+                    {r.company_size_min != null && (
                       <span className="inline-flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />{" "}
                         {r.company_size_min && r.company_size_max
                           ? `${r.company_size_min.toLocaleString()}–${r.company_size_max.toLocaleString()} employees`
                           : `${(r.company_size_max || r.company_size_min || 0).toLocaleString()}+ employees`}
-                      </span>
-                    )}
-                    {r.total_experience_years != null && (
-                      <span className="inline-flex items-center gap-1">
-                        <Briefcase className="w-3.5 h-3.5" />{" "}
-                        {r.total_experience_years} years
-                      </span>
-                    )}
-                    {r.connected_on && (
-                      <span className="inline-flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" /> Connected{" "}
-                        {formatDate(r.connected_on)}
-                      </span>
-                    )}
-                    {r.company_industry && (
-                      <span className="inline-flex items-center gap-1">
-                        <Factory className="w-3.5 h-3.5" />{" "}
-                        {r.company_industry}
                       </span>
                     )}
                   </div>
@@ -244,38 +222,42 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
 
               {/* ── Company Context Section ── */}
               {hasCompanyData && (
-                <div className="mt-4 bg-[#F6F8FA] rounded-lg p-4">
-                  <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
+                <div className="mt-5">
+                  <p className="text-[11px] font-medium text-[#96A0B5] uppercase tracking-wider mb-2">
                     Company
                   </p>
-                  <div className="space-y-1.5 text-sm text-[#596780]">
+                  <div className="bg-[#F6F8FA] rounded-lg p-4 space-y-1.5 text-sm text-[#596780]">
                     {r.company_name && (
-                      <p className="font-medium text-[#0A2540]">
-                        {r.company_name}
-                        {r.company_industry && (
-                          <span className="font-normal text-[#596780]">
-                            {" "}· {r.company_industry}
-                          </span>
+                      <p>
+                        <span className="font-medium text-[#0A2540]">{r.company_name}</span>
+                        {r.company_industry && <span> · {r.company_industry}</span>}
+                      </p>
+                    )}
+                    {(r.company_size_min != null || r.company_type) && (
+                      <p className="text-xs">
+                        {r.company_size_min != null && r.company_size_max != null && (
+                          <span>{r.company_size_min.toLocaleString()}–{r.company_size_max.toLocaleString()} employees</span>
+                        )}
+                        {r.company_size_min != null && r.company_size_max != null && r.company_type && " · "}
+                        {r.company_type && (
+                          <span>{r.company_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
                         )}
                       </p>
                     )}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                      {r.company_size_min != null && r.company_size_max != null && (
-                        <span>{r.company_size_min.toLocaleString()}–{r.company_size_max.toLocaleString()} employees</span>
-                      )}
-                      {r.company_type && (
-                        <span>{r.company_type.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase())}</span>
-                      )}
-                      {r.latest_funding_type && (
-                        <span>
-                          {r.latest_funding_type}
-                          {r.latest_funding_amount ? ` · ${formatFunding(r.latest_funding_amount)}` : ""}
-                        </span>
-                      )}
-                      {r.total_funding_amount && (
-                        <span>{formatFunding(r.total_funding_amount)} total raised</span>
-                      )}
-                    </div>
+                    {(r.latest_funding_type || r.total_funding_amount) && (
+                      <p className="text-xs">
+                        {r.latest_funding_type && (
+                          <span>
+                            {r.latest_funding_type}
+                            {r.latest_funding_amount ? ` · ${formatFunding(r.latest_funding_amount)}` : ""}
+                          </span>
+                        )}
+                        {r.latest_funding_type && r.total_funding_amount && " · "}
+                        {r.total_funding_amount && (
+                          <span>{formatFunding(r.total_funding_amount)} total raised</span>
+                        )}
+                      </p>
+                    )}
                     {r.company_website && (
                       <a
                         href={r.company_website.startsWith("http") ? r.company_website : `https://${r.company_website}`}
@@ -284,7 +266,7 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
                         className="inline-flex items-center gap-1 text-xs text-[#0ABF53] hover:underline"
                       >
                         <Globe className="w-3 h-3" />
-                        {extractDomain(r.company_website)}
+                        {stripUrl(r.company_website)}
                       </a>
                     )}
                   </div>
@@ -293,26 +275,26 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
 
               {/* ── Career Path Section ── */}
               {workHistory.length >= 2 && (
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
+                <div className="mt-5">
+                  <p className="text-[11px] font-medium text-[#96A0B5] uppercase tracking-wider mb-2">
                     Career Path
                   </p>
-                  <div className="flex flex-wrap items-center gap-1 text-sm text-[#596780]">
+                  <div className="space-y-1.5">
                     {workHistory.map((entry, j) => (
-                      <span key={j} className="inline-flex items-center gap-1">
+                      <div key={j} className="flex items-center gap-1.5 text-sm text-[#596780]">
                         {j > 0 && <ArrowRight className="w-3 h-3 text-[#96A0B5] shrink-0" />}
                         <span>
                           <span className="font-medium text-[#0A2540]">{entry.company}</span>
                           {entry.title && (
-                            <span className="text-[#596780]"> ({entry.title}, {entry.startYear}–{entry.endYear})</span>
+                            <span> — {entry.title}{entry.startYear && ` (${entry.startYear}–${entry.endYear})`}</span>
                           )}
                         </span>
-                      </span>
+                      </div>
                     ))}
                     {remainingRoles > 0 && (
-                      <span className="text-xs text-[#96A0B5] ml-1">
+                      <p className="text-xs text-[#96A0B5] ml-4">
                         and {remainingRoles} earlier {remainingRoles === 1 ? "role" : "roles"}
-                      </span>
+                      </p>
                     )}
                   </div>
                 </div>
@@ -320,8 +302,8 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
 
               {/* ── Education Section ── */}
               {education.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
+                <div className="mt-5">
+                  <p className="text-[11px] font-medium text-[#96A0B5] uppercase tracking-wider mb-2">
                     Education
                   </p>
                   <div className="space-y-1">
@@ -336,22 +318,24 @@ export default function ProfileCards({ results }: ProfileCardsProps) {
                 </div>
               )}
 
-              {/* ── Match Analysis Section ── */}
-              {r.match_score != null && r.match_reasons && (() => {
+              {/* ── Match Analysis Section — ONLY if salesIntent ── */}
+              {salesIntent && r.match_score != null && r.match_reasons && (() => {
                 const reasons = parseMatchReasons(r.match_reasons);
                 if (!reasons) return null;
                 return (
-                  <div className="mt-4 bg-[#F6F8FA] rounded-lg p-4">
-                    <p className="text-xs font-medium text-[#96A0B5] uppercase tracking-wide mb-2">
+                  <div className="mt-5">
+                    <p className="text-[11px] font-medium text-[#96A0B5] uppercase tracking-wider mb-2">
                       Why this match
                     </p>
-                    <p className="text-sm text-[#596780]">{reasons}</p>
+                    <div className="bg-[#F6F8FA] rounded-lg p-3">
+                      <p className="text-sm text-[#596780]">{reasons}</p>
+                    </div>
                   </div>
                 );
               })()}
 
-              {/* ── Suggested Approach Section ── */}
-              {r.suggested_approach && (
+              {/* ── Suggested Approach — ONLY if salesIntent ── */}
+              {salesIntent && r.suggested_approach && (
                 <p className="mt-3 text-sm text-[#596780] italic">
                   {r.suggested_approach}
                 </p>
