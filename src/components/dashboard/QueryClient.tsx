@@ -120,7 +120,7 @@ export default function QueryClient({ userId }: { userId: string }) {
 
       {/* Results or suggestions */}
       {!isLoading && result ? (
-        <QueryResult result={result} onFollowUp={handleQuestionSelect} />
+        <QueryResult result={result} question={question} onFollowUp={handleQuestionSelect} />
       ) : (
         !isLoading && !error && (
           <SuggestedQuestions onSelect={handleQuestionSelect} />

@@ -3,12 +3,12 @@
 import { Search } from "lucide-react";
 
 const SUGGESTIONS = [
-  "Who are my highest scored connections?",
-  "Show me VPs at fintech companies",
-  "How many decision-makers are in my network?",
-  "Who should I reach out to first?",
-  "Connections at recently funded companies",
-  "Founders in my network",
+  "Who are the C-suite executives in my network?",
+  "What does my network look like across industries?",
+  "Show me connections at companies that recently raised funding",
+  "Who are the investors and VCs in my network?",
+  "Which companies have the most decision-makers in my network?",
+  "Tell me about my strongest connections in the US",
 ];
 
 interface SuggestedQuestionsProps {

@@ -11,13 +11,15 @@ import DisambiguationCards from "./DisambiguationCards";
 import ConnectionTable from "./ConnectionTable";
 import AggregateChart from "./AggregateChart";
 import FollowUpSuggestions from "./FollowUpSuggestions";
+import ExportCSV from "./ExportCSV";
 
 interface QueryResultProps {
   result: QueryAPIResponse;
+  question: string;
   onFollowUp: (question: string) => void;
 }
 
-export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
+export default function QueryResult({ result, question, onFollowUp }: QueryResultProps) {
   const [selectedPerson, setSelectedPerson] = useState<any | null>(null);
 
   // Reset selected person whenever a new result comes in
@@ -141,6 +143,15 @@ export default function QueryResult({ result, onFollowUp }: QueryResultProps) {
         <FollowUpSuggestions
           suggestions={result.follow_up_suggestions}
           onSelect={onFollowUp}
+        />
+      )}
+
+      {/* CSV export */}
+      {result.results && result.results.length > 0 && (
+        <ExportCSV
+          question={question}
+          results={result.results}
+          textAnswer={result.text}
         />
       )}
     </div>
