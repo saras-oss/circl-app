@@ -332,20 +332,23 @@ export async function POST(request: Request) {
         );
 
         // Log to prompt_runs
-        await supabaseAdmin.from("prompt_runs").insert({
+        const { error: logError } = await supabaseAdmin.from("prompt_runs").insert({
           user_id: userId,
           prompt_type: "scoring",
           model: "claude-haiku-4-5-20251001",
           system_prompt: SCORING_SYSTEM_PROMPT.slice(0, 10000),
           user_prompt: scoringPrompt.slice(0, 10000),
           response: rawText,
-          structured_output: scoreResult,
+          structured_output: JSON.stringify(scoreResult),
           input_tokens: aiResponse.usage?.input_tokens || 0,
           output_tokens: aiResponse.usage?.output_tokens || 0,
           duration_ms: durationMs,
           batch_id: `score-${userId}-${Date.now()}`,
           rows_processed: 1,
         });
+        if (logError) {
+          console.error(`SCORE: prompt_runs insert failed for ${conn.first_name}:`, logError.message);
+        }
       } catch (err) {
         console.error(
           `SCORE: LLM call failed for ${conn.first_name}:`,
