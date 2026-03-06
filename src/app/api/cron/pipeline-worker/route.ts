@@ -744,8 +744,6 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
 
   const firstName = user.full_name?.split(' ')[0] || 'there';
   const dashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
-  // TODO: Change to user's email after Resend domain verification
-  const recipientEmail = process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai';
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -756,7 +754,7 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
       },
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-        to: recipientEmail,
+        to: [user.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
         subject: `[${user.full_name || user.email}] Hit list ready — ${hitsCount} matches found`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -818,10 +816,9 @@ async function sendProgressEmail(supabase: any, job: any) {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
-      // TODO: Change to user's email after Resend domain verification
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-        to: process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai',
+        to: [user.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
         subject: `[${user.full_name || user.email}] Halfway — ${job.enriched_persons_count || 0} profiles enriched`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">

@@ -195,8 +195,6 @@ export async function POST(request: Request) {
 
           if (emailUser?.email) {
             const firstName = emailUser.full_name?.split(' ')[0] || 'there';
-            // TODO: Change to user's email after Resend domain verification
-            const recipientEmail = process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai';
             try {
               await fetch('https://api.resend.com/emails', {
                 method: 'POST',
@@ -206,7 +204,7 @@ export async function POST(request: Request) {
                 },
                 body: JSON.stringify({
                   from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-                  to: recipientEmail,
+                  to: [emailUser.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
                   subject: `[${emailUser.full_name || emailUser.email}] Pipeline started — ${connectionCount} connections`,
                   html: `
                     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
@@ -265,7 +263,7 @@ export async function POST(request: Request) {
             },
             body: JSON.stringify({
               from: process.env.RESEND_FROM_EMAIL || 'Circl <hello@circl.incommon.co>',
-              to: process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai',
+              to: [userData.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
               subject: `[${userData.full_name || userData.email}] Pipeline started — ${connectionCount} connections (instant)`,
               html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:40px 20px"><h2 style="color:#0A2540">New pipeline started</h2><p style="color:#596780;font-size:15px">${userData.full_name || userData.email} (${userData.email}) uploaded <strong>${connectionCount}</strong> connections for ${userData.company_name || 'their company'}.</p><p style="color:#596780;font-size:15px">Mode: <strong>Instant</strong> (processing in browser)</p><p style="color:#96A0B5;font-size:13px;margin-top:32px">— Circl Admin</p></div>`,
             }),

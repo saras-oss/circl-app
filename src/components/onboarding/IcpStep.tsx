@@ -276,6 +276,7 @@ function FunctionThemeSelector({
   setIcp: React.Dispatch<React.SetStateAction<IcpState>>;
 }) {
   const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+  const [customTitleInput, setCustomTitleInput] = useState<Record<string, string>>({});
 
   function toggleFunction(themeId: string, themeTitles: string[]) {
     setIcp((prev) => {
@@ -439,6 +440,77 @@ function FunctionThemeSelector({
                         </button>
                       );
                     })}
+                    {/* Custom titles (not in any theme's built-in list) */}
+                    {icp.titles
+                      .filter((ct) => !FUNCTION_THEMES.some((f) => f.titles.includes(ct)))
+                      .map((title) => (
+                        <button
+                          key={`custom-${title}`}
+                          onClick={() =>
+                            setIcp((prev) => ({
+                              ...prev,
+                              titles: prev.titles.filter((t) => t !== title),
+                            }))
+                          }
+                          className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium bg-[#0ABF53] text-white transition-all duration-150"
+                        >
+                          {title}
+                          <X className="h-2.5 w-2.5" />
+                        </button>
+                      ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="text"
+                      placeholder="Add custom title..."
+                      value={customTitleInput[theme.id] || ""}
+                      onChange={(e) =>
+                        setCustomTitleInput((prev) => ({
+                          ...prev,
+                          [theme.id]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          customTitleInput[theme.id]?.trim()
+                        ) {
+                          e.preventDefault();
+                          const val = customTitleInput[theme.id].trim();
+                          if (!icp.titles.includes(val)) {
+                            setIcp((prev) => ({
+                              ...prev,
+                              titles: [...prev.titles, val],
+                            }));
+                          }
+                          setCustomTitleInput((prev) => ({
+                            ...prev,
+                            [theme.id]: "",
+                          }));
+                        }
+                      }}
+                      className="flex-1 rounded-lg border border-[#E3E8EF] px-3 py-1.5 text-xs text-[#0A2540] placeholder:text-[#96A0B5] focus:outline-none focus:border-[#0ABF53]/40"
+                      style={{ fontSize: "16px" }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = (customTitleInput[theme.id] || "").trim();
+                        if (val && !icp.titles.includes(val)) {
+                          setIcp((prev) => ({
+                            ...prev,
+                            titles: [...prev.titles, val],
+                          }));
+                        }
+                        setCustomTitleInput((prev) => ({
+                          ...prev,
+                          [theme.id]: "",
+                        }));
+                      }}
+                      className="rounded-lg bg-[#0ABF53] text-white px-3 py-1.5 text-xs font-medium hover:opacity-90 transition-opacity"
+                    >
+                      Add
+                    </button>
                   </div>
                 </div>
               )}
