@@ -3,11 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
 
-const CACHE_KEY = "circl-spotlight-v2";
+const CACHE_KEY = "circl-spotlight-v3";
 const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-
-const SPOTLIGHT_PROMPT =
-  "You are briefing me before my week starts. Be specific — name actual people, actual companies, actual numbers. No generic observations like \"your network is diverse\" or \"you have senior connections.\" I can see the charts. Tell me what I can't see. Structure as 3 short paragraphs:\n\n1. WHO MATTERS MOST: Name my 3-4 highest-value connections by name, their exact title, their company, and WHY they matter (company just raised funding, they're C-suite at an ICP-fit company, they're an investor who backs companies like mine, etc). Don't just list them — tell me what makes each one worth my attention this week.\n\n2. HIDDEN GEMS: Find something non-obvious. Someone who previously worked at a company I'm trying to sell to. An investor who backs companies in my space that I might not have noticed. A cluster of 3+ connections at one company. A senior person who recently changed roles (new role = new budget = new buying decisions). Surprise me with something I wouldn't have found scrolling through a list.\n\n3. ONE MOVE TO MAKE: Give me ONE specific outreach recommendation. Name the person, explain why NOW is the right time (they just joined a new company, their company just raised, they're in a buying role at an ICP-fit company), and give me a one-sentence angle for the message. Not \"consider reaching out\" — tell me exactly who and exactly why this week.\n\nKeep it under 200 words total. No section headers. No bullet points. No numbered lists. Write it like a sharp colleague giving me a 60-second verbal briefing over coffee. Bold the names of people and companies.";
 
 /** Parse markdown bold (**text**) into <strong> tags */
 function renderBold(text: string) {
@@ -66,10 +63,10 @@ export default function NetworkSpotlight() {
       setLoadingMsg(0);
       setError(false);
 
-      const res = await fetch("/api/query", {
+      const res = await fetch("/api/dashboard-spotlight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: SPOTLIGHT_PROMPT }),
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {
