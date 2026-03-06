@@ -105,6 +105,14 @@ export async function GET() {
     return NextResponse.json({ status: 'idle', message: 'No active jobs' });
   }
 
+  // 3b. Concurrent tick protection — if another tick is still running, skip
+  const lastTick = job.last_tick_at ? new Date(job.last_tick_at).getTime() : 0;
+  const now = Date.now();
+  if (now - lastTick < 30_000) {
+    console.log(`CRON: Job ${job.id} is being processed by another tick (last tick ${Math.round((now - lastTick) / 1000)}s ago). Skipping.`);
+    return NextResponse.json({ status: 'skipped', reason: 'concurrent_tick' });
+  }
+
   // 4. Auto-pause on repeated failures
   if (job.consecutive_failures >= 5) {
     await supabase.from('pipeline_jobs').update({
@@ -313,15 +321,19 @@ async function processEnrichBatch(supabase: any, job: any) {
   const loopStart = Date.now();
   let totalProcessedThisTick = 0;
   let progressEmailSent = job.email_sent_progress;
-  let zeroProcessedCount = 0;
+
+  // DB-based stuck detection: track whether enriched+failed count changes
+  let lastProgressTotal = 0;
+  let stuckCheckCount = 0;
 
   while (Date.now() - loopStart < MAX_LOOP_MS) {
-    // Check pending enrichments
+    // Check pending enrichments (tier1/tier2 only — tier3/tier4 are 'skipped')
     const { count: pendingCount } = await supabase
       .from('user_connections')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', job.user_id)
-      .eq('enrichment_status', 'pending');
+      .eq('enrichment_status', 'pending')
+      .in('enrichment_tier', ['tier1', 'tier2']);
 
     if ((pendingCount || 0) === 0) {
       // All enrichment done — move to scoring
@@ -345,16 +357,49 @@ async function processEnrichBatch(supabase: any, job: any) {
       return;
     }
 
-    // EDGE CASE: If enrich keeps returning 0 processed but pending > 0,
-    // something is wrong. After 15 zero-result calls, mark remaining as failed and advance.
-    if (zeroProcessedCount >= 15) {
-      console.error(`CRON: Enrichment stuck — ${pendingCount} pending but 15 consecutive zero-result calls. Marking remaining as failed.`);
+    // Call enrich endpoint
+    const { data: result } = await callEndpoint('/api/pipeline/enrich', {
+      userId: job.user_id,
+    });
+
+    totalProcessedThisTick += result?.processed || 0;
+
+    // COUNTER UPDATE INSIDE LOOP
+    const { count: enrichedSoFar } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .in('enrichment_status', ['enriched', 'cached']);
+
+    const { count: failedSoFar } = await supabase
+      .from('user_connections')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', job.user_id)
+      .eq('enrichment_status', 'failed');
+
+    await updateJob(supabase, job.id, {
+      enriched_persons_count: enrichedSoFar || 0,
+    });
+
+    // DB-BASED STUCK DETECTION: has anything changed?
+    const currentProgressTotal = (enrichedSoFar || 0) + (failedSoFar || 0);
+    if (currentProgressTotal === lastProgressTotal) {
+      stuckCheckCount++;
+    } else {
+      stuckCheckCount = 0;
+      lastProgressTotal = currentProgressTotal;
+    }
+
+    // Genuinely stuck if NOTHING changed in DB for 20 consecutive calls
+    if (stuckCheckCount >= 20) {
+      console.error(`CRON: Enrichment genuinely stuck. ${pendingCount} pending, no DB changes for 20 calls. Marking remaining as failed.`);
 
       await supabase
         .from('user_connections')
-        .update({ enrichment_status: 'failed', enrichment_error: 'Stuck in enrichment loop' })
+        .update({ enrichment_status: 'failed', enrichment_error: 'Stuck after 20 attempts with no progress' })
         .eq('user_id', job.user_id)
-        .eq('enrichment_status', 'pending');
+        .eq('enrichment_status', 'pending')
+        .in('enrichment_tier', ['tier1', 'tier2']);
 
       const { count: enrichedCount } = await supabase
         .from('user_connections')
@@ -375,30 +420,6 @@ async function processEnrichBatch(supabase: any, job: any) {
       return;
     }
 
-    // Call enrich endpoint
-    const { data: result } = await callEndpoint('/api/pipeline/enrich', {
-      userId: job.user_id,
-    });
-
-    const processed = result?.processed || 0;
-    totalProcessedThisTick += processed;
-    if (processed === 0) {
-      zeroProcessedCount++;
-    } else {
-      zeroProcessedCount = 0;
-    }
-
-    // COUNTER UPDATE INSIDE LOOP
-    const { count: enrichedSoFar } = await supabase
-      .from('user_connections')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', job.user_id)
-      .in('enrichment_status', ['enriched', 'cached']);
-
-    await updateJob(supabase, job.id, {
-      enriched_persons_count: enrichedSoFar || 0,
-    });
-
     // Send progress email at ~33% enrichment
     const totalConnections = job.total_connections || 1;
     if (!progressEmailSent && (enrichedSoFar || 0) > totalConnections / 3) {
@@ -418,7 +439,10 @@ async function processEnrichBatch(supabase: any, job: any) {
 async function processScoreBatch(supabase: any, job: any) {
   const loopStart = Date.now();
   let totalProcessedThisTick = 0;
-  let zeroProcessedCount = 0;
+
+  // DB-based stuck detection
+  let lastScoredTotal = 0;
+  let stuckCheckCount = 0;
 
   // Verify ICP exists before scoring
   const { data: userData } = await supabase
@@ -475,26 +499,11 @@ async function processScoreBatch(supabase: any, job: any) {
       }).eq('id', job.user_id);
 
       // Send completion email
-      console.log(`CRON: Job ${job.id} COMPLETED. Hits: ${hitsCount}, Scored: ${scoredTotal}. Sending email. RESEND_API_KEY: ${!!process.env.RESEND_API_KEY}`);
+      console.log(`CRON: Job ${job.id} COMPLETED. Hits: ${hitsCount}, Scored: ${scoredTotal}. Sending email.`);
       await sendCompletionEmail(supabase, job, hitsCount || 0, scoredTotal || 0);
 
       console.log(`CRON: Job ${job.id} done. Processed ${totalProcessedThisTick} this tick.`);
       return;
-    }
-
-    // Edge case: scoring stuck
-    if (zeroProcessedCount >= 15) {
-      console.error(`CRON: Scoring stuck — ${unscoredCount} unscored but 15 zero-result calls. Marking as -1.`);
-
-      await supabase
-        .from('user_connections')
-        .update({ match_score: -1, scored_at: new Date().toISOString() })
-        .eq('user_id', job.user_id)
-        .in('enrichment_status', ['enriched', 'cached'])
-        .is('match_score', null);
-
-      zeroProcessedCount = 0;
-      continue;
     }
 
     // Call score endpoint
@@ -502,13 +511,7 @@ async function processScoreBatch(supabase: any, job: any) {
       userId: job.user_id,
     });
 
-    const processed = result?.scored || 0;
-    totalProcessedThisTick += processed;
-    if (processed === 0) {
-      zeroProcessedCount++;
-    } else {
-      zeroProcessedCount = 0;
-    }
+    totalProcessedThisTick += result?.scored || 0;
 
     // COUNTER UPDATE INSIDE LOOP
     const { count: scoredCount } = await supabase
@@ -527,6 +530,31 @@ async function processScoreBatch(supabase: any, job: any) {
       scored_count: scoredCount || 0,
       hits_count: hitsCount || 0,
     });
+
+    // DB-BASED STUCK DETECTION
+    const currentScoredTotal = scoredCount || 0;
+    if (currentScoredTotal === lastScoredTotal) {
+      stuckCheckCount++;
+    } else {
+      stuckCheckCount = 0;
+      lastScoredTotal = currentScoredTotal;
+    }
+
+    // Genuinely stuck if scored count hasn't changed for 20 consecutive calls
+    if (stuckCheckCount >= 20) {
+      console.error(`CRON: Scoring genuinely stuck. ${unscoredCount} unscored, no DB changes for 20 calls. Marking as -1.`);
+
+      await supabase
+        .from('user_connections')
+        .update({ match_score: -1, scored_at: new Date().toISOString() })
+        .eq('user_id', job.user_id)
+        .in('enrichment_status', ['enriched', 'cached'])
+        .is('match_score', null);
+
+      stuckCheckCount = 0;
+      lastScoredTotal = 0;
+      continue; // Loop will re-check unscoredCount and find 0, then complete
+    }
   }
 
   console.log(`CRON: Scoring tick timeout. Processed ${totalProcessedThisTick}. Continuing next tick.`);
@@ -701,7 +729,6 @@ async function updateETA(supabase: any, job: any) {
 // ---------------------------------------------------------------------------
 
 async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, scoredCount: number) {
-  console.log(`CRON: sendCompletionEmail called. RESEND_API_KEY: ${!!process.env.RESEND_API_KEY}, job_id: ${job.id}, user_id: ${job.user_id}`);
   if (!process.env.RESEND_API_KEY) {
     console.log(`CRON: No RESEND_API_KEY — skipping completion email`);
     return;
@@ -713,11 +740,12 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
     .eq('id', job.user_id)
     .single();
 
-  console.log(`CRON: User for email: ${user?.email || 'NOT FOUND'}, name: ${user?.full_name || 'N/A'}`);
   if (!user?.email) return;
 
   const firstName = user.full_name?.split(' ')[0] || 'there';
   const dashboardUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
+  // TODO: Change to user's email after Resend domain verification
+  const recipientEmail = process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai';
 
   try {
     const response = await fetch('https://api.resend.com/emails', {
@@ -728,8 +756,8 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
       },
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-        to: user.email,
-        subject: `Your hit list is ready — ${hitsCount} matches found`,
+        to: recipientEmail,
+        subject: `[${user.full_name || user.email}] Hit list ready — ${hitsCount} matches found`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
             <h2 style="color: #0A2540; margin-bottom: 8px;">Your hit list is ready!</h2>
@@ -790,10 +818,11 @@ async function sendProgressEmail(supabase: any, job: any) {
         'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
         'Content-Type': 'application/json',
       },
+      // TODO: Change to user's email after Resend domain verification
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-        to: user.email,
-        subject: `Halfway there — ${job.enriched_persons_count || 0} profiles enriched`,
+        to: process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai',
+        subject: `[${user.full_name || user.email}] Halfway — ${job.enriched_persons_count || 0} profiles enriched`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
             <h2 style="color: #0A2540;">Quick update</h2>

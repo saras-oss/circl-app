@@ -195,6 +195,8 @@ export async function POST(request: Request) {
 
           if (emailUser?.email) {
             const firstName = emailUser.full_name?.split(' ')[0] || 'there';
+            // TODO: Change to user's email after Resend domain verification
+            const recipientEmail = process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai';
             try {
               await fetch('https://api.resend.com/emails', {
                 method: 'POST',
@@ -204,8 +206,8 @@ export async function POST(request: Request) {
                 },
                 body: JSON.stringify({
                   from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-                  to: emailUser.email,
-                  subject: `We're analyzing your ${connectionCount} connections`,
+                  to: recipientEmail,
+                  subject: `[${emailUser.full_name || emailUser.email}] Pipeline started — ${connectionCount} connections`,
                   html: `
                     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
                       <h2 style="color: #0A2540; margin-bottom: 8px;">We're on it!</h2>

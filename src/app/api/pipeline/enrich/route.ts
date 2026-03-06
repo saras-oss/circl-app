@@ -354,50 +354,6 @@ async function enrichCompany(
 }
 
 // ---------------------------------------------------------------------------
-// Free-tier connection selection
-// ---------------------------------------------------------------------------
-
-async function selectFreeTierConnections(userId: string): Promise<void> {
-  const { count: existingSelections } = await supabaseAdmin
-    .from("user_connections")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("is_free_tier_selection", true);
-
-  if (existingSelections && existingSelections > 0) return;
-
-  const { data: tier1 } = await supabaseAdmin
-    .from("user_connections")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("enrichment_tier", "tier1")
-    .order("connected_on", { ascending: true })
-    .limit(100);
-
-  const selectedIds: string[] = (tier1 || []).map((c) => c.id);
-
-  if (selectedIds.length < 100) {
-    const remaining = 100 - selectedIds.length;
-    const { data: tier2 } = await supabaseAdmin
-      .from("user_connections")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("enrichment_tier", "tier2")
-      .order("connected_on", { ascending: true })
-      .limit(remaining);
-
-    if (tier2) selectedIds.push(...tier2.map((c) => c.id));
-  }
-
-  if (selectedIds.length > 0) {
-    await supabaseAdmin
-      .from("user_connections")
-      .update({ is_free_tier_selection: true })
-      .in("id", selectedIds);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // POST handler
 // ---------------------------------------------------------------------------
 
@@ -406,8 +362,6 @@ export async function POST(request: Request) {
     // Read body first (can only be read once)
     const body = await request.json();
     const { userId, batchSize } = body;
-
-    console.log('ENRICH ENTRY:', { userId, method: request.method });
 
     // Auth: session-based (browser orchestrator) OR cron-secret (background worker)
     const supabase = await createClient();
@@ -421,83 +375,26 @@ export async function POST(request: Request) {
 
     if (user?.id) {
       if (userId !== user.id) {
-        console.log('ENRICH EARLY RETURN:', { reason: 'userId mismatch with session user', userId, sessionUserId: user.id });
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
     } else if (!isCronCall || !userId) {
-      console.log('ENRICH EARLY RETURN:', { reason: 'not authenticated and not valid cron call', isCronCall, userId });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const effectiveBatchSize = batchSize || DEFAULT_BATCH_SIZE;
 
-    // Get user's subscription tier
-    const { data: userData } = await supabaseAdmin
-      .from("users")
-      .select("subscription_tier")
-      .eq("id", userId)
-      .single();
-
-    const subscriptionTier = userData?.subscription_tier || "free";
-
-    // For free tier, select top 100 if not already done (skip for cron)
-    if (!isCronCall && subscriptionTier === "free") {
-      await selectFreeTierConnections(userId);
-    }
-
-    // DEBUG: Raw count of pending connections for this user
-    const { count: rawPendingCount } = await supabaseAdmin
-      .from('user_connections')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('enrichment_status', 'pending');
-
-    console.log('ENRICH DEBUG:', {
-      userId,
-      rawPendingCount,
-      isCronCall,
-      subscriptionTier,
-      cronSecretHeader: request.headers.get('x-cron-secret')?.slice(0, 10),
-      envCronSecret: process.env.CRON_SECRET?.slice(0, 10),
-    });
-
-    // Build query for next batch of connections to enrich
-    let query = supabaseAdmin
+    // V1: ONE query path for everyone — no subscription/payment gates.
+    // Only enrich tier1/tier2 (seniors). tier3/tier4 are already marked 'skipped' by classification.
+    const { data: connections, error: fetchError } = await supabaseAdmin
       .from("user_connections")
-      .select(
-        "id, first_name, last_name, company, position, linkedin_url, enrichment_tier"
-      )
+      .select("*")
       .eq("user_id", userId)
       .eq("enrichment_status", "pending")
-      .order("id", { ascending: true })
+      .in("enrichment_tier", ["tier1", "tier2"])
+      .order("created_at", { ascending: true })
       .limit(effectiveBatchSize);
 
-    if (!isCronCall) {
-      // Only apply subscription/free-tier filters for browser calls
-      if (subscriptionTier === "free") {
-        query = query.eq("is_free_tier_selection", true);
-      } else {
-        // Instant mode — only enrich tier1/tier2
-        query = query.in("enrichment_tier", ["tier1", "tier2"]);
-      }
-    }
-    // Cron calls: no filter — process ALL pending connections.
-    // Recent-half tier3/tier4 are already marked 'skipped' by classification,
-    // so they won't appear in this pending query.
-
-    const { data: connections, error: fetchError } = await query;
-
-    console.log('ENRICH QUERY RESULT:', {
-      connectionsFound: connections?.length || 0,
-      firstConnection: connections?.[0] ? {
-        id: connections[0].id,
-        status: (connections[0] as any).enrichment_status,
-        tier: connections[0].enrichment_tier,
-      } : null,
-    });
-
     if (fetchError) {
-      console.log('ENRICH EARLY RETURN:', { reason: 'fetchError from query', error: fetchError.message });
       return NextResponse.json(
         { error: fetchError.message },
         { status: 500 }
@@ -505,9 +402,6 @@ export async function POST(request: Request) {
     }
 
     if (!connections || connections.length === 0) {
-      // DO NOT set processing_status here — scoring still needs to run.
-      // Only /api/pipeline/complete should set processing_status = "completed".
-      console.log('ENRICH EARLY RETURN:', { reason: 'no connections found', rawPendingCount, subscriptionTier, isCronCall, effectiveBatchSize });
       return NextResponse.json({
         processed: 0,
         remaining: 0,
@@ -614,40 +508,21 @@ export async function POST(request: Request) {
       }
     }
 
-    // Count remaining
-    let remainingQuery = supabaseAdmin
+    // Count remaining (tier1/tier2 still pending)
+    const { count: remaining } = await supabaseAdmin
       .from("user_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .eq("enrichment_status", "pending");
+      .eq("enrichment_status", "pending")
+      .in("enrichment_tier", ["tier1", "tier2"]);
 
-    if (!isCronCall) {
-      if (subscriptionTier === "free") {
-        remainingQuery = remainingQuery.eq("is_free_tier_selection", true);
-      } else {
-        remainingQuery = remainingQuery.in("enrichment_tier", ["tier1", "tier2"]);
-      }
-    }
-
-    const { count: remaining } = await remainingQuery;
-
-    // Update processing progress
-    let totalEligibleQuery = supabaseAdmin
+    // Total eligible = all tier1/tier2 (any enrichment status)
+    const { count: totalEligible } = await supabaseAdmin
       .from("user_connections")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
+      .in("enrichment_tier", ["tier1", "tier2"])
       .in("enrichment_status", ["enriched", "cached", "pending", "failed"]);
-
-    if (!isCronCall) {
-      totalEligibleQuery = totalEligibleQuery.in(
-        "enrichment_tier",
-        subscriptionTier === "free"
-          ? ["tier1", "tier2", "tier3", "tier4"]
-          : ["tier1", "tier2"]
-      );
-    }
-
-    const { count: totalEligible } = await totalEligibleQuery;
 
     const enrichedSoFar = (totalEligible || 0) - (remaining || 0);
     const progress =

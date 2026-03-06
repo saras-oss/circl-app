@@ -162,12 +162,13 @@ function MiniProgress({
 const JOB_STATUS_BADGES: Record<string, { bg: string; text: string; label: string }> = {
   queued: { bg: "bg-[#F0F3F7]", text: "text-[#596780]", label: "Queued" },
   classifying: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Classifying" },
+  enriching: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Enriching" },
   enriching_persons: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Enriching" },
   enriching_companies: { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", label: "Companies" },
   scoring: { bg: "bg-[#F3E8FF]", text: "text-[#7C3AED]", label: "Scoring" },
-  completed: { bg: "bg-[#E6F9EE]", text: "text-[#089E45]", label: "Completed ✅" },
-  failed: { bg: "bg-[#FDE8EC]", text: "text-[#ED5F74]", label: "Failed ❌" },
-  paused: { bg: "bg-[#FFF8E6]", text: "text-[#B8860B]", label: "Paused ⏸" },
+  completed: { bg: "bg-[#E6F9EE]", text: "text-[#089E45]", label: "Completed" },
+  failed: { bg: "bg-[#FDE8EC]", text: "text-[#ED5F74]", label: "Failed" },
+  paused: { bg: "bg-[#FFF8E6]", text: "text-[#B8860B]", label: "Paused" },
   cancelled: { bg: "bg-[#F0F3F7]", text: "text-[#96A0B5]", label: "Cancelled" },
 };
 
@@ -193,21 +194,25 @@ function JobCard({
 }) {
   const userName = job.users?.full_name?.split(" ")[0] || job.users?.email?.split("@")[0] || "Unknown";
   const companyName = job.users?.company_name || "";
-  const isActive = ["queued", "classifying", "enriching_persons", "enriching_companies", "scoring"].includes(job.status);
+  const isActive = ["queued", "classifying", "enriching", "enriching_persons", "enriching_companies", "scoring"].includes(job.status);
   const isPaused = job.status === "paused";
   const isCompleted = job.status === "completed";
   const isCancelled = job.status === "cancelled";
   const hasFailed = (job.failed_items_count || 0) > 0;
   const hasErrors = job.error_log && job.error_log.length > 0;
 
-  // Overall progress percentage
-  const totalSteps = job.total_connections * 4; // classify + enrich person + enrich company + score
-  const doneSteps =
-    (job.classified_count || 0) +
-    (job.enriched_persons_count || 0) +
-    (job.enriched_companies_count || 0) +
-    (job.scored_count || 0);
-  const overallPct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
+  // Correct denominators: classify=all, enrich=classified-skipped (tier1/2), score=enriched
+  const enrichEligible = Math.max((job.classified_count || 0) - (job.skipped_count || 0), job.enriched_persons_count || 0, 1);
+  const scoreEligible = Math.max(job.enriched_persons_count || 0, 1);
+
+  // Overall progress percentage (weighted: classify 1x, enrich 3x, score 2x)
+  const classifyWeight = 1, enrichWeight = 3, scoreWeight = 2;
+  const totalWeight = (job.total_connections || 1) * (classifyWeight + enrichWeight + scoreWeight);
+  const doneWeight =
+    (job.classified_count || 0) * classifyWeight +
+    (job.enriched_persons_count || 0) * enrichWeight +
+    (job.scored_count || 0) * scoreWeight;
+  const overallPct = totalWeight > 0 ? Math.min(100, Math.round((doneWeight / totalWeight) * 100)) : 0;
 
   // Duration
   const startTime = job.started_at || job.created_at;
@@ -286,14 +291,14 @@ function JobCard({
       {/* Progress bars */}
       <div className="space-y-2">
         <MiniProgress label="Classified:" current={job.classified_count || 0} total={job.total_connections || 0} />
-        <MiniProgress label="Enriched:" current={job.enriched_persons_count || 0} total={Math.max((job.classified_count || 0) - (job.skipped_count || 0), job.enriched_persons_count || 0, 1)} />
+        <MiniProgress label="Enriched:" current={job.enriched_persons_count || 0} total={enrichEligible} />
         <div className="flex items-center gap-2 text-[12px]">
           <span className="text-[#596780] w-[80px] shrink-0">Companies:</span>
           <span className="text-[#596780] tabular-nums">
             {(job.enriched_companies_count || 0).toLocaleString()} enriched
           </span>
         </div>
-        <MiniProgress label="Scored:" current={job.scored_count || 0} total={Math.max(job.enriched_persons_count || 0, 1)} />
+        <MiniProgress label="Scored:" current={job.scored_count || 0} total={scoreEligible} />
       </div>
 
       {/* Stats */}
@@ -451,6 +456,10 @@ function PipelineJobsSection() {
   }, [fetchJobs]);
 
   async function handleAction(jobId: string, action: string) {
+    // Confirmation for destructive actions
+    if (action === "cancel" && !window.confirm("Are you sure you want to cancel this pipeline job? This cannot be undone.")) return;
+    if (action === "restart" && !window.confirm("Are you sure you want to restart this pipeline job? All progress will be reset.")) return;
+
     setActionLoading(jobId);
     try {
       const res = await fetch("/api/admin/pipeline-jobs", {
