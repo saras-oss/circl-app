@@ -19,6 +19,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import NetworkSpotlight from "./NetworkSpotlight";
 import {
   PieChart,
   Pie,
@@ -61,29 +62,6 @@ interface NetworkConnection {
   country_full_name: string | null;
 }
 
-interface CompanyPath {
-  name: string;
-  industry: string | null;
-  sizeMin: number | null;
-  sizeMax: number | null;
-  fundingType: string | null;
-  totalFunding: number | null;
-  hqCity: string | null;
-  hqCountry: string | null;
-  totalConnections: number;
-  cSuite: number;
-  vpDirector: number;
-  managers: number;
-  ic: number;
-  topContact: {
-    name: string;
-    title: string | null;
-    score: number | null;
-  };
-  compositeScore: number;
-  hasIcpFit: boolean;
-}
-
 interface FundingSignal {
   company: string;
   fundingType: string;
@@ -113,26 +91,10 @@ function formatFunding(amount: number): string {
   return `$${amount}`;
 }
 
-function formatCompanySize(min: number | null, max: number | null): string {
-  if (!min && !max) return "";
-  if (min && max) return `${min.toLocaleString()}-${max.toLocaleString()} employees`;
-  if (min) return `${min.toLocaleString()}+ employees`;
-  return "";
-}
-
 function formatPeriod(period: string): string {
   const [year, month] = period.split("-");
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[parseInt(month) - 1]} ${year.slice(2)}`;
-}
-
-function getSeniorityCategory(tier: string | null): "csuite" | "vp" | "manager" | "ic" {
-  if (!tier) return "ic";
-  const t = tier.toLowerCase();
-  if (t.includes("c-suite") || t.includes("csuite") || t.includes("founder") || t.includes("owner")) return "csuite";
-  if (t.includes("vp") || t.includes("director") || t.includes("vice president")) return "vp";
-  if (t.includes("manager") || t.includes("lead") || t.includes("head")) return "manager";
-  return "ic";
 }
 
 // --- Skeleton components ---
@@ -228,77 +190,6 @@ export default function DashboardClient({
     const funded = connections.filter((c) => c.latest_funding_type && c.company_name);
     const companies = new Set(funded.map((c) => c.company_name!));
     return { total: companies.size };
-  }, [connections]);
-
-  const companyPaths = useMemo((): CompanyPath[] => {
-    const grouped = new Map<string, NetworkConnection[]>();
-    for (const c of connections) {
-      if (!c.company_name) continue;
-      const existing = grouped.get(c.company_name) || [];
-      existing.push(c);
-      grouped.set(c.company_name, existing);
-    }
-
-    const paths: CompanyPath[] = [];
-    for (const [name, conns] of grouped) {
-      let cSuite = 0, vp = 0, managers = 0, ic = 0;
-      let hasIcpFit = false;
-      let topContact = { name: "", title: null as string | null, score: null as number | null };
-
-      for (const c of conns) {
-        const cat = getSeniorityCategory(c.seniority_tier);
-        if (cat === "csuite") cSuite++;
-        else if (cat === "vp") vp++;
-        else if (cat === "manager") managers++;
-        else ic++;
-
-        if ((c.match_score ?? 0) >= 7) hasIcpFit = true;
-        if ((c.match_score ?? 0) > (topContact.score ?? 0)) {
-          topContact = {
-            name: [c.first_name, c.last_name].filter(Boolean).join(" "),
-            title: c.current_title,
-            score: c.match_score,
-          };
-        }
-      }
-
-      // If no one had a score, pick the first person with a title
-      if (!topContact.name && conns.length > 0) {
-        const first = conns[0];
-        topContact = {
-          name: [first.first_name, first.last_name].filter(Boolean).join(" "),
-          title: first.current_title,
-          score: first.match_score,
-        };
-      }
-
-      const sample = conns[0];
-      const compositeScore =
-        cSuite * 10 + vp * 5 + managers * 2 + ic * 1 +
-        (hasIcpFit ? 20 : 0) +
-        (sample.latest_funding_type ? 5 : 0);
-
-      paths.push({
-        name,
-        industry: sample.company_industry,
-        sizeMin: sample.company_size_min,
-        sizeMax: sample.company_size_max,
-        fundingType: sample.latest_funding_type,
-        totalFunding: sample.total_funding_amount,
-        hqCity: sample.hq_city,
-        hqCountry: sample.hq_country,
-        totalConnections: conns.length,
-        cSuite,
-        vpDirector: vp,
-        managers,
-        ic,
-        topContact,
-        compositeScore,
-        hasIcpFit,
-      });
-    }
-
-    return paths.sort((a, b) => b.compositeScore - a.compositeScore).slice(0, 5);
   }, [connections]);
 
   const fundingSignals = useMemo((): FundingSignal[] => {
@@ -420,7 +311,7 @@ export default function DashboardClient({
                     type.toLowerCase() === "advisor" ? "advisors" : type;
       parts.push(`${count} ${label}`);
     }
-    return parts.join(" \u00B7 ");
+    return parts.join(" · ");
   }, [hitListMatches]);
 
   // --- Geo total for percentages ---
@@ -498,63 +389,8 @@ export default function DashboardClient({
             </div>
           </div>
 
-          {/* Your Strongest Company Paths */}
-          {companyPaths.length > 0 && (
-            <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-5">
-              <h3 className="text-sm font-semibold text-[#0A2540] mb-4 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.5} />
-                Your Strongest Company Paths
-              </h3>
-              <div className="space-y-3">
-                {companyPaths.map((company) => (
-                  <div key={company.name} className="border border-[#F0F3F7] rounded-xl p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-base font-semibold text-[#0A2540]">{company.name}</p>
-                        <p className="text-xs text-[#596780] mt-0.5">
-                          {[
-                            company.industry,
-                            formatCompanySize(company.sizeMin, company.sizeMax),
-                            [company.hqCity, company.hqCountry].filter(Boolean).join(", "),
-                            company.totalFunding ? formatFunding(company.totalFunding) + " raised" : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" \u00B7 ")}
-                        </p>
-                      </div>
-                      {company.hasIcpFit && (
-                        <span className="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#E6F9EE] text-[#089E45]">ICP FIT</span>
-                      )}
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#596780]">
-                      <span className="font-medium">{company.totalConnections} connections</span>
-                      <span className="text-xs">
-                        {[
-                          company.cSuite > 0 ? `${company.cSuite} C-suite` : null,
-                          company.vpDirector > 0 ? `${company.vpDirector} VP/Director` : null,
-                          company.managers > 0 ? `${company.managers} Manager` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" \u00B7 ")}
-                      </span>
-                    </div>
-                    {company.topContact.name && (
-                      <div className="mt-2 text-sm">
-                        <span className="text-[#596780]">Top contact: </span>
-                        <span className="font-medium text-[#0A2540]">{company.topContact.name}</span>
-                        {company.topContact.title && (
-                          <span className="text-[#596780]"> \u00B7 {company.topContact.title}</span>
-                        )}
-                        {company.topContact.score && (
-                          <span className="text-[#0ABF53] font-semibold"> \u00B7 Score: {company.topContact.score}</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Network Spotlight — AI-powered summary */}
+          <NetworkSpotlight />
 
           {/* Funding Signals */}
           {fundingSignals.length > 0 && (
@@ -575,9 +411,9 @@ export default function DashboardClient({
                         <span className="text-sm font-semibold text-[#0A2540]">{signal.company}</span>
                         <span className="text-xs text-[#596780]">
                           {signal.fundingType}
-                          {signal.fundingAmount ? ` \u00B7 ${formatFunding(signal.fundingAmount)}` : ""}
+                          {signal.fundingAmount ? ` · ${formatFunding(signal.fundingAmount)}` : ""}
                           {signal.fundingDate &&
-                            ` \u00B7 ${new Date(signal.fundingDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
+                            ` · ${new Date(signal.fundingDate).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
                         </span>
                       </div>
                       <p className="text-xs text-[#96A0B5] mt-0.5">
