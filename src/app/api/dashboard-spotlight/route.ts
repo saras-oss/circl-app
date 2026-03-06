@@ -49,13 +49,8 @@ function computeFoundersAtFundedCompanies(connections: any[]): ThemeResult {
     score: founders.length >= 3 ? founders.length * 3 : founders.length,
     data: details,
     promptContext: `THEME: Founders & CEOs at Funded Companies
-
-You found ${founders.length} founders/CEOs in this network who are at companies that have raised funding. These are decision-makers with budget — they control spending and can green-light vendor purchases.
-
-Data:
-${JSON.stringify(details, null, 0)}
-
-Write a compelling insight about these founders. For each person, mention their name, title, company, what funding they raised (type + amount if available), and why this matters for outreach timing. Highlight which ones are at the BEST companies (ICP fit, recent funding, right size). If any raised funding recently, emphasize the timing urgency — funded companies spend within 6-12 months of raising.`,
+${founders.length} founders/CEOs at funded companies. Decision-makers with budget.
+Data: ${JSON.stringify(details, null, 0)}`,
   };
 }
 
@@ -114,18 +109,9 @@ function computeCareerMovers(connections: any[]): ThemeResult {
     title: "Career Movers",
     score: movers.length >= 2 ? movers.length * 4 : movers.length,
     data: movers,
-    promptContext: `THEME: Recent Career Movers — New Roles in the Last 12 Months
-
-You found ${movers.length} connections who started a NEW role in the last 12 months. This is a golden outreach window — new leaders are:
-- Evaluating their tech stack and vendor relationships
-- Building their team and processes from scratch
-- Open to meetings because they're in "learning mode"
-- Often have new budget to deploy
-
-Data:
-${JSON.stringify(movers, null, 0)}
-
-Write a compelling insight about these career movers. For each, mention their name, what they moved FROM (previous title + company) and TO (current title + company), when they started, and why this creates an opportunity. Prioritize senior movers (VP+, C-suite) at ICP-fit companies. Emphasize the timing angle — someone 3 months into a new VP role is MORE receptive than someone 3 years in.`,
+    promptContext: `THEME: Recent Career Movers
+${movers.length} connections started new roles in the last 12 months — golden outreach window.
+Data: ${JSON.stringify(movers, null, 0)}`,
   };
 }
 
@@ -177,14 +163,9 @@ function computeDormantGold(connections: any[]): ThemeResult {
     title: "Dormant Gold",
     score: dormant.length >= 3 ? dormant.length * 2 : dormant.length,
     data: details.slice(0, 10),
-    promptContext: `THEME: Dormant Gold — Long-Standing Connections Who Are Now High-Value
-
-You found ${dormant.length} connections that were made 2+ years ago who are NOW in senior positions at interesting companies. These are "warm" relationships that have appreciated in value — the person you met years ago when they were a Director might now be a CTO at a funded startup.
-
-Data (top 10 by score):
-${JSON.stringify(details.slice(0, 10), null, 0)}
-
-Write a compelling insight about this dormant gold. Emphasize the relationship angle — these aren't cold outreach, these are people who accepted your connection years ago. Highlight the most striking "glow-ups" (biggest jump in seniority or company quality). Mention how long you've been connected and their current position. The insight should make the user think "I had no idea they're now a CTO at a $50M company."`,
+    promptContext: `THEME: Dormant Gold
+${dormant.length} connections made 2+ years ago who are now senior at high-value companies. Warm relationships that appreciated in value.
+Data (top 10): ${JSON.stringify(details.slice(0, 10), null, 0)}`,
   };
 }
 
@@ -243,19 +224,9 @@ function computeCompanyStageDistribution(connections: any[]): ThemeResult {
     title: "Company Stage Distribution",
     score: totalCompanies >= 10 ? 8 : 3,
     data: stages,
-    promptContext: `THEME: Company Stage Distribution — Where Your Network Sits on the Growth Curve
-
-Across ${totalCompanies} unique companies in this network, here's the stage breakdown:
-${Object.entries(stages)
-  .map(
-    ([stage, { count, examples }]) =>
-      `${stage}: ${count} companies (e.g., ${examples.map((e) => e.company).join(", ")})`
-  )
-  .join("\n")}
-
-The dominant stage is "${dominant[0]}" with ${dominant[1].count} companies.
-
-Write a compelling insight about what this distribution means for the user's sales or business development strategy. If they're heavy in early-stage, they have access to fast-moving decision-makers but smaller deals. If enterprise-heavy, they're positioned for larger deals but longer cycles. Connect the distribution to practical strategy. Name specific notable companies in each tier. Keep it actionable — what should the user DO with this distribution?`,
+    promptContext: `THEME: Company Stage Distribution
+${totalCompanies} unique companies. Dominant: "${dominant[0]}" (${dominant[1].count}).
+${Object.entries(stages).map(([stage, { count, examples }]) => `${stage}: ${count} (e.g. ${examples.map((e) => e.company).join(", ")})`).join("; ")}`,
   };
 }
 
@@ -298,14 +269,8 @@ function computeInvestorIndustryOverlap(
     score: investors.length >= 2 ? investors.length * 3 : investors.length,
     data: details,
     promptContext: `THEME: Investors in Your Network
-
-You found ${investors.length} investors/VCs/fund professionals in this network.
-The user's ICP targets these industries: ${icpIndustries.join(", ") || "not specified"}.
-
-Investor data:
-${JSON.stringify(details, null, 0)}
-
-Write a compelling insight about these investor connections. For each, mention their name, title, fund, and location. Analyze which investors might be relevant — do they invest in the user's ICP industries? Are they at firms known for a specific stage or sector? If any investors overlap with the user's target market, highlight the triangulation opportunity: "This investor backs companies in your target space — they could intro you to their portfolio companies as a vendor/partner." Also flag if any investors are at notable firms (tier-1 VCs, well-known PE firms).`,
+${investors.length} investors/VCs. ICP industries: ${icpIndustries.join(", ") || "not specified"}.
+Data: ${JSON.stringify(details, null, 0)}`,
   };
 }
 
@@ -352,10 +317,13 @@ export async function POST(request: Request) {
       .eq("user_id", user.id);
 
     if (!connections || connections.length === 0) {
-      return NextResponse.json(
-        { error: "No connections found" },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        text: "Your connections are being processed. Insights will appear here once enrichment is complete.",
+        themeId: "overview",
+        themeTitle: "Network Overview",
+        totalViableThemes: 1,
+        viableThemeIds: ["overview"],
+      });
     }
 
     // Compute all 5 themes
@@ -376,11 +344,22 @@ export async function POST(request: Request) {
           : Object.keys(t.data).length > 0)
     );
 
+    // Static fallback builder
+    const buildFallback = () => {
+      const total = connections?.length || 0;
+      const enriched = connections?.filter((c: any) => c.current_company || c.company_industry).length || 0;
+      const hits = connections?.filter((c: any) => c.match_score >= 7).length || 0;
+      return NextResponse.json({
+        text: `You have **${total}** connections — **${enriched}** enriched, **${hits}** strong matches. ${enriched < total ? "Enrichment is still running — insights will improve as more data comes in." : "Check your Hit List for the top matches."}`,
+        themeId: "overview",
+        themeTitle: "Network Overview",
+        totalViableThemes: 1,
+        viableThemeIds: ["overview"],
+      });
+    };
+
     if (viableThemes.length === 0) {
-      return NextResponse.json(
-        { error: "Not enough data for insights" },
-        { status: 404 }
-      );
+      return buildFallback();
     }
 
     // Sort by score (most interesting first)
@@ -399,31 +378,43 @@ export async function POST(request: Request) {
     }
 
     // Send to Haiku for narrative
-    const anthropic = new Anthropic();
+    let text = "";
+    try {
+      const anthropic = new Anthropic();
 
-    const response = await callAnthropicWithRetry(() =>
-      anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: `You are a sharp B2B network intelligence analyst writing for ${userData?.full_name || "a business professional"} who runs ${userData?.company_name || "their company"}.
+      const response = await callAnthropicWithRetry(() =>
+        anthropic.messages.create({
+          model: "claude-haiku-4-5-20251001",
+          max_tokens: 256,
+          messages: [
+            {
+              role: "user",
+              content: `You are a sharp B2B network intelligence analyst writing for ${userData?.full_name || "a business professional"} who runs ${userData?.company_name || "their company"}.
 
 ${selectedTheme.promptContext}
 
-Write 2-3 short paragraphs. Under 180 words total. No headers, no bullet points, no numbered lists. Bold all people names and company names using **bold** markdown.
+Write a brief, punchy network insight. Rules:
+- Maximum 2-3 sentences TOTAL (not paragraphs — sentences)
+- Under 60 words
+- Bold all person names and company names using **bold** markdown
+- Lead with the most interesting finding
+- No filler, no preamble, no "Here's what I found"
+- Write like a sharp analyst briefing a busy CEO`,
+            },
+          ],
+        })
+      );
 
-Be specific — name real people and companies from the data. Don't be generic. Don't say "your network is diverse" or "you have strong connections." Every sentence should contain a name, a number, or a specific fact.
+      text =
+        response.content[0].type === "text" ? response.content[0].text : "";
+    } catch (aiErr: unknown) {
+      console.error("Dashboard spotlight AI error:", aiErr);
+      return buildFallback();
+    }
 
-Write like a sharp colleague giving you a quick insight over coffee. Conversational, direct, no filler.`,
-          },
-        ],
-      })
-    );
-
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    if (!text) {
+      return buildFallback();
+    }
 
     return NextResponse.json({
       text,
@@ -434,8 +425,12 @@ Write like a sharp colleague giving you a quick insight over coffee. Conversatio
     });
   } catch (err: unknown) {
     console.error("Dashboard spotlight error:", err);
-    const message =
-      err instanceof Error ? err.message : "Failed to generate spotlight";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({
+      text: "We're still crunching your network data. Check back shortly for personalized insights.",
+      themeId: "overview",
+      themeTitle: "Network Overview",
+      totalViableThemes: 1,
+      viableThemeIds: ["overview"],
+    });
   }
 }

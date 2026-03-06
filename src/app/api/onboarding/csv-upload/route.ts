@@ -205,24 +205,25 @@ export async function POST(request: Request) {
                 body: JSON.stringify({
                   from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
                   to: [emailUser.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
-                  subject: `[${emailUser.full_name || emailUser.email}] Pipeline started — ${connectionCount} connections`,
+                  subject: `We're analyzing your ${connectionCount} connections`,
                   html: `
                     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
-                      <h2 style="color: #0A2540; margin-bottom: 8px;">We're on it!</h2>
-                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">Hey ${firstName},</p>
+                      <h2 style="color: #0A2540; margin-bottom: 8px;">We're on it, ${firstName}!</h2>
                       <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-                        We've received your <strong>${connectionCount}</strong> connections and started analyzing them.
+                        Your <strong>${connectionCount}</strong> connections are now being analyzed. We're enriching profiles, classifying seniority, and scoring each one against your ideal customer profile.
                       </p>
-                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">Here's what's happening:</p>
+                      <p style="color: #596780; font-size: 15px; line-height: 1.6;">
+                        We'll email you as soon as your hit list is ready.
+                      </p>
                       <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
-                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">1. Classifying seniority levels</p>
-                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">2. Enriching profiles with company data</p>
-                        <p style="color: #0A2540; font-size: 14px; margin: 8px 0;">3. Scoring every connection against your ICP</p>
+                        <p style="color: #0A2540; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">While you wait, here's what you can ask Circl:</p>
+                        <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Who in my network works at Series B startups?"</p>
+                        <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Find warm intros to fintech companies"</p>
+                        <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Which connections should I reach out to first?"</p>
                       </div>
-                      <p style="color: #596780; font-size: 15px;">We'll email you when your hit list is ready.</p>
-                      <a href="${trackingUrl}" style="display: inline-block; background: linear-gradient(135deg, #0ABF53, #34D399); color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin-top: 8px;">
-                        Track progress
-                      </a>
+                      <p style="color: #596780; font-size: 14px; line-height: 1.6;">
+                        Ask Circl is your AI-powered networking assistant — once your results are in, ask it anything about your connections.
+                      </p>
                       <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
                     </div>
                   `,
@@ -264,8 +265,28 @@ export async function POST(request: Request) {
             body: JSON.stringify({
               from: process.env.RESEND_FROM_EMAIL || 'Circl <hello@circl.incommon.co>',
               to: [userData.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
-              subject: `[${userData.full_name || userData.email}] Pipeline started — ${connectionCount} connections (instant)`,
-              html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:560px;margin:0 auto;padding:40px 20px"><h2 style="color:#0A2540">New pipeline started</h2><p style="color:#596780;font-size:15px">${userData.full_name || userData.email} (${userData.email}) uploaded <strong>${connectionCount}</strong> connections for ${userData.company_name || 'their company'}.</p><p style="color:#596780;font-size:15px">Mode: <strong>Instant</strong> (processing in browser)</p><p style="color:#96A0B5;font-size:13px;margin-top:32px">— Circl Admin</p></div>`,
+              subject: `We're analyzing your ${connectionCount} connections`,
+              html: `
+                <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+                  <h2 style="color: #0A2540; margin-bottom: 8px;">We're on it, ${userData.full_name?.split(' ')[0] || 'there'}!</h2>
+                  <p style="color: #596780; font-size: 15px; line-height: 1.6;">
+                    Your <strong>${connectionCount}</strong> connections are now being analyzed. We're enriching profiles, classifying seniority, and scoring each one against your ideal customer profile.
+                  </p>
+                  <p style="color: #596780; font-size: 15px; line-height: 1.6;">
+                    We'll email you as soon as your hit list is ready.
+                  </p>
+                  <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
+                    <p style="color: #0A2540; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">While you wait, here's what you can ask Circl:</p>
+                    <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Who in my network works at Series B startups?"</p>
+                    <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Find warm intros to fintech companies"</p>
+                    <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Which connections should I reach out to first?"</p>
+                  </div>
+                  <p style="color: #596780; font-size: 14px; line-height: 1.6;">
+                    Ask Circl is your AI-powered networking assistant — once your results are in, ask it anything about your connections.
+                  </p>
+                  <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
+                </div>
+              `,
             }),
           });
           console.log(`EMAIL: Instant start email sent for ${userData.full_name}`);

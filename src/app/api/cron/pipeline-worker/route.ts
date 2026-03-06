@@ -320,7 +320,6 @@ async function processClassifyBatch(supabase: any, job: any) {
 async function processEnrichBatch(supabase: any, job: any) {
   const loopStart = Date.now();
   let totalProcessedThisTick = 0;
-  let progressEmailSent = job.email_sent_progress;
 
   // DB-based stuck detection: track whether enriched+failed count changes
   let lastProgressTotal = 0;
@@ -420,13 +419,6 @@ async function processEnrichBatch(supabase: any, job: any) {
       return;
     }
 
-    // Send progress email at ~33% enrichment
-    const totalConnections = job.total_connections || 1;
-    if (!progressEmailSent && (enrichedSoFar || 0) > totalConnections / 3) {
-      await sendProgressEmail(supabase, job);
-      await updateJob(supabase, job.id, { email_sent_progress: true });
-      progressEmailSent = true;
-    }
   }
 
   console.log(`CRON: Enrichment tick timeout. Processed ${totalProcessedThisTick}. Continuing next tick.`);
@@ -755,26 +747,28 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
       body: JSON.stringify({
         from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
         to: [user.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
-        subject: `[${user.full_name || user.email}] Hit list ready — ${hitsCount} matches found`,
+        subject: `Your hit list is ready — ${hitsCount} matches found`,
         html: `
           <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
             <h2 style="color: #0A2540; margin-bottom: 8px;">Your hit list is ready!</h2>
             <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              Hey ${firstName},
-            </p>
-            <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              We analyzed <strong>${job.total_connections}</strong> connections and found
-              <strong style="color: #0ABF53;">${hitsCount} strong matches</strong> for ${user.company_name || 'your business'}.
+              Hey ${firstName}, we've finished analyzing your network.
             </p>
             <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${scoredCount}</strong> connections scored</p>
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong style="color: #0ABF53;">${hitsCount}</strong> matches (score 7+)</p>
-              <p style="color: #0A2540; font-size: 14px; margin: 4px 0;"><strong>${job.enriched_persons_count || 0}</strong> profiles enriched</p>
+              <p style="color: #0A2540; font-size: 16px; margin: 4px 0;"><strong>${job.total_connections}</strong> connections analyzed</p>
+              <p style="color: #0A2540; font-size: 16px; margin: 4px 0;"><strong>${job.enriched_persons_count || 0}</strong> profiles enriched</p>
+              <p style="color: #0ABF53; font-size: 16px; margin: 4px 0; font-weight: 600;">${hitsCount} strong matches for ${user.company_name || 'your business'}</p>
             </div>
             <a href="${dashboardUrl}/dashboard/hit-list"
                style="display: inline-block; background: #0A2540; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; margin-top: 8px;">
               View your hit list
             </a>
+            <div style="background: #F6F8FA; border-radius: 12px; padding: 20px; margin: 24px 0;">
+              <p style="color: #0A2540; font-size: 14px; font-weight: 600; margin: 0 0 12px 0;">Try asking Circl:</p>
+              <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Who are my strongest connections at enterprise companies?"</p>
+              <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Draft a re-engagement message for my top matches"</p>
+              <p style="color: #596780; font-size: 14px; margin: 6px 0;">"Which of my hits have the shortest path to a deal?"</p>
+            </div>
             <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
           </div>
         `,
@@ -792,54 +786,3 @@ async function sendCompletionEmail(supabase: any, job: any, hitsCount: number, s
   }
 }
 
-async function sendProgressEmail(supabase: any, job: any) {
-  if (!process.env.RESEND_API_KEY) return;
-
-  const { data: user } = await supabase
-    .from('users')
-    .select('email, full_name')
-    .eq('id', job.user_id)
-    .single();
-
-  if (!user?.email) return;
-
-  const firstName = user.full_name?.split(' ')[0] || 'there';
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://circl-app-five.vercel.app';
-  const trackUrl = job.tracking_token
-    ? `${baseUrl}/track/${job.tracking_token}`
-    : `${baseUrl}/dashboard`;
-
-  try {
-    await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || 'Circl <onboarding@resend.dev>',
-        to: [user.email, process.env.RESEND_ADMIN_EMAIL || 'saras@incommon.ai'].filter(Boolean),
-        subject: `[${user.full_name || user.email}] Halfway — ${job.enriched_persons_count || 0} profiles enriched`,
-        html: `
-          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 40px 20px;">
-            <h2 style="color: #0A2540;">Quick update</h2>
-            <p style="color: #596780; font-size: 15px; line-height: 1.6;">
-              Hey ${firstName}, we've enriched <strong>${job.enriched_persons_count || 0}</strong> profiles
-              and found <strong style="color: #0ABF53;">${job.hits_count || 0} matches</strong> so far.
-            </p>
-            <p style="color: #596780; font-size: 15px;">We'll send your full results soon.</p>
-            <a href="${trackUrl}"
-               style="display: inline-block; background: #F6F8FA; color: #0A2540; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 500; font-size: 14px; border: 1px solid #E3E8EF; margin-top: 12px;">
-              Track progress
-            </a>
-            <p style="color: #96A0B5; font-size: 13px; margin-top: 32px;">— Team Circl</p>
-          </div>
-        `,
-      }),
-    });
-
-    console.log(`CRON: Progress email sent to ${user.email}`);
-  } catch (err: any) {
-    console.error(`CRON: Progress email error:`, err.message);
-  }
-}
