@@ -3,53 +3,44 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
 
-const CACHE_KEY = "circl-spotlight-v3";
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const THEME_LABELS: Record<string, string> = {
+  founders_funded: "Founders at Funded Companies",
+  career_movers: "Recent Career Movers",
+  dormant_gold: "Dormant Gold",
+  company_stages: "Company Stage Mix",
+  investor_overlap: "Investor Network",
+};
 
-/** Parse markdown bold (**text**) into <strong> tags */
-function renderBold(text: string) {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold text-[#0A2540]">
-        {part}
-      </strong>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  );
+const THEME_COLORS: Record<string, string> = {
+  founders_funded: "bg-green-100 text-green-700",
+  career_movers: "bg-blue-100 text-blue-700",
+  dormant_gold: "bg-amber-100 text-amber-700",
+  company_stages: "bg-purple-100 text-purple-700",
+  investor_overlap: "bg-teal-100 text-teal-700",
+};
+
+interface SpotlightResponse {
+  text: string;
+  themeId: string;
+  themeTitle: string;
+  totalViableThemes: number;
+  viableThemeIds: string[];
 }
 
-const LOADING_MESSAGES = [
-  "Scanning your connections…",
-  "Finding high-value contacts…",
-  "Spotting hidden opportunities…",
-  "Crafting your briefing…",
-];
-
 export default function NetworkSpotlight() {
-  const [insight, setInsight] = useState<string | null>(null);
+  const [data, setData] = useState<SpotlightResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState(0);
+  const [currentThemeIndex, setCurrentThemeIndex] = useState(0);
 
-  // Cycle through loading messages
-  useEffect(() => {
-    if (!loading) return;
-    const interval = setInterval(() => {
-      setLoadingMsg((prev) => (prev + 1) % LOADING_MESSAGES.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [loading]);
-
-  const fetchSpotlight = useCallback(async () => {
-    // Check cache first
+  const fetchSpotlight = useCallback(async (themeIndex?: number) => {
+    const cacheKey = `circl-spotlight-v4-${themeIndex ?? "default"}`;
     try {
-      const cached = sessionStorage.getItem(CACHE_KEY);
+      const cached = sessionStorage.getItem(cacheKey);
       if (cached) {
-        const { text, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL) {
-          setInsight(text);
+        const parsed = JSON.parse(cached);
+        if (Date.now() - parsed.timestamp < 30 * 60 * 1000) {
+          setData(parsed.data);
           setLoading(false);
           return;
         }
@@ -60,29 +51,27 @@ export default function NetworkSpotlight() {
 
     try {
       setLoading(true);
-      setLoadingMsg(0);
       setError(false);
 
       const res = await fetch("/api/dashboard-spotlight", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ themeIndex: themeIndex ?? null }),
       });
 
       if (!res.ok) {
-        console.error("Spotlight API error:", res.status, await res.text());
+        console.error("Spotlight error:", res.status, await res.text());
         setError(true);
         return;
       }
 
-      const data = await res.json();
-
-      if (data.text) {
-        setInsight(data.text);
+      const result = await res.json();
+      if (result.text) {
+        setData(result);
         try {
           sessionStorage.setItem(
-            CACHE_KEY,
-            JSON.stringify({ text: data.text, timestamp: Date.now() })
+            cacheKey,
+            JSON.stringify({ data: result, timestamp: Date.now() })
           );
         } catch {
           // ignore storage errors
@@ -90,7 +79,8 @@ export default function NetworkSpotlight() {
       } else {
         setError(true);
       }
-    } catch {
+    } catch (err) {
+      console.error("Spotlight fetch error:", err);
       setError(true);
     } finally {
       setLoading(false);
@@ -101,22 +91,34 @@ export default function NetworkSpotlight() {
     fetchSpotlight();
   }, [fetchSpotlight]);
 
-  // Error fallback with retry
+  const handleNewInsight = () => {
+    if (!data) return;
+    const nextIndex = (currentThemeIndex + 1) % (data.totalViableThemes || 1);
+    setCurrentThemeIndex(nextIndex);
+    setData(null);
+    setLoading(true);
+    for (let i = 0; i < (data.totalViableThemes || 5); i++) {
+      sessionStorage.removeItem(`circl-spotlight-v4-${i}`);
+    }
+    sessionStorage.removeItem("circl-spotlight-v4-default");
+    fetchSpotlight(nextIndex);
+  };
+
   if (error) {
     return (
       <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-5">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.5} />
-          <h3 className="text-sm font-semibold text-[#0A2540]">Network Spotlight</h3>
+          <h3 className="text-sm font-semibold text-[#0A2540]">
+            Network Spotlight
+          </h3>
         </div>
         <p className="text-sm text-[#96A0B5]">
           Couldn&apos;t generate insights right now.
         </p>
         <button
           onClick={() => {
-            sessionStorage.removeItem(CACHE_KEY);
             setError(false);
-            setLoading(true);
             fetchSpotlight();
           }}
           className="text-xs text-[#0ABF53] hover:text-[#089E45] mt-2 flex items-center gap-1 transition-colors"
@@ -128,66 +130,78 @@ export default function NetworkSpotlight() {
     );
   }
 
-  // Loading state with progress bar and rotating messages
-  if (loading) {
-    return (
-      <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Sparkles className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.5} />
-          <span className="text-sm font-semibold text-[#0A2540]">
-            Network Spotlight
-          </span>
-          <span className="text-[10px] text-[#96A0B5] bg-[#F0F3F7] px-2 py-0.5 rounded-full">AI-generated</span>
-        </div>
-        <p className="text-sm text-[#596780] mb-3 transition-opacity duration-300">
-          {LOADING_MESSAGES[loadingMsg]}
-        </p>
-        <div className="h-1.5 bg-[#F0F3F7] rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full animate-spotlight-bar"
-            style={{ background: "linear-gradient(90deg, #0ABF53, #34D399)" }}
-          />
-        </div>
-        <style jsx>{`
-          @keyframes spotlight-bar {
-            0% { width: 0%; }
-            50% { width: 70%; }
-            100% { width: 95%; }
-          }
-          .animate-spotlight-bar {
-            animation: spotlight-bar 8s ease-out forwards;
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  if (!insight) return null;
-
   return (
     <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-5">
+      {/* Header */}
       <div className="flex items-center gap-2 mb-4">
         <Sparkles className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.5} />
-        <h3 className="text-sm font-semibold text-[#0A2540]">Network Spotlight</h3>
-        <span className="text-[10px] text-[#96A0B5] bg-[#F0F3F7] px-2 py-0.5 rounded-full">AI-generated</span>
+        <h3 className="text-sm font-semibold text-[#0A2540]">
+          Network Spotlight
+        </h3>
+        {data?.themeId && (
+          <span
+            className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${THEME_COLORS[data.themeId] || "bg-[#F0F3F7] text-[#596780]"}`}
+          >
+            {THEME_LABELS[data.themeId] || data.themeTitle}
+          </span>
+        )}
         <div className="flex-1" />
-        <button
-          onClick={() => {
-            sessionStorage.removeItem(CACHE_KEY);
-            setInsight(null);
-            setLoading(true);
-            setError(false);
-            fetchSpotlight();
-          }}
-          className="text-xs text-[#96A0B5] hover:text-[#596780] transition-colors flex items-center gap-1"
-        >
-          <RefreshCw className="w-3 h-3" />
-          New insight
-        </button>
+        {!loading && data && (
+          <button
+            onClick={handleNewInsight}
+            className="text-xs text-[#96A0B5] hover:text-[#596780] transition-colors flex items-center gap-1"
+          >
+            <RefreshCw className="w-3 h-3" />
+            New insight
+          </button>
+        )}
       </div>
-      <p className="text-sm text-[#596780] leading-relaxed">
-        {renderBold(insight)}
-      </p>
+
+      {/* Content */}
+      {loading ? (
+        <div className="space-y-3 animate-pulse">
+          <div className="h-4 bg-[#F0F3F7] rounded w-full" />
+          <div className="h-4 bg-[#F0F3F7] rounded w-11/12" />
+          <div className="h-4 bg-[#F0F3F7] rounded w-full" />
+          <div className="h-4 bg-[#F0F3F7] rounded w-10/12" />
+          <div className="h-4 bg-[#F0F3F7] rounded w-full" />
+          <div className="h-4 bg-[#F0F3F7] rounded w-9/12" />
+        </div>
+      ) : data?.text ? (
+        <div className="text-sm text-[#596780] leading-relaxed space-y-3">
+          {data.text.split("\n\n").map((paragraph, i) => (
+            <p
+              key={i}
+              dangerouslySetInnerHTML={{
+                __html: paragraph
+                  .replace(
+                    /\*\*(.*?)\*\*/g,
+                    '<strong class="font-semibold text-[#0A2540]">$1</strong>'
+                  )
+                  .replace(/\n/g, "<br />"),
+              }}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {/* Theme indicator dots */}
+      {data && data.totalViableThemes > 1 && !loading && (
+        <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-[#F0F3F7]">
+          {data.viableThemeIds.map((id) => (
+            <div
+              key={id}
+              className={`w-1.5 h-1.5 rounded-full transition ${
+                id === data.themeId ? "bg-[#0ABF53]" : "bg-[#E3E8EF]"
+              }`}
+            />
+          ))}
+          <span className="text-[10px] text-[#96A0B5] ml-1">
+            {(data.viableThemeIds.indexOf(data.themeId) + 1)} of{" "}
+            {data.totalViableThemes} insights
+          </span>
+        </div>
+      )}
     </div>
   );
 }
