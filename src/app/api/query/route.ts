@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const { question } = await request.json();
-  if (!question || typeof question !== "string" || question.length > 500) {
+  if (!question || typeof question !== "string" || question.length > 2000) {
     return NextResponse.json({ error: "Invalid question" }, { status: 400 });
   }
 

@@ -23,10 +23,27 @@ function renderBold(text: string) {
   );
 }
 
+const LOADING_MESSAGES = [
+  "Scanning your connections…",
+  "Finding high-value contacts…",
+  "Spotting hidden opportunities…",
+  "Crafting your briefing…",
+];
+
 export default function NetworkSpotlight() {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState(0);
+
+  // Cycle through loading messages
+  useEffect(() => {
+    if (!loading) return;
+    const interval = setInterval(() => {
+      setLoadingMsg((prev) => (prev + 1) % LOADING_MESSAGES.length);
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const fetchSpotlight = useCallback(async () => {
     // Check cache first
@@ -46,6 +63,7 @@ export default function NetworkSpotlight() {
 
     try {
       setLoading(true);
+      setLoadingMsg(0);
       setError(false);
 
       const res = await fetch("/api/query", {
@@ -61,7 +79,6 @@ export default function NetworkSpotlight() {
       }
 
       const data = await res.json();
-      console.log("Spotlight response:", data);
 
       if (data.text) {
         setInsight(data.text);
@@ -114,21 +131,36 @@ export default function NetworkSpotlight() {
     );
   }
 
-  // Loading skeleton
+  // Loading state with progress bar and rotating messages
   if (loading) {
     return (
       <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-5">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <Sparkles className="w-4 h-4 text-[#0ABF53]" strokeWidth={1.5} />
           <span className="text-sm font-semibold text-[#0A2540]">
             Network Spotlight
           </span>
+          <span className="text-[10px] text-[#96A0B5] bg-[#F0F3F7] px-2 py-0.5 rounded-full">AI-generated</span>
         </div>
-        <div className="space-y-2">
-          <div className="h-3 bg-[#F0F3F7] rounded-full animate-pulse w-full" />
-          <div className="h-3 bg-[#F0F3F7] rounded-full animate-pulse w-4/5" />
-          <div className="h-3 bg-[#F0F3F7] rounded-full animate-pulse w-3/5" />
+        <p className="text-sm text-[#596780] mb-3 transition-opacity duration-300">
+          {LOADING_MESSAGES[loadingMsg]}
+        </p>
+        <div className="h-1.5 bg-[#F0F3F7] rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full animate-spotlight-bar"
+            style={{ background: "linear-gradient(90deg, #0ABF53, #34D399)" }}
+          />
         </div>
+        <style jsx>{`
+          @keyframes spotlight-bar {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 95%; }
+          }
+          .animate-spotlight-bar {
+            animation: spotlight-bar 8s ease-out forwards;
+          }
+        `}</style>
       </div>
     );
   }
