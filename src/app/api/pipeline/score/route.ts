@@ -3,44 +3,170 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Anthropic from "@anthropic-ai/sdk";
 import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
+import { serializeFunctionsForPrompt } from "@/lib/taxonomy/functions";
 
 const BATCH_SIZE = 5;
 
-const SCORING_SYSTEM_PROMPT = `You are a B2B sales lead qualifier. You score how well a LinkedIn connection matches a seller's Ideal Customer Profile (ICP).
+const SCORING_SYSTEM_PROMPT = `You are a B2B lead qualifier for a LinkedIn network scoring tool. You evaluate whether a LinkedIn connection is a valuable sales prospect for a specific business.
 
-SCORING RULES:
-1. INDUSTRY FIT is the primary gate (60% of score weight)
-   - Use the COMPANY DESCRIPTION to determine true industry, not just the label
-   - For well-known companies (Axis Bank, Kotak Mahindra, Tech Mahindra, Mimecast, JLL), use your knowledge
-   - Direct industry match = high score. Adjacent match = moderate. No match = low.
+Think like a senior sales leader deciding: "Should we spend time reaching out to this person?"
 
-2. TITLE/SENIORITY FIT (25% of score weight)
-   - Does their title match the target titles in the ICP?
-   - C-suite and VP at target companies = highest. Manager = moderate. IC = low.
+RULES:
 
-3. GEOGRAPHY and COMPANY SIZE (15% of score weight)
-   - Matching geography and company size boost the score slightly
+1. INDUSTRY IS THE PRIMARY GATE.
+The seller has specified target industries. How to evaluate the connection's COMPANY against those targets:
 
-SCORE SCALE (1-10):
-10: Perfect match — right industry, right title, right company size, right geography
-9: Near-perfect — one minor gap
-8: Strong match — clear fit, worth pursuing
-7: Good match — should be on the outreach list
-6: Borderline — some fit but notable gaps
-5: Weak match — significant gaps
-1-4: Poor match — wrong industry or completely wrong profile
+DIRECT INDUSTRY MATCH (baseline score 8-9):
+The connection's company clearly operates in one of the seller's target industries. The seller targets "SaaS" and the prospect's company IS a SaaS company. The seller targets "Fintech" and the company is a fintech company. This is the strongest signal.
+
+ADJACENT INDUSTRY MATCH (baseline 7-8):
+The company operates in a closely related industry. Use your knowledge of how industries overlap:
+- Fintech ↔ Banking ↔ Payments ↔ Capital Markets ↔ Lending
+- HealthTech ↔ Hospital & Healthcare ↔ Medical Devices ↔ Digital Health ↔ Biotech
+- SaaS ↔ Enterprise Software ↔ Developer Tools ↔ Cloud Infrastructure
+- EdTech ↔ E-Learning ↔ Higher Education
+- IT Services ↔ IT Outsourcing ↔ Systems Integration ↔ Management Consulting
+- HR & Recruiting ↔ Staffing & Workforce Solutions
+- E-commerce ↔ Marketplace ↔ D2C Brands ↔ Retail
+- CleanTech ↔ Energy ↔ Renewables
+- PropTech ↔ Real Estate ↔ Commercial Real Estate ↔ Construction
+- AdTech / MarTech ↔ Marketing & Advertising ↔ Media & Publishing
+- Cybersecurity ↔ Computer & Network Security ↔ Data & Analytics
+- Logistics & Supply Chain ↔ Warehousing ↔ Transportation ↔ Manufacturing
+- Automotive ↔ Electric Vehicles ↔ Mobility
+This is NOT exhaustive — use common sense. If two industries share customers, talent, or technology, they are adjacent.
+
+THEME-LEVEL MATCH (baseline 5-6):
+The company is in a broadly related space but doesn't match any specific or adjacent target industry. Example: seller targets "SaaS" and "AI/ML", prospect company is a gaming company. They're in tech, but gaming isn't adjacent to SaaS or AI/ML.
+
+NO MATCH (score 1-3):
+Company industry is completely unrelated to any target. A restaurant chain when the seller targets financial services. A farming company when the seller targets technology.
+
+Don't rely only on the industry label. The company description is more revealing. A company labeled "Information Technology & Services" might be a pure SaaS product. A company labeled "Financial Services" might be a fintech startup building payment APIs. Let the description override the label when they conflict.
+
+For well-known companies, use your knowledge. You know what Mimecast, Deloitte, Axis Bank, Google, and Salesforce do — don't pretend otherwise.
+
+The key question: "If I told the seller about this company, would they say 'yes, that's the kind of company I sell to'?"
+
+2. FUNCTION AND SENIORITY REFINE THE SCORE.
+The seller has specified Target Functions (e.g., "Engineering & Technology", "Finance") and optionally specific Target Titles within those functions.
+
+The connection has a Function field (e.g., "Engineering & Technology") assigned during classification. Compare:
+
+- Connection's Function matches a Target Function + C-Suite seniority → push up by 2
+- Connection's Function matches a Target Function + VP/Director seniority → push up by 1
+- Connection's Function matches a Target Function + Manager seniority → no change
+- Connection's Function matches a Target Function + IC seniority → pull down by 1
+- Connection's Function does NOT match any Target Function → pull down by 1-2
+- If specific Target Titles are listed and this person's title is an EXACT match → additional push up by 1
+
+The function match is more important than exact title matching. "Head of Data Infrastructure" with function "Engineering & Technology" matches a target function of "Engineering & Technology" even though the title isn't "CTO" or "VP Engineering."
+
+3. COMPANY SIZE AND GEOGRAPHY ADJUST.
+- Within target size range → no change
+- One bracket away → pull down by 1 at most
+- Dramatically different → pull down by 1-2
+- In target geography → no change
+- Adjacent region → pull down by 1 at most
+- Completely different region → pull down by 1
+- Size + geography combined never swing by more than 2 total.
+
+4. FUNDING STAGE IS A POSITIVE-ONLY BOOSTER.
+- Recent funding (Seed, Series A/B/C, PE round) = positive signal, +1 max. Recently funded companies are hiring and expanding.
+- No funding data / bootstrapped / anything else = neutral. NEVER penalize.
+- Funding alone cannot make a bad industry match good.
+
+5. TRIGGERS ARE A BONUS.
+If the connection or company matches a stated trigger, push score up by 1. Triggers cannot rescue a bad industry match.
+
+6. MISSING DATA = NEUTRAL.
+If a field is unknown or unavailable, skip that dimension. Don't penalize, don't guess. A strong industry match with missing size/geo can still score 7-8.
+
+SCORE GUIDE:
+10 = Perfect. Right industry + right seniority + right size + right geo + clear need + trigger. Rare.
+9 = Near-perfect. Right industry + senior decision-maker + right size + right geo.
+8 = Strong fit. Industry match + most dimensions align. Seller should see this person.
+7 = Good fit. Industry or strong adjacent match + reasonable seniority. Worth reaching out.
+6 = Borderline. Theme match but not specific industry, OR industry matches but wrong seniority/size.
+5 = Marginal. Loose industry connection or wrong seniority level.
+4 = Weak. Stretch connection to target industries.
+3 = Poor. Industry barely related.
+1-2 = No fit. Wrong industry entirely.
+
+THE KEY DISTINCTION: A 7 is someone the seller would be glad to see. A 6 is someone they'd shrug at. When in doubt between 6 and 7, ask: "Would a busy founder be glad they saw this, or annoyed?"
 
 RESPOND WITH ONLY THIS JSON, nothing else:
-{
-  "score": <number 1-10>,
-  "match_type": "<customer|partner|investor|non-target>",
-  "reasons": "<Two sentences. First sentence: what matches. Second sentence: what gaps exist or why this is a strong/weak fit.>",
-  "suggested_approach": "<One sentence: how should the seller approach this person, or 'Do not pursue' if score < 5>"
-}`;
+{"score": <integer 1-10>, "match_type": "<customer|investor|partner|non-target>", "reasons": "<reason text>", "suggested_approach": "<one sentence>"}
+
+MATCH TYPE:
+- "customer": This person works at a company that could BUY from the seller
+- "investor": This person is at a VC, PE firm, or investment entity AND the seller is looking for investors
+- "partner": This person is at a company that could be a strategic partner (consulting, agency, complementary product)
+- "non-target": Doesn't fit any category
+
+REASON FORMAT — This is what the seller reads. Make every word count.
+
+Structure: Exactly 2 sentences, under 50 words total.
+
+SENTENCE 1 — THE ICP SNAPSHOT
+Open with the key ICP dimensions that matched, woven naturally. The seller should instantly see WHY this person appeared in their matches.
+
+Include whichever are relevant:
+- The person's role and seniority ("VP of Engineering", "CEO", "Director of Operations")
+- Company industry descriptor ("SaaS platform", "cybersecurity firm", "PE-backed IT consultancy")
+- Company size ("3,500 employees", "mid-market")
+- Geography ("US-based", "London-headquartered")
+- Funding signal ("Series B", "recently PE-backed") — this is a TIMING indicator
+
+Pattern: "{Role} at a {size} {industry} {company descriptor}, {geography} — {natural summary of fit}."
+
+Good examples:
+- "VP of Engineering at a Series B SaaS company, 129 employees in New York — strong fit across industry, seniority, size, and geography."
+- "CEO of a PE-backed IT consulting firm with 636 employees across Europe — aligns with target industry, decision-maker seniority, and size."
+- "Director of Operations at a 2,400-person cybersecurity platform in London — fits target industry and geography with relevant operational role."
+
+Bad examples (DO NOT write like these):
+- "Sagnik Bhattacharya is the CEO of Rhapsody, a company in the technology space." (Describes the person — seller can already see this on the card.)
+- "Matches Technology & Software sub-industry targets with right size." (Sounds like a scoring algorithm, not a sales leader.)
+- "Strong fit for the seller's ICP criteria across multiple dimensions." (Empty. Says nothing specific.)
+
+SENTENCE 2 — THE BUSINESS ANGLE
+Connect what the SELLER does to why this PROSPECT's company would need it. Be specific.
+
+Think about:
+- What does the seller's company actually do? (Read their description carefully)
+- What would this prospect's company need from the seller?
+- Is there a timing signal? (Recent funding = actively spending. Scaling = needs infrastructure. Expanding internationally = needs local operations.)
+
+Good examples:
+- "Post-Series A growth means they're actively building engineering teams — prime timing for India-based talent operations."
+- "As a large European IT firm expanding delivery capabilities, they have the complexity and budget for dedicated India team partnerships."
+- "At 22 employees with recent seed funding, they're early but scaling fast — a pipeline opportunity as headcount grows."
+
+Bad examples (DO NOT write like these):
+- "They need specialized services to support their scaling operations." (What services? Why now? "Specialized services" means nothing.)
+- "A strong match for the seller's target sectors." (Just restates sentence 1.)
+- "Their technology platform and distributed operations create opportunities." (Vague. What opportunities? For what?)
+
+SUGGESTED APPROACH — One sentence. How should the seller reach out to this specific person?
+Reference something concrete: their role, a previous company, their LinkedIn activity, mutual context. If score < 5, say "Low priority — does not match core ICP."
+
+Good: "Reference his experience scaling engineering at UKG when discussing your GCC capabilities."
+Good: "Connect over shared fintech industry context — she's likely evaluating offshore talent solutions post-Series B."
+Bad: "Reach out via LinkedIn." (Obvious and useless.)
+
+CRITICAL RULES:
+1. NEVER explain what the target company does as if the seller doesn't know. The company card already shows this.
+2. ALWAYS surface funding stage when available — it's a timing signal.
+3. ALWAYS connect to what the SELLER specifically does. Read their company description.
+4. BE HONEST about timing. Don't manufacture urgency. If it's a pipeline opportunity, say so.
+5. NEVER use: "specialized services", "direct match for target sectors", "scaling operations" (without specificity), "service partners". These are empty calories.
+6. Write like a senior sales leader briefing the CEO, not a scoring algorithm.`;
 
 interface IcpData {
   industries?: string[];
   geographies?: string[];
+  functions?: string[];
   titles?: string[];
   companySizes?: string[];
   revenueRanges?: string[];
@@ -50,6 +176,7 @@ interface IcpData {
   investorFundTypes?: string[];
   investorStages?: string[];
   investorSectors?: string[];
+  companyDescription?: string;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -61,49 +188,53 @@ function buildScoringPrompt(
   company: any
 ): string {
   // Company section — use best available data
-  let companySection = "";
+  let companySection: string;
   if (company?.description || company?.industry) {
-    companySection = `
-COMPANY DATA:
-Name: ${company.name || conn.company}
+    companySection = `COMPANY DATA:
+Name: ${company.name || conn.company || "Unknown"}
 Description: ${company.description || "Not available"}
 Industry Label: ${company.industry || "Unknown"}
-Specialities: ${company.specialities ? JSON.stringify(company.specialities) : "N/A"}
+Specialities: ${company.specialities ? JSON.stringify(company.specialities) : "Unknown"}
 Website: ${company.website || "Unknown"}
-Size: ${company.company_size_min && company.company_size_max ? company.company_size_min + "-" + company.company_size_max + " employees" : "Unknown"}
+Size: ${company.company_size_min || "?"}-${company.company_size_max || "?"} employees
 HQ: ${[company.hq_city, company.hq_country].filter(Boolean).join(", ") || "Unknown"}
-Type: ${company.company_type || "Unknown"}`;
+Type: ${company.company_type || "Unknown"}
+Funding: ${company.latest_funding_type || "Unknown"} — $${company.latest_funding_amount || "?"} (${company.latest_funding_date || "date unknown"})
+Total Raised: $${company.total_funding_amount || "Unknown"}
+Founded: ${company.founded_year || "Unknown"}`;
   } else {
-    companySection = `
-COMPANY DATA:
-Name: ${conn.company}
-(No enriched company data available — use your knowledge of "${conn.company}" to assess industry fit)`;
+    companySection = `COMPANY DATA:
+Name: ${conn.company || "Unknown"}
+(No enriched company data available — use your knowledge of "${conn.company}" to assess industry fit if it's a well-known company.)`;
   }
 
-  // Person section
-  const personSection = `
-PERSON:
-Name: ${conn.first_name} ${conn.last_name}
-Title: ${profile?.current_title || conn.position}
-Headline: ${profile?.headline || "N/A"}
-Summary: ${profile?.summary ? (profile.summary as string).slice(0, 300) : "N/A"}
-Seniority: ${conn.seniority_tier || "Unknown"}
-Location: ${profile?.location_str || "Unknown"}
-Experience: ${profile?.total_experience_years || "Unknown"} years
-Industry (from profile): ${profile?.industry || "Not specified"}`;
+  return `SELLER:
+Company: ${userData.company_name || "Not specified"}
+Website: ${userData.company_website || "Not specified"}
+What they do: ${icpData?.companyDescription || "Not specified"}
 
-  return `
-SELLER: ${userData.company_name || "Unknown"} (${userData.company_website || "Unknown"})
-
-ICP (Ideal Customer Profile):
+WHAT THEY'RE LOOKING FOR:
 Target Industries: ${icpData.industries?.join(", ") || "Not specified"}
-Target Titles: ${icpData.titles?.join(", ") || "Not specified"}
+Target Functions: ${serializeFunctionsForPrompt(icpData.functions || [], icpData.titles)}
+Target Titles (specific): ${icpData.titles?.join(", ") || "All senior roles in target functions"}
 Target Company Sizes: ${icpData.companySizes?.join(", ") || "Any"}
 Target Geographies: ${icpData.geographies?.join(", ") || "Global"}
 Target Funding Stages: ${icpData.fundingStages?.join(", ") || "Any"}
 Sales Triggers: ${icpData.triggers?.join(" | ") || "None specified"}
+Looking for investors: ${icpData.lookingForInvestors ? "Yes" : "No"}
 
-${personSection}
+CONNECTION TO SCORE:
+Name: ${conn.first_name} ${conn.last_name}
+Title: ${profile?.current_title || conn.position || "Unknown"}
+Headline: ${profile?.headline || "Unknown"}
+Summary: ${profile?.summary ? (profile.summary as string).slice(0, 300) : "Not available"}
+Seniority: ${conn.seniority_tier || "Unknown"}
+Function: ${conn.function_category || "Unknown"}
+Location: ${profile?.location_str || profile?.country_full_name || "Unknown"}
+Experience: ${profile?.total_experience_years || "Unknown"} years
+Previous Companies: ${profile?.previous_companies ? (Array.isArray(profile.previous_companies) ? profile.previous_companies.join(", ") : profile.previous_companies) : "Unknown"}
+LinkedIn Active: ${profile?.is_linkedin_active ? "Yes" : "Unknown"}
+Industry (from profile): ${profile?.industry || "Unknown"}
 
 ${companySection}
 
@@ -213,7 +344,7 @@ export async function POST(request: Request) {
         ? await supabaseAdmin
             .from("enriched_profiles")
             .select(
-              "headline, current_title, current_company, industry, summary, location_str, total_experience_years, current_company_linkedin"
+              "headline, current_title, current_company, industry, summary, location_str, country_full_name, total_experience_years, previous_companies, is_linkedin_active, current_company_linkedin"
             )
             .eq("linkedin_url", conn.linkedin_url)
             .limit(1)
@@ -226,7 +357,7 @@ export async function POST(request: Request) {
         const { data: companyData } = await supabaseAdmin
           .from("enriched_companies")
           .select(
-            "name, description, industry, specialities, website, company_size_min, company_size_max, company_type, hq_city, hq_country, founded_year, tagline"
+            "name, description, industry, specialities, website, company_size_min, company_size_max, company_type, hq_city, hq_country, founded_year, tagline, latest_funding_type, latest_funding_amount, latest_funding_date, total_funding_amount"
           )
           .eq("linkedin_url", profile.current_company_linkedin)
           .limit(1)
