@@ -51,6 +51,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid question" }, { status: 400 });
   }
 
+  const startTime = Date.now();
+
   try {
     // Fetch user's ICP for context
     const { data: userData } = await supabaseAdmin
@@ -245,6 +247,21 @@ ${synthesisInput}`,
         output_tokens: synthesisResponse.usage?.output_tokens || 0,
       },
     ]);
+
+    // ── Log to query_log ──
+    try {
+      await supabaseAdmin.from("query_log").insert({
+        user_id: user.id,
+        question,
+        display_type: synthesis.display_type,
+        results_count: results.data?.length || 0,
+        answer_preview: synthesis.text?.slice(0, 200) || "",
+        follow_ups: synthesis.follow_up_suggestions || [],
+        duration_ms: Date.now() - startTime,
+      });
+    } catch (e) {
+      console.error("Query log insert failed:", e);
+    }
 
     // ── Return ──
     // Force "profile" display_type for person lookups so disambiguation triggers

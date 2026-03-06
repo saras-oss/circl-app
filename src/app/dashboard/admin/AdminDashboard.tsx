@@ -22,6 +22,11 @@ import {
   CheckCircle2,
   FileText,
   Activity,
+  LayoutDashboard,
+  MessageSquare,
+  ChevronDown,
+  Clock,
+  Search,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -901,10 +906,10 @@ const TableRow = React.memo(function TableRow({
 });
 
 // ---------------------------------------------------------------------------
-// Main Dashboard
+// Pipeline Tab (formerly the main dashboard)
 // ---------------------------------------------------------------------------
 
-export default function AdminDashboard() {
+function PipelineTab() {
   const [data, setData] = useState<PipelineResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -980,9 +985,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <h1 className="text-xl font-semibold text-[#0A2540]">Admin Pipeline Monitor</h1>
-
       {/* Pipeline Jobs */}
       <PipelineJobsSection />
 
@@ -1204,5 +1206,538 @@ function TogglePill({
       />
       {label}
     </label>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Overview Tab
+// ---------------------------------------------------------------------------
+
+interface OverviewStats {
+  total_users: number;
+  total_connections: number;
+  total_enriched: number;
+  total_scored: number;
+  total_hits: number;
+}
+
+interface ActivityEvent {
+  type: "pipeline" | "query" | "user_joined";
+  userName: string;
+  description: string;
+  time: string;
+}
+
+function OverviewTab() {
+  const [stats, setStats] = useState<OverviewStats | null>(null);
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchOverview() {
+      try {
+        // Fetch pipeline data for stats
+        const [pipeRes, activityRes, queriesRes] = await Promise.all([
+          fetch("/api/admin/pipeline-data?page=1"),
+          fetch("/api/admin/activity?days=7"),
+          fetch("/api/admin/queries?days=7"),
+        ]);
+
+        const pipeData = pipeRes.ok ? await pipeRes.json() : null;
+        const activityData = activityRes.ok ? await activityRes.json() : null;
+        const queriesData = queriesRes.ok ? await queriesRes.json() : null;
+
+        if (pipeData?.stats) {
+          setStats({
+            total_users: pipeData.stats.by_user?.length || 0,
+            total_connections: pipeData.stats.total || 0,
+            total_enriched: pipeData.stats.enriched || 0,
+            total_scored: pipeData.stats.scored || 0,
+            total_hits: pipeData.stats.hits || 0,
+          });
+        }
+
+        // Build activity feed
+        const feed: ActivityEvent[] = [];
+
+        // Pipeline events from jobs
+        const jobsRes = await fetch("/api/admin/pipeline-jobs");
+        if (jobsRes.ok) {
+          const jobsData = await jobsRes.json();
+          for (const job of (jobsData.jobs || []).slice(0, 10)) {
+            const userName = job.users?.full_name?.split(" ")[0] || job.users?.email?.split("@")[0] || "Unknown";
+            if (job.status === "completed" && job.completed_at) {
+              feed.push({
+                type: "pipeline",
+                userName,
+                description: `Pipeline completed — ${job.hits_count || 0} hits from ${job.total_connections} connections`,
+                time: job.completed_at,
+              });
+            }
+            if (job.started_at) {
+              feed.push({
+                type: "pipeline",
+                userName,
+                description: `Pipeline started — ${job.total_connections} connections (${job.mode || "background"})`,
+                time: job.started_at,
+              });
+            }
+          }
+        }
+
+        // Query events
+        if (queriesData?.queries) {
+          for (const q of queriesData.queries.slice(0, 10)) {
+            feed.push({
+              type: "query",
+              userName: q.full_name?.split(" ")[0] || "Unknown",
+              description: `Asked: "${q.question?.slice(0, 60)}${q.question?.length > 60 ? "..." : ""}" — ${q.results_count} results`,
+              time: q.created_at,
+            });
+          }
+        }
+
+        // User joins
+        if (activityData?.users) {
+          const sevenDaysAgo = new Date();
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          for (const u of activityData.users) {
+            if (u.joined && new Date(u.joined) >= sevenDaysAgo) {
+              feed.push({
+                type: "user_joined",
+                userName: u.full_name?.split(" ")[0] || u.email?.split("@")[0] || "Unknown",
+                description: `Joined — ${u.company_name || ""}`,
+                time: u.joined,
+              });
+            }
+          }
+        }
+
+        // Sort by time desc
+        feed.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+        setEvents(feed.slice(0, 20));
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchOverview();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
+      </div>
+    );
+  }
+
+  const eventIcon = (type: string) => {
+    if (type === "pipeline") return <Activity className="w-3.5 h-3.5 text-[#0ABF53]" />;
+    if (type === "query") return <MessageSquare className="w-3.5 h-3.5 text-[#2563EB]" />;
+    return <Users className="w-3.5 h-3.5 text-[#596780]" />;
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { icon: <Users className="w-4 h-4" />, label: "Users", value: stats.total_users },
+            { icon: <ListFilter className="w-4 h-4" />, label: "Connections", value: stats.total_connections },
+            { icon: <CheckCircle className="w-4 h-4" />, label: "Enriched", value: stats.total_enriched },
+            { icon: <Target className="w-4 h-4" />, label: "Scored", value: stats.total_scored },
+            { icon: <Flame className="w-4 h-4" />, label: "Hits", value: stats.total_hits },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm p-4 flex items-center gap-3">
+              <span className="text-[#0ABF53]">{s.icon}</span>
+              <div>
+                <p className="text-lg font-semibold text-[#0A2540] tabular-nums">{s.value.toLocaleString()}</p>
+                <p className="text-[11px] text-[#596780]">{s.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Activity feed */}
+      <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm">
+        <div className="px-5 py-4 border-b border-[#F0F3F7]">
+          <h3 className="text-sm font-semibold text-[#0A2540]">Recent Activity</h3>
+        </div>
+        <div className="divide-y divide-[#F0F3F7]">
+          {events.length === 0 ? (
+            <p className="text-sm text-[#96A0B5] py-12 text-center">No recent activity</p>
+          ) : (
+            events.map((event, i) => (
+              <div key={i} className="flex items-start gap-3 px-5 py-3">
+                <div className="mt-0.5 shrink-0">{eventIcon(event.type)}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] text-[#0A2540]">
+                    <span className="font-medium">{event.userName}</span>{" "}
+                    <span className="text-[#596780]">{event.description}</span>
+                  </p>
+                </div>
+                <span className="text-[11px] text-[#96A0B5] shrink-0 tabular-nums">{relativeTime(event.time)}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Users Tab
+// ---------------------------------------------------------------------------
+
+interface ActivityUser {
+  user_id: string;
+  full_name: string;
+  email: string;
+  company_name: string;
+  joined: string;
+  last_seen: string | null;
+  total_connections: number;
+  enriched_count: number;
+  hits_count: number;
+  page_views: Record<string, number>;
+  total_views: number;
+  query_count: number;
+  sessions: { started: string; pages: string[]; duration_minutes: number }[];
+}
+
+function UsersTab() {
+  const [users, setUsers] = useState<ActivityUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/admin/activity?days=${days}`)
+      .then((r) => r.json())
+      .then((d) => setUsers(d.users || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#0A2540]">Users</h3>
+        <select
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="h-8 px-3 rounded-lg border border-[#E3E8EF] text-[12px] text-[#596780] focus:outline-none focus:border-[#0ABF53]"
+        >
+          <option value={1}>Last 24h</option>
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={3650}>All time</option>
+        </select>
+      </div>
+
+      <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[#E3E8EF] bg-[#F6F8FA]">
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider">User</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden sm:table-cell">Company</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider">Last Seen</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden md:table-cell">Pages</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden md:table-cell">Queries</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden lg:table-cell">Connections</th>
+                  <th className="px-4 py-2.5 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <React.Fragment key={u.user_id}>
+                    <tr
+                      className="border-b border-[#F0F3F7] hover:bg-[#F6F8FA] transition-colors cursor-pointer"
+                      onClick={() => setExpanded(expanded === u.user_id ? null : u.user_id)}
+                    >
+                      <td className="px-4 py-3">
+                        <p className="text-[13px] font-medium text-[#0A2540]">{u.full_name || u.email.split("@")[0]}</p>
+                        <p className="text-[10px] text-[#96A0B5]">{u.email}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-[#596780] hidden sm:table-cell">{u.company_name || "—"}</td>
+                      <td className="px-4 py-3 text-[12px] text-[#596780] tabular-nums">{u.last_seen ? relativeTime(u.last_seen) : "Never"}</td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-[#0A2540] tabular-nums hidden md:table-cell">{u.total_views}</td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-[#0A2540] tabular-nums hidden md:table-cell">{u.query_count}</td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-[#0A2540] tabular-nums hidden lg:table-cell">{u.total_connections.toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <ChevronDown className={`w-3.5 h-3.5 text-[#96A0B5] transition-transform ${expanded === u.user_id ? "rotate-180" : ""}`} />
+                      </td>
+                    </tr>
+                    {expanded === u.user_id && (
+                      <tr>
+                        <td colSpan={7} className="bg-[#F6F8FA] px-6 py-4">
+                          <div className="space-y-3">
+                            {/* Page views */}
+                            <div>
+                              <p className="text-[11px] font-semibold text-[#596780] uppercase tracking-wider mb-1.5">Page Views</p>
+                              <div className="flex flex-wrap gap-3 text-[12px]">
+                                {["dashboard", "hit-list", "network", "ask", "settings", "admin"].map((pg) => (
+                                  <span key={pg} className="text-[#596780]">
+                                    {pg === "hit-list" ? "Hit List" : pg === "ask" ? "Ask Circl" : pg.charAt(0).toUpperCase() + pg.slice(1)}: <strong className="text-[#0A2540]">{u.page_views[pg] || 0}</strong>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Sessions */}
+                            {u.sessions.length > 0 && (
+                              <div>
+                                <p className="text-[11px] font-semibold text-[#596780] uppercase tracking-wider mb-1.5">Recent Sessions</p>
+                                <div className="space-y-1.5">
+                                  {u.sessions.slice(0, 5).map((s, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-[12px]">
+                                      <Clock className="w-3 h-3 text-[#96A0B5] shrink-0" />
+                                      <span className="text-[#596780]">
+                                        {new Date(s.started).toLocaleDateString("en-US", { month: "short", day: "numeric" })}{" "}
+                                        {new Date(s.started).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                                      </span>
+                                      <span className="text-[#0A2540]">
+                                        {s.pages.filter((p, j, a) => a.indexOf(p) === j).join(" → ")}
+                                      </span>
+                                      <span className="text-[#96A0B5]">({s.duration_minutes || "<1"}min)</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Pipeline & ICP */}
+                            <div className="flex flex-wrap gap-4 text-[12px] text-[#596780]">
+                              <span>{u.total_connections.toLocaleString()} connections</span>
+                              <span>{u.enriched_count.toLocaleString()} enriched</span>
+                              <span>{u.hits_count} hits</span>
+                              <span>Joined {new Date(u.joined).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-[#96A0B5]">No users found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Queries Tab
+// ---------------------------------------------------------------------------
+
+interface QueryLogEntry {
+  id: string;
+  user_id: string;
+  full_name: string;
+  company_name: string;
+  question: string;
+  display_type: string;
+  results_count: number;
+  answer_preview: string;
+  follow_ups: string[];
+  duration_ms: number;
+  created_at: string;
+}
+
+function QueriesTab() {
+  const [queries, setQueries] = useState<QueryLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [days, setDays] = useState(7);
+  const [totalQueries, setTotalQueries] = useState(0);
+  const [avgResults, setAvgResults] = useState(0);
+  const [mostActive, setMostActive] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch(`/api/admin/queries?days=${days}`)
+      .then((r) => r.json())
+      .then((d) => {
+        setQueries(d.queries || []);
+        setTotalQueries(d.total_queries || 0);
+        setAvgResults(d.avg_results || 0);
+        setMostActive(d.most_active_user || "");
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [days]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[#0A2540]">Query Log</h3>
+        <select
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="h-8 px-3 rounded-lg border border-[#E3E8EF] text-[12px] text-[#596780] focus:outline-none focus:border-[#0ABF53]"
+        >
+          <option value={1}>Last 24h</option>
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={3650}>All time</option>
+        </select>
+      </div>
+
+      {/* Stats */}
+      <div className="flex flex-wrap gap-4 text-[13px] text-[#596780]">
+        <span>Total: <strong className="text-[#0A2540]">{totalQueries}</strong></span>
+        <span>Avg results: <strong className="text-[#0A2540]">{avgResults}</strong></span>
+        {mostActive && <span>Most active: <strong className="text-[#0A2540]">{mostActive}</strong></span>}
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-[#E3E8EF] shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-5 h-5 animate-spin text-[#96A0B5]" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[#E3E8EF] bg-[#F6F8FA]">
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider">User</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider">Question</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden sm:table-cell">Time</th>
+                  <th className="px-4 py-2.5 text-[11px] font-semibold text-[#596780] uppercase tracking-wider hidden md:table-cell">Results</th>
+                  <th className="px-4 py-2.5 w-8"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {queries.map((q) => (
+                  <React.Fragment key={q.id}>
+                    <tr
+                      className="border-b border-[#F0F3F7] hover:bg-[#F6F8FA] transition-colors cursor-pointer"
+                      onClick={() => setExpanded(expanded === q.id ? null : q.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <p className="text-[12px] font-medium text-[#0A2540]">{q.full_name?.split(" ")[0] || "Unknown"}</p>
+                      </td>
+                      <td className="px-4 py-3 text-[12px] text-[#0A2540] max-w-[300px] truncate">
+                        &ldquo;{q.question}&rdquo;
+                      </td>
+                      <td className="px-4 py-3 text-[11px] text-[#96A0B5] tabular-nums hidden sm:table-cell">{relativeTime(q.created_at)}</td>
+                      <td className="px-4 py-3 text-[12px] font-medium text-[#0A2540] tabular-nums hidden md:table-cell">{q.results_count}</td>
+                      <td className="px-4 py-3">
+                        <ChevronDown className={`w-3.5 h-3.5 text-[#96A0B5] transition-transform ${expanded === q.id ? "rotate-180" : ""}`} />
+                      </td>
+                    </tr>
+                    {expanded === q.id && (
+                      <tr>
+                        <td colSpan={5} className="bg-[#F6F8FA] px-6 py-4">
+                          <div className="space-y-2 text-[12px]">
+                            <div className="flex flex-wrap gap-3 text-[#596780]">
+                              <span>User: <strong className="text-[#0A2540]">{q.full_name || "Unknown"}</strong> · {q.company_name}</span>
+                              <span>Time: {new Date(q.created_at).toLocaleString()}</span>
+                              <span>Duration: {q.duration_ms ? `${(q.duration_ms / 1000).toFixed(1)}s` : "—"}</span>
+                              <span>Results: {q.results_count}</span>
+                              <span>Display: {q.display_type || "—"}</span>
+                            </div>
+                            {q.answer_preview && (
+                              <div>
+                                <p className="text-[11px] font-semibold text-[#596780] uppercase tracking-wider mb-1">Answer</p>
+                                <p className="text-[#596780] leading-relaxed">{q.answer_preview}</p>
+                              </div>
+                            )}
+                            {q.follow_ups && q.follow_ups.length > 0 && (
+                              <div>
+                                <p className="text-[11px] font-semibold text-[#596780] uppercase tracking-wider mb-1">Follow-ups</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {q.follow_ups.map((fu, i) => (
+                                    <span key={i} className="text-[11px] px-2 py-1 rounded-full bg-white border border-[#E3E8EF] text-[#596780]">
+                                      {fu}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+                {queries.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-[#96A0B5]">No queries found.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Admin Dashboard with Tabs
+// ---------------------------------------------------------------------------
+
+const ADMIN_TABS = [
+  { id: "overview", label: "Overview", icon: <LayoutDashboard className="w-4 h-4" /> },
+  { id: "pipeline", label: "Pipeline", icon: <Activity className="w-4 h-4" /> },
+  { id: "users", label: "Users", icon: <Users className="w-4 h-4" /> },
+  { id: "queries", label: "Queries", icon: <MessageSquare className="w-4 h-4" /> },
+] as const;
+
+export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState<string>("overview");
+
+  return (
+    <div className="space-y-5">
+      <h1 className="text-xl font-semibold text-[#0A2540]">Admin Dashboard</h1>
+
+      {/* Tabs */}
+      <div className="border-b border-[#E3E8EF] overflow-x-auto">
+        <div className="flex gap-0 min-w-max">
+          {ADMIN_TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium border-b-2 transition-all whitespace-nowrap ${
+                activeTab === tab.id
+                  ? "border-[#0ABF53] text-[#0A2540]"
+                  : "border-transparent text-[#596780] hover:text-[#0A2540] hover:border-[#E3E8EF]"
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab content */}
+      {activeTab === "overview" && <OverviewTab />}
+      {activeTab === "pipeline" && <PipelineTab />}
+      {activeTab === "users" && <UsersTab />}
+      {activeTab === "queries" && <QueriesTab />}
+    </div>
   );
 }
