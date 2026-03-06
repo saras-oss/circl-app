@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { extractDomain } from "@/lib/utils";
 import Anthropic from "@anthropic-ai/sdk";
 import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
+import { deriveFunctionsFromTitles } from "@/lib/taxonomy/functions";
 
 export const maxDuration = 60; // seconds — requires Vercel Pro plan
 
@@ -139,12 +140,21 @@ TASK 3 — SALES TRIGGERS:
 - Think: funding rounds, leadership changes, hiring patterns, tech migrations, expansion plans
 - Make them SPECIFIC to what this company sells
 
+For target_functions: Think about what TYPES of people would buy this company's product.
+If they sell developer tools → engineering_technology.
+If they sell HR software → hr_people.
+If they sell financial analytics → finance.
+Select 2-4 functions most likely to be buyers.
+
+For target_titles: List specific titles within the selected functions that are most relevant.
+
 Return ONLY valid JSON with no additional text. Use ONLY values from the valid options for ICP fields:
 
 {
   "icp_suggestions": {
     "target_industries": ["..."],
     "target_geographies": ["..."],
+    "target_functions": ["..."],
     "target_titles": ["..."],
     "company_sizes": ["..."],
     "revenue_ranges": ["..."],
@@ -165,7 +175,15 @@ Company sizes: 1–10 employees, 11–50 employees, 51–200 employees, 201–50
 Revenue: Pre-revenue, $0–$1M ARR, $1M–$5M ARR, $5M–$20M ARR, $20M–$100M ARR, $100M+ ARR
 Funding: Pre-seed, Seed, Series A, Series B, Series C+, PE-backed, Public, Bootstrapped
 Geography: North America, Europe, UK, APAC, MENA, LATAM, India, Global
-Titles: CEO, CTO, CFO, COO, CISO, CIO, VP Engineering, VP Product, VP Sales, VP Marketing, Head of IT, Head of Data, Head of Engineering, Director of Engineering, Director of Product, General Manager, Managing Director`;
+Functions (select which functional areas the company's ideal buyers work in):
+  engineering_technology, product, operations, sales_business_development,
+  marketing, finance, hr_people, it_security, legal_compliance, general_management
+Titles (optional — specific titles within those functions):
+  CEO, CTO, CFO, COO, CISO, CIO, VP Engineering, VP Product, VP Sales,
+  VP Marketing, Head of IT, Head of Data, Head of Engineering,
+  Director of Engineering, Director of Product, General Manager,
+  Managing Director, CHRO, VP People, Head of Talent, VP Operations,
+  Head of Growth, VP Finance, Head of BD`;
 
 const STUCK_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 
@@ -285,11 +303,13 @@ export async function POST(request: Request) {
       }
 
       // Normalize the extracted data
+      const extractedTitles = (extractedData.icp_suggestions.target_titles as string[]) || [];
       const normalizedData = {
         icp_suggestions: {
           target_industries: (extractedData.icp_suggestions.target_industries as string[]) || [],
           target_geographies: (extractedData.icp_suggestions.target_geographies as string[]) || [],
-          target_titles: (extractedData.icp_suggestions.target_titles as string[]) || [],
+          target_functions: (extractedData.icp_suggestions.target_functions as string[]) || deriveFunctionsFromTitles(extractedTitles),
+          target_titles: extractedTitles,
           company_sizes: (extractedData.icp_suggestions.company_sizes as string[]) || [],
           revenue_ranges: (extractedData.icp_suggestions.revenue_ranges as string[]) || [],
           funding_stages: (extractedData.icp_suggestions.funding_stages as string[]) || [],

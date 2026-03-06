@@ -21,8 +21,11 @@ import {
   REVENUE_RANGES,
   FUNDING_STAGES,
   GEOGRAPHIES,
-  DEFAULT_TITLES,
 } from "@/lib/data/icp-taxonomy";
+import {
+  FUNCTION_THEMES,
+  deriveFunctionsFromTitles,
+} from "@/lib/taxonomy/functions";
 
 interface IcpStepProps {
   userId: string;
@@ -34,6 +37,7 @@ interface IcpStepProps {
 interface IcpState {
   industries: string[];
   geographies: string[];
+  functions: string[];
   titles: string[];
   companySizes: string[];
   revenueRanges: string[];
@@ -53,6 +57,7 @@ interface ChatMessage {
 const DEFAULT_ICP: IcpState = {
   industries: [],
   geographies: [],
+  functions: [],
   titles: [],
   companySizes: [],
   revenueRanges: [],
@@ -98,6 +103,11 @@ function buildInitialIcp(userData: Record<string, unknown>): {
   const triggers = (salesTriggers.triggers as string[]) || [];
   const customers = (customerList.customers as string[]) || [];
 
+  const titlesArr =
+    (icpSuggestions.target_titles as string[]) ||
+    (icpSuggestions.titles as string[]) ||
+    [];
+
   return {
     icp: {
       industries:
@@ -108,10 +118,11 @@ function buildInitialIcp(userData: Record<string, unknown>): {
         (icpSuggestions.target_geographies as string[]) ||
         (icpSuggestions.geographies as string[]) ||
         [],
-      titles:
-        (icpSuggestions.target_titles as string[]) ||
-        (icpSuggestions.titles as string[]) ||
-        [],
+      functions:
+        (icpSuggestions.target_functions as string[]) ||
+        (icpSuggestions.functions as string[]) ||
+        deriveFunctionsFromTitles(titlesArr),
+      titles: titlesArr,
       companySizes:
         (icpSuggestions.company_sizes as string[]) ||
         (icpSuggestions.companySizes as string[]) ||
@@ -256,15 +267,221 @@ function PillGroupEditable({
   );
 }
 
+/* ─────────────── Function Theme Selector ─────────────── */
+function FunctionThemeSelector({
+  icp,
+  setIcp,
+}: {
+  icp: IcpState;
+  setIcp: React.Dispatch<React.SetStateAction<IcpState>>;
+}) {
+  const [expandedTheme, setExpandedTheme] = useState<string | null>(null);
+
+  function toggleFunction(themeId: string, themeTitles: string[]) {
+    setIcp((prev) => {
+      const isSelected = prev.functions.includes(themeId);
+      if (isSelected) {
+        // Remove function and its titles
+        const titlesToRemove = new Set(themeTitles.map((t) => t.toLowerCase()));
+        return {
+          ...prev,
+          functions: prev.functions.filter((f) => f !== themeId),
+          titles: prev.titles.filter(
+            (t) => !titlesToRemove.has(t.toLowerCase())
+          ),
+        };
+      } else {
+        // Add function and all its titles
+        const newTitles = themeTitles.filter((t) => !prev.titles.includes(t));
+        return {
+          ...prev,
+          functions: [...prev.functions, themeId],
+          titles: [...prev.titles, ...newTitles],
+        };
+      }
+    });
+  }
+
+  function toggleTitle(themeId: string, title: string) {
+    setIcp((prev) => {
+      const hasTitle = prev.titles.includes(title);
+      const newTitles = hasTitle
+        ? prev.titles.filter((t) => t !== title)
+        : [...prev.titles, title];
+
+      // Ensure function stays selected even if all specific titles are unchecked
+      let newFunctions = prev.functions;
+      if (!hasTitle && !prev.functions.includes(themeId)) {
+        newFunctions = [...prev.functions, themeId];
+      }
+
+      return { ...prev, titles: newTitles, functions: newFunctions };
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
+          Who Do You Sell To?
+        </h3>
+        <p className="text-xs text-[#96A0B5] mt-1">
+          Select the functions your buyers work in
+        </p>
+      </div>
+
+      <div className="space-y-2.5">
+        {FUNCTION_THEMES.map((theme) => {
+          const isSelected = icp.functions.includes(theme.id);
+          const isExpanded = expandedTheme === theme.id;
+          const selectedTitleCount = theme.titles.filter((t) =>
+            icp.titles.includes(t)
+          ).length;
+
+          return (
+            <div
+              key={theme.id}
+              className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                isSelected
+                  ? "border-[#0ABF53]/40 bg-[#F0FDF4]"
+                  : "border-[#E3E8EF] bg-white hover:border-[#96A0B5]"
+              }`}
+              style={{
+                borderLeftWidth: "3px",
+                borderLeftColor: isSelected ? "#0ABF53" : "#E3E8EF",
+              }}
+            >
+              {/* Theme header */}
+              <div className="flex items-center gap-3 p-4 min-h-[56px]">
+                <button
+                  onClick={() => toggleFunction(theme.id, theme.titles)}
+                  className={`w-5 h-5 rounded flex items-center justify-center shrink-0 transition-colors ${
+                    isSelected
+                      ? "bg-[#0ABF53] text-white"
+                      : "border-2 border-[#D1D9E6]"
+                  }`}
+                >
+                  {isSelected && <Check className="h-3 w-3" />}
+                </button>
+
+                <div
+                  className="flex-1 min-w-0 cursor-pointer"
+                  onClick={() => toggleFunction(theme.id, theme.titles)}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-sm font-semibold ${isSelected ? "text-[#0A2540]" : "text-[#596780]"}`}
+                    >
+                      {theme.label}
+                    </span>
+                    {isSelected && selectedTitleCount > 0 && (
+                      <span className="text-[10px] font-medium text-[#0ABF53] bg-[#0ABF53]/10 px-1.5 py-0.5 rounded-full">
+                        {selectedTitleCount} title
+                        {selectedTitleCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {isSelected && selectedTitleCount === 0 && (
+                      <span className="text-[10px] font-medium text-[#96A0B5]">
+                        All senior roles
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-[#96A0B5] mt-0.5">
+                    {theme.description}
+                  </p>
+                </div>
+
+                {isSelected && (
+                  <button
+                    onClick={() =>
+                      setExpandedTheme(isExpanded ? null : theme.id)
+                    }
+                    className="w-8 h-8 rounded-lg hover:bg-[#0ABF53]/10 flex items-center justify-center transition-colors shrink-0"
+                  >
+                    <svg
+                      className={`w-4 h-4 text-[#596780] transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M19 9l-7 7-7-7"
+                      />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
+              {/* Expanded titles */}
+              {isSelected && isExpanded && (
+                <div className="px-4 pb-4 pt-1 border-t border-[#0ABF53]/10">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#96A0B5] mb-2">
+                    Specific titles (optional)
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {theme.titles.map((title) => {
+                      const isChecked = icp.titles.includes(title);
+                      return (
+                        <button
+                          key={title}
+                          onClick={() => toggleTitle(theme.id, title)}
+                          className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+                            isChecked
+                              ? "bg-[#0ABF53] text-white"
+                              : "bg-white text-[#596780] border border-[#E3E8EF] hover:border-[#0ABF53]/40"
+                          }`}
+                        >
+                          {isChecked && <Check className="h-2.5 w-2.5" />}
+                          {title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Custom title input */}
+      <PillGroupEditable
+        label="Custom titles"
+        pills={icp.titles.filter(
+          (t) => !FUNCTION_THEMES.some((f) => f.titles.includes(t))
+        )}
+        onRemove={(v) =>
+          setIcp((prev) => ({
+            ...prev,
+            titles: prev.titles.filter((t) => t !== v),
+          }))
+        }
+        onAdd={(v) =>
+          setIcp((prev) => ({
+            ...prev,
+            titles: prev.titles.includes(v)
+              ? prev.titles
+              : [...prev.titles, v],
+          }))
+        }
+      />
+    </div>
+  );
+}
+
 /* ─────────────── Read-only ICP Summary (for chat modal) ─────────────── */
 function IcpSummaryReadOnly({ icp }: { icp: IcpState }) {
   const sections: { key: keyof IcpState; label: string }[] = [
     { key: "industries", label: "Industries" },
+    { key: "functions", label: "Target Functions" },
     { key: "companySizes", label: "Company Size" },
     { key: "revenueRanges", label: "Revenue" },
     { key: "fundingStages", label: "Funding Stage" },
     { key: "geographies", label: "Geography" },
-    { key: "titles", label: "Titles" },
+    { key: "titles", label: "Specific Titles" },
     { key: "triggers", label: "Triggers" },
   ];
 
@@ -707,40 +924,8 @@ export default function IcpStep({
           </div>
         </div>
 
-        {/* ─── TARGET TITLES ─── */}
-        <div className="space-y-3">
-          <h4 className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#96A0B5]">
-            Target Titles / Roles
-          </h4>
-          <div className="flex flex-wrap gap-2">
-            {DEFAULT_TITLES.map((title) => (
-              <TogglePill
-                key={title}
-                label={title}
-                selected={icp.titles.includes(title)}
-                onToggle={() => toggleItem("titles", title)}
-              />
-            ))}
-          </div>
-          <PillGroupEditable
-            label=""
-            pills={icp.titles.filter((t) => !DEFAULT_TITLES.includes(t))}
-            onRemove={(v) =>
-              setIcp((prev) => ({
-                ...prev,
-                titles: prev.titles.filter((t) => t !== v),
-              }))
-            }
-            onAdd={(v) =>
-              setIcp((prev) => ({
-                ...prev,
-                titles: prev.titles.includes(v)
-                  ? prev.titles
-                  : [...prev.titles, v],
-              }))
-            }
-          />
-        </div>
+        {/* ─── WHO DO YOU SELL TO? (Functions + Titles) ─── */}
+        <FunctionThemeSelector icp={icp} setIcp={setIcp} />
 
         {/* ─── HIGH-INTENT TRIGGERS ─── */}
         <div className="space-y-3">

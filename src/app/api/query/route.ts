@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import Anthropic from "@anthropic-ai/sdk";
 import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
+import { serializeFunctionsForPrompt } from "@/lib/taxonomy/functions";
 import { buildAndExecuteQuery } from "@/lib/query-engine/query-builder";
 import { aggregateResults } from "@/lib/query-engine/aggregate";
 import {
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
             role: "user",
             content: `The user's company: ${userData?.company_name || "Unknown"}
 The user's ICP industries: ${icpData.industries?.join(", ") || "Not set"}
-The user's ICP titles: ${icpData.titles?.join(", ") || "Not set"}
+The user's ICP target functions: ${serializeFunctionsForPrompt(icpData.functions || [], icpData.titles)}
 
 User question: "${question}"`,
           },

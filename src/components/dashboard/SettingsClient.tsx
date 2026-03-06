@@ -14,6 +14,11 @@ import {
   Plus,
   Pencil,
 } from "lucide-react";
+import {
+  FUNCTION_THEMES,
+  getFunctionLabel,
+  deriveFunctionsFromTitles,
+} from "@/lib/taxonomy/functions";
 
 interface SettingsClientProps {
   userId: string;
@@ -23,6 +28,7 @@ interface SettingsClientProps {
 
 interface IcpFields {
   industries: string[];
+  functions: string[];
   titles: string[];
   companySizes: string[];
   geographies: string[];
@@ -32,7 +38,8 @@ interface IcpFields {
 
 const ICP_FIELD_LABELS: Record<keyof IcpFields, string> = {
   industries: "Target Industries",
-  titles: "Target Titles",
+  functions: "Target Functions",
+  titles: "Target Titles (optional refinement)",
   companySizes: "Company Sizes",
   geographies: "Geographies",
   fundingStages: "Funding Stages",
@@ -125,6 +132,7 @@ export default function SettingsClient({
   const [icpEditing, setIcpEditing] = useState(false);
   const [icpFields, setIcpFields] = useState<IcpFields>({
     industries: (rawIcp?.industries as string[]) || [],
+    functions: (rawIcp?.functions as string[]) || deriveFunctionsFromTitles((rawIcp?.titles as string[]) || []),
     titles: (rawIcp?.titles as string[]) || [],
     companySizes: (rawIcp?.companySizes as string[]) || [],
     geographies: (rawIcp?.geographies as string[]) || [],
@@ -385,11 +393,39 @@ export default function SettingsClient({
                     <label className="text-xs font-medium text-[#596780] uppercase tracking-wide mb-3 block">
                       {ICP_FIELD_LABELS[field]}
                     </label>
-                    <TagEditor
-                      tags={icpFields[field]}
-                      onChange={(tags) => updateIcpField(field, tags)}
-                      placeholder={`Add ${ICP_FIELD_LABELS[field].toLowerCase()}...`}
-                    />
+                    {field === "functions" ? (
+                      <div className="flex flex-wrap gap-2">
+                        {FUNCTION_THEMES.map((theme) => {
+                          const isSelected = icpFields.functions.includes(theme.id);
+                          return (
+                            <button
+                              key={theme.id}
+                              type="button"
+                              onClick={() => {
+                                const newFunctions = isSelected
+                                  ? icpFields.functions.filter((f) => f !== theme.id)
+                                  : [...icpFields.functions, theme.id];
+                                updateIcpField("functions", newFunctions);
+                              }}
+                              className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 h-[38px] ${
+                                isSelected
+                                  ? "bg-[#0ABF53] text-white"
+                                  : "bg-white text-[#0A2540] border border-[#E3E8EF] hover:border-[#0ABF53]/40"
+                              }`}
+                            >
+                              {isSelected && <Check className="h-3 w-3" />}
+                              {theme.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <TagEditor
+                        tags={icpFields[field]}
+                        onChange={(tags) => updateIcpField(field, tags)}
+                        placeholder={`Add ${ICP_FIELD_LABELS[field].toLowerCase()}...`}
+                      />
+                    )}
                   </div>
                 )
               )}
@@ -415,6 +451,7 @@ export default function SettingsClient({
                     setIcpEditing(false);
                     setIcpFields({
                       industries: (rawIcp?.industries as string[]) || [],
+                      functions: (rawIcp?.functions as string[]) || deriveFunctionsFromTitles((rawIcp?.titles as string[]) || []),
                       titles: (rawIcp?.titles as string[]) || [],
                       companySizes: (rawIcp?.companySizes as string[]) || [],
                       geographies: (rawIcp?.geographies as string[]) || [],
@@ -447,7 +484,7 @@ export default function SettingsClient({
                             key={v}
                             className="text-xs font-semibold px-3.5 py-1.5 rounded-full bg-[#E6F9EE] text-[#089E45] border border-[#0ABF53]/20"
                           >
-                            {v}
+                            {key === "functions" ? getFunctionLabel(v) : v}
                           </span>
                         ))
                       ) : (
