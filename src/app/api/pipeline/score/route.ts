@@ -6,7 +6,7 @@ import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 import { serializeFunctionsForPrompt } from "@/lib/taxonomy/functions";
 
 const BATCH_SIZE = 25;
-const PARALLEL_LIMIT = 10;
+const PARALLEL_LIMIT = 5;
 
 const SCORING_SYSTEM_PROMPT = `You are a B2B lead qualifier for a LinkedIn network scoring tool. You evaluate whether a LinkedIn connection is a valuable sales prospect for a specific business.
 
@@ -507,6 +507,11 @@ export async function POST(request: Request) {
         if (result.status === "fulfilled" && result.value) {
           scoredCount++;
         }
+      }
+
+      // Small delay between waves to avoid rate limits
+      if (i + PARALLEL_LIMIT < connections.length) {
+        await new Promise(r => setTimeout(r, 200));
       }
     }
 
