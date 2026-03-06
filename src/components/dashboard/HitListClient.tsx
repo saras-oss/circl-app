@@ -775,7 +775,7 @@ export default function HitListClient({
               {/* Footer: Connected date + CTA */}
               <div className="flex items-center justify-between pt-3 border-t border-[#F0F3F7]">
                 <span className="text-xs text-[#96A0B5]">
-                  Connected {conn.connected_on || "\u2014"}
+                  Connected {conn.connected_on ? new Date(conn.connected_on).toLocaleDateString("en-US", { month: "short", year: "numeric" }) : "\u2014"}
                 </span>
                 {conn.linkedin_url && (
                   <a

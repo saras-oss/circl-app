@@ -2,7 +2,29 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { useState } from "react";
 import { MapPin, ExternalLink } from "lucide-react";
+
+function SmallAvatar({ src, first, last }: { src?: string; first?: string; last?: string }) {
+  const [imgError, setImgError] = useState(false);
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt=""
+        className="w-11 h-11 rounded-full object-cover shrink-0"
+        onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+      />
+    );
+  }
+  return (
+    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(first, last)}`}>
+      {initials(first, last)}
+    </div>
+  );
+}
 
 const AVATAR_COLORS = [
   "bg-[#E6F9EE] text-[#0ABF53]",
@@ -56,19 +78,7 @@ export default function DisambiguationCards({
           onClick={() => onSelect(r)}
           className="w-full flex items-center gap-3 bg-white rounded-lg shadow-sm border border-[#E3E8EF] px-4 py-3 text-left cursor-pointer hover:bg-[#F6F8FA] hover:border-[#0ABF53]/30 transition-all"
         >
-          {r.profile_pic_url ? (
-            <img
-              src={r.profile_pic_url}
-              alt=""
-              className="w-11 h-11 rounded-full object-cover shrink-0"
-            />
-          ) : (
-            <div
-              className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${getAvatarColor(r.first_name, r.last_name)}`}
-            >
-              {initials(r.first_name, r.last_name)}
-            </div>
-          )}
+          <SmallAvatar src={r.profile_pic_url} first={r.first_name} last={r.last_name} />
 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-[#0A2540] truncate">

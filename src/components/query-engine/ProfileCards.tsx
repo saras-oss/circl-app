@@ -2,6 +2,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { useState } from "react";
 import {
   MapPin,
   Briefcase,
@@ -14,6 +15,28 @@ import {
   Users,
   ArrowRight,
 } from "lucide-react";
+
+function ProfileAvatar({ src, first, last }: { src?: string; first?: string; last?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const name = `${first || ""} ${last || ""}`.trim();
+  if (src && !imgError) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="w-[52px] h-[52px] rounded-full object-cover shrink-0"
+        onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
+        crossOrigin="anonymous"
+      />
+    );
+  }
+  return (
+    <div className={`w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${getAvatarColor(first, last)}`}>
+      {initials(first, last)}
+    </div>
+  );
+}
 
 const AVATAR_COLORS = [
   "bg-[#E6F9EE] text-[#0ABF53]",
@@ -139,19 +162,7 @@ export default function ProfileCards({ results, salesIntent = false }: ProfileCa
             <div className="p-5 sm:p-6">
               {/* ── Header Row ── */}
               <div className="flex items-start gap-4">
-                {r.profile_pic_url ? (
-                  <img
-                    src={r.profile_pic_url}
-                    alt=""
-                    className="w-[52px] h-[52px] rounded-full object-cover shrink-0"
-                  />
-                ) : (
-                  <div
-                    className={`w-[52px] h-[52px] rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${getAvatarColor(r.first_name, r.last_name)}`}
-                  >
-                    {initials(r.first_name, r.last_name)}
-                  </div>
-                )}
+                <ProfileAvatar src={r.profile_pic_url} first={r.first_name} last={r.last_name} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -187,7 +198,7 @@ export default function ProfileCards({ results, salesIntent = false }: ProfileCa
                   </div>
 
                   {/* ── Meta Row ── */}
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-[#596780]">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-[#596780]">
                     {(r.city || r.location_str) && (
                       <span className="inline-flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5" /> {r.city || r.location_str}
@@ -204,12 +215,12 @@ export default function ProfileCards({ results, salesIntent = false }: ProfileCa
                       </span>
                     )}
                     {r.company_industry && (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="hidden sm:inline-flex items-center gap-1">
                         <Building2 className="w-3.5 h-3.5" /> {r.company_industry}
                       </span>
                     )}
                     {r.company_size_min != null && (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="hidden sm:inline-flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />{" "}
                         {r.company_size_min && r.company_size_max
                           ? `${r.company_size_min.toLocaleString()}–${r.company_size_max.toLocaleString()} employees`
@@ -226,9 +237,9 @@ export default function ProfileCards({ results, salesIntent = false }: ProfileCa
                   <p className="text-[11px] font-medium text-[#96A0B5] uppercase tracking-wider mb-2">
                     Company
                   </p>
-                  <div className="bg-[#F6F8FA] rounded-lg p-4 space-y-1.5 text-sm text-[#596780]">
+                  <div className="bg-[#F6F8FA] rounded-lg p-3 sm:p-4 space-y-1.5 text-sm text-[#596780]">
                     {r.company_name && (
-                      <p>
+                      <p className="break-words">
                         <span className="font-medium text-[#0A2540]">{r.company_name}</span>
                         {r.company_industry && <span> · {r.company_industry}</span>}
                       </p>
@@ -281,14 +292,14 @@ export default function ProfileCards({ results, salesIntent = false }: ProfileCa
                   </p>
                   <div className="space-y-1.5">
                     {workHistory.map((entry, j) => (
-                      <div key={j} className="flex items-center gap-1.5 text-sm text-[#596780]">
-                        {j > 0 && <ArrowRight className="w-3 h-3 text-[#96A0B5] shrink-0" />}
-                        <span>
+                      <div key={j} className="flex items-start gap-1.5 text-sm text-[#596780]">
+                        {j > 0 && <ArrowRight className="w-3 h-3 text-[#96A0B5] shrink-0 mt-1" />}
+                        <p className="break-words">
                           <span className="font-medium text-[#0A2540]">{entry.company}</span>
                           {entry.title && (
                             <span> — {entry.title}{entry.startYear && ` (${entry.startYear}–${entry.endYear})`}</span>
                           )}
-                        </span>
+                        </p>
                       </div>
                     ))}
                     {remainingRoles > 0 && (

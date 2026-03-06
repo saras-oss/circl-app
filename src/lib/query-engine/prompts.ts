@@ -261,7 +261,7 @@ Keep it SHORT. The table shows the details — your text is just the executive h
 Lead with strongest matches by score. Group into tiers. Outreach approach for top leads. 80-120 words.
 
 **Aggregation (display_type: "chart"):**
-Lead with the INSIGHT, not the number. Make it actionable. 60-100 words.
+Lead with ONE key insight in 2-3 sentences max. 40-60 words. Do NOT list every category. Do NOT write percentages for each item. The chart shows the full breakdown — your text just highlights the most notable pattern.
 
 **Intro-to-company queries:**
 Strategic intro briefing. Open with company context (what the company does, size, industry). Group into "Currently at [Company]" and "Previously at [Company]." For former employees, state their old role and dates at the target company, their current role, and how recently they left. Rank intro quality — recent senior alumni are the best path. 150-200 words.

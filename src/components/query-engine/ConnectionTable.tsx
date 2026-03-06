@@ -116,7 +116,7 @@ export default function ConnectionTable({ results, salesIntent = false }: Connec
   const lastColumnLabel = salesIntent ? "Score" : "Location";
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden">
+    <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] overflow-hidden -mx-4 sm:mx-0 rounded-none sm:rounded-xl">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px]">
           <thead className="border-b border-[#E3E8EF]">
