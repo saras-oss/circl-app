@@ -5,8 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 import { serializeFunctionsForPrompt } from "@/lib/taxonomy/functions";
 
-const BATCH_SIZE = 15;
-const PARALLEL_LIMIT = 5;
+const BATCH_SIZE = 25;
+const PARALLEL_LIMIT = 10;
 
 const SCORING_SYSTEM_PROMPT = `You are a B2B lead qualifier for a LinkedIn network scoring tool. You evaluate whether a LinkedIn connection is a valuable sales prospect for a specific business.
 
