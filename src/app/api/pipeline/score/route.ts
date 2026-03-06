@@ -5,7 +5,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { callAnthropicWithRetry } from "@/lib/anthropic-retry";
 import { serializeFunctionsForPrompt } from "@/lib/taxonomy/functions";
 
-const BATCH_SIZE = 5;
+const BATCH_SIZE = 15;
+const PARALLEL_LIMIT = 5;
 
 const SCORING_SYSTEM_PROMPT = `You are a B2B lead qualifier for a LinkedIn network scoring tool. You evaluate whether a LinkedIn connection is a valuable sales prospect for a specific business.
 
@@ -337,8 +338,9 @@ export async function POST(request: Request) {
     const anthropic = new Anthropic();
     let scoredCount = 0;
 
-    // Score ONE connection at a time
-    for (const conn of connections) {
+    // Score a single connection — returns true if scored successfully
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    async function scoreOne(conn: any): Promise<boolean> {
       // Get enriched profile
       const { data: profile } = conn.linkedin_url
         ? await supabaseAdmin
@@ -368,7 +370,7 @@ export async function POST(request: Request) {
       // Build prompt
       const scoringPrompt = buildScoringPrompt(
         userData,
-        icpData,
+        icpData!,
         conn,
         profile,
         company
@@ -410,7 +412,7 @@ export async function POST(request: Request) {
             `SCORE: Failed to parse Haiku response for ${conn.first_name}:`,
             rawText.slice(0, 500)
           );
-          continue; // Skip this connection, try next
+          return false;
         }
 
         // Save to DB
@@ -460,11 +462,10 @@ export async function POST(request: Request) {
                 scored_at: new Date().toISOString(),
               })
               .eq("id", conn.id);
-            continue;
+            return false;
           }
         }
 
-        scoredCount++;
         console.log(
           `SCORE: ${conn.first_name} ${conn.last_name} @ ${conn.company} → ${scoreResult.score}/10`
         );
@@ -487,12 +488,25 @@ export async function POST(request: Request) {
         if (logError) {
           console.error(`SCORE: prompt_runs insert failed for ${conn.first_name}:`, logError.message);
         }
+
+        return true;
       } catch (err) {
         console.error(
           `SCORE: LLM call failed for ${conn.first_name}:`,
           err instanceof Error ? err.message : err
         );
-        continue; // Skip this connection, try next
+        return false;
+      }
+    }
+
+    // Process connections in parallel waves of PARALLEL_LIMIT
+    for (let i = 0; i < connections.length; i += PARALLEL_LIMIT) {
+      const batch = connections.slice(i, i + PARALLEL_LIMIT);
+      const results = await Promise.allSettled(batch.map((conn) => scoreOne(conn)));
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          scoredCount++;
+        }
       }
     }
 
