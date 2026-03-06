@@ -47,6 +47,11 @@ export async function updateSession(request: NextRequest) {
     "/api/pipeline/track",
     "/track",
   ];
+
+  // Exact match for landing page
+  if (pathname === "/") {
+    return supabaseResponse;
+  }
   const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
   const isApiRoute = pathname.startsWith("/api/");
 
@@ -92,13 +97,6 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
-  }
-
-  // Root → dashboard
-  if (pathname === "/") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
   }
 
   return supabaseResponse;
