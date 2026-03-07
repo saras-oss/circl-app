@@ -326,14 +326,43 @@ export async function POST(request: Request) {
       });
     }
 
+    // DEBUG: Log sample connection data
+    console.log('SPOTLIGHT DEBUG: Total connections fetched:', connections.length);
+    console.log('SPOTLIGHT DEBUG: Sample fields:', connections[0] ? Object.keys(connections[0]) : 'NO DATA');
+    console.log('SPOTLIGHT DEBUG: Sample connection:', JSON.stringify(connections[0], null, 2));
+
+    // DEBUG: Field availability stats
+    const hasTitle = connections.filter((c: any) => c.current_title || c.csv_position).length;
+    const hasFunding = connections.filter((c: any) => c.latest_funding_type).length;
+    const hasWorkHistory = connections.filter((c: any) => c.work_history).length;
+    const hasConnectedOn = connections.filter((c: any) => c.connected_on).length;
+    const hasSeniority = connections.filter((c: any) => c.seniority_tier).length;
+    const hasCompanySize = connections.filter((c: any) => c.company_size_max || c.company_size_min).length;
+    const hasMatchScore = connections.filter((c: any) => c.match_score != null).length;
+    const hasCompanyName = connections.filter((c: any) => c.company_name || c.current_company || c.csv_company).length;
+    console.log('SPOTLIGHT DEBUG: Field stats:', { hasTitle, hasFunding, hasWorkHistory, hasConnectedOn, hasSeniority, hasCompanySize, hasMatchScore, hasCompanyName });
+
     // Compute all 5 themes
-    const themes: ThemeResult[] = [
-      computeFoundersAtFundedCompanies(connections),
-      computeCareerMovers(connections),
-      computeDormantGold(connections),
-      computeCompanyStageDistribution(connections),
-      computeInvestorIndustryOverlap(connections, icpData),
+    const themes: ThemeResult[] = [];
+    const themeNames = ['founders_funded', 'career_movers', 'dormant_gold', 'company_stages', 'investor_overlap'];
+    const themeFns = [
+      () => computeFoundersAtFundedCompanies(connections),
+      () => computeCareerMovers(connections),
+      () => computeDormantGold(connections),
+      () => computeCompanyStageDistribution(connections),
+      () => computeInvestorIndustryOverlap(connections, icpData),
     ];
+
+    for (let i = 0; i < themeFns.length; i++) {
+      try {
+        const result = themeFns[i]();
+        themes.push(result);
+        const dataLen = Array.isArray(result.data) ? result.data.length : Object.keys(result.data).length;
+        console.log(`SPOTLIGHT DEBUG: ${themeNames[i]} => score=${result.score}, dataLen=${dataLen}`);
+      } catch (themeErr: any) {
+        console.error(`SPOTLIGHT DEBUG: ${themeNames[i]} THREW:`, themeErr.message);
+      }
+    }
 
     // Filter to themes with meaningful data
     const viableThemes = themes.filter(
@@ -343,6 +372,7 @@ export async function POST(request: Request) {
           ? t.data.length > 0
           : Object.keys(t.data).length > 0)
     );
+    console.log('SPOTLIGHT DEBUG: Viable themes:', viableThemes.length, viableThemes.map(t => t.id));
 
     // Static fallback builder
     const buildFallback = () => {
