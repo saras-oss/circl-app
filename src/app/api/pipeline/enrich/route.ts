@@ -6,6 +6,16 @@ const ENRICHLAYER_API_KEY = process.env.ENRICHLAYER_API_KEY!;
 const CACHE_FRESHNESS_DAYS = 60;
 const DEFAULT_BATCH_SIZE = 4;
 
+/** Normalize LinkedIn URL for consistent cache lookups */
+function normalizeLinkedInUrl(url: string): string {
+  let u = url.trim().toLowerCase();
+  // Remove trailing slash
+  if (u.endsWith("/")) u = u.slice(0, -1);
+  // Remove query params and fragments
+  u = u.split("?")[0].split("#")[0];
+  return u;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -417,9 +427,9 @@ export async function POST(request: Request) {
     // Process batch in parallel
     const enrichmentResults = await Promise.allSettled(
       connections.map(async (conn) => {
-        const linkedinUrl = conn.linkedin_url;
+        const rawLinkedinUrl = conn.linkedin_url;
 
-        if (!linkedinUrl) {
+        if (!rawLinkedinUrl) {
           await supabaseAdmin
             .from("user_connections")
             .update({ enrichment_status: "skipped" })
@@ -427,22 +437,18 @@ export async function POST(request: Request) {
           return { type: "skipped" as const };
         }
 
-        // Check enriched_profiles cache
+        const linkedinUrl = normalizeLinkedInUrl(rawLinkedinUrl);
+
+        // Check enriched_profiles cache (single query with all needed fields)
         const { data: existingProfile } = await supabaseAdmin
           .from("enriched_profiles")
-          .select("linkedin_url, enriched_at")
+          .select("linkedin_url, enriched_at, current_company_linkedin")
           .eq("linkedin_url", linkedinUrl)
-          .single();
+          .maybeSingle();
 
         if (existingProfile && isFresh(existingProfile.enriched_at)) {
           // Profile is cached — still enrich the company if needed
-          const { data: cachedProfile } = await supabaseAdmin
-            .from("enriched_profiles")
-            .select("current_company_linkedin")
-            .eq("linkedin_url", linkedinUrl)
-            .single();
-
-          const cachedCompanyUrl = cachedProfile?.current_company_linkedin;
+          const cachedCompanyUrl = existingProfile.current_company_linkedin;
           if (cachedCompanyUrl) {
             try {
               await enrichCompany(cachedCompanyUrl);
@@ -455,10 +461,12 @@ export async function POST(request: Request) {
             .from("user_connections")
             .update({ enrichment_status: "cached" })
             .eq("id", conn.id);
+          console.log("ENRICH: Cache HIT for", linkedinUrl);
           return { type: "cached" as const };
         }
 
         // Call EnrichLayer Person Profile API
+        console.log("ENRICH: Cache MISS for", linkedinUrl);
         const enrichedData = await enrichProfile(linkedinUrl, conn.id);
 
         if (!enrichedData) {
