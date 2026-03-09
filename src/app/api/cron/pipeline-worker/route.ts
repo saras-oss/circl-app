@@ -321,6 +321,24 @@ async function processEnrichBatch(supabase: any, job: any) {
   const loopStart = Date.now();
   let totalProcessedThisTick = 0;
 
+  // Reset stuck 'enriching' connections from a previous crashed tick.
+  // Safe because concurrent tick protection (last_tick_at lock) ensures
+  // no other tick is running — so any 'enriching' connections are orphaned.
+  const { count: stuckEnrichingCount } = await supabase
+    .from('user_connections')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', job.user_id)
+    .eq('enrichment_status', 'enriching');
+
+  if ((stuckEnrichingCount || 0) > 0) {
+    console.log(`CRON: Resetting ${stuckEnrichingCount} stuck 'enriching' connections to 'pending'`);
+    await supabase
+      .from('user_connections')
+      .update({ enrichment_status: 'pending' })
+      .eq('user_id', job.user_id)
+      .eq('enrichment_status', 'enriching');
+  }
+
   // DB-based stuck detection: track whether enriched+failed count changes
   let lastProgressTotal = 0;
   let stuckCheckCount = 0;

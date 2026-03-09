@@ -6,19 +6,28 @@ const ENRICHLAYER_API_KEY = process.env.ENRICHLAYER_API_KEY!;
 const CACHE_FRESHNESS_DAYS = 60;
 const DEFAULT_BATCH_SIZE = 4;
 
-/** Normalize LinkedIn URL for consistent cache lookups */
-function normalizeLinkedInUrl(url: string): string {
-  let u = url.trim().toLowerCase();
-  // Remove trailing slash
-  if (u.endsWith("/")) u = u.slice(0, -1);
-  // Remove query params and fragments
-  u = u.split("?")[0].split("#")[0];
-  return u;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Normalize LinkedIn URL for consistent cache lookups */
+function normalizeLinkedInUrl(url: string): string {
+  if (!url) return "";
+  let normalized = url.trim().toLowerCase();
+  // Remove query parameters
+  const queryIndex = normalized.indexOf("?");
+  if (queryIndex !== -1) normalized = normalized.slice(0, queryIndex);
+  // Remove hash
+  const hashIndex = normalized.indexOf("#");
+  if (hashIndex !== -1) normalized = normalized.slice(0, hashIndex);
+  // Remove trailing slash
+  if (normalized.endsWith("/")) normalized = normalized.slice(0, -1);
+  // Ensure consistent protocol
+  if (normalized.startsWith("http://")) {
+    normalized = "https://" + normalized.slice(7);
+  }
+  return normalized;
+}
 
 function isFresh(enrichedAt: string | null): boolean {
   if (!enrichedAt) return false;
@@ -244,20 +253,25 @@ function mapPersonToProfile(
 async function enrichCompany(
   companyLinkedInUrl: string
 ): Promise<Record<string, unknown> | null> {
+  const normalizedCompanyUrl = normalizeLinkedInUrl(companyLinkedInUrl);
+
   // Check cache first
   const { data: existing } = await supabaseAdmin
     .from("enriched_companies")
     .select("id, enriched_at")
-    .eq("linkedin_url", companyLinkedInUrl)
-    .single();
+    .eq("linkedin_url", normalizedCompanyUrl)
+    .maybeSingle();
 
   if (existing && isFresh(existing.enriched_at)) {
+    console.log("ENRICH COMPANY CACHE HIT:", normalizedCompanyUrl);
     return existing; // already fresh
   }
 
+  console.log("ENRICH COMPANY CACHE MISS:", normalizedCompanyUrl, "— calling EnrichLayer");
+
   const url =
     `https://enrichlayer.com/api/v2/company` +
-    `?url=${encodeURIComponent(companyLinkedInUrl)}` +
+    `?url=${encodeURIComponent(normalizedCompanyUrl)}` +
     `&categories=include&funding_data=include&extra=include` +
     `&exit_data=include&acquisitions=include&use_cache=if-present`;
 
@@ -288,7 +302,7 @@ async function enrichCompany(
   }
 
   const companyData: Record<string, unknown> = {
-    linkedin_url: companyLinkedInUrl,
+    linkedin_url: normalizedCompanyUrl,
     linkedin_internal_id: r.linkedin_internal_id,
     universal_name_id: r.universal_name_id,
     name: r.name,
@@ -421,15 +435,22 @@ export async function POST(request: Request) {
       });
     }
 
+    // IMMEDIATELY claim these connections — prevent concurrent calls from picking them up
+    const connectionIds = connections.map((c: any) => c.id);
+    await supabaseAdmin
+      .from("user_connections")
+      .update({ enrichment_status: "enriching" })
+      .in("id", connectionIds);
+
     let cacheHits = 0;
     let freshCount = 0;
 
     // Process batch in parallel
     const enrichmentResults = await Promise.allSettled(
       connections.map(async (conn) => {
-        const rawLinkedinUrl = conn.linkedin_url;
+        const linkedinUrl = normalizeLinkedInUrl(conn.linkedin_url);
 
-        if (!rawLinkedinUrl) {
+        if (!linkedinUrl) {
           await supabaseAdmin
             .from("user_connections")
             .update({ enrichment_status: "skipped" })
@@ -437,75 +458,86 @@ export async function POST(request: Request) {
           return { type: "skipped" as const };
         }
 
-        const linkedinUrl = normalizeLinkedInUrl(rawLinkedinUrl);
+        try {
+          // Cache check — single query, maybeSingle to avoid error on miss
+          const { data: existingProfile, error: cacheError } = await supabaseAdmin
+            .from("enriched_profiles")
+            .select("id, linkedin_url, enriched_at, current_company_linkedin")
+            .eq("linkedin_url", linkedinUrl)
+            .maybeSingle();
 
-        // Check enriched_profiles cache (single query with all needed fields)
-        const { data: existingProfile } = await supabaseAdmin
-          .from("enriched_profiles")
-          .select("linkedin_url, enriched_at, current_company_linkedin")
-          .eq("linkedin_url", linkedinUrl)
-          .maybeSingle();
+          if (cacheError) {
+            console.error("ENRICH CACHE ERROR:", cacheError.message);
+          }
 
-        if (existingProfile && isFresh(existingProfile.enriched_at)) {
-          // Profile is cached — still enrich the company if needed
-          const cachedCompanyUrl = existingProfile.current_company_linkedin;
-          if (cachedCompanyUrl) {
+          if (existingProfile && isFresh(existingProfile.enriched_at)) {
+            console.log(`ENRICH CACHE HIT: ${conn.first_name} ${conn.last_name} — skipping API call`);
+
+            // Enrich company if needed (uses its own cache check internally)
+            const cachedCompanyUrl = existingProfile.current_company_linkedin;
+            if (cachedCompanyUrl) {
+              try {
+                await enrichCompany(cachedCompanyUrl);
+              } catch (err) {
+                console.error("ENRICH: Company enrichment failed (cached path):", cachedCompanyUrl, err instanceof Error ? err.message : err);
+              }
+            }
+
+            await supabaseAdmin
+              .from("user_connections")
+              .update({ enrichment_status: "cached" })
+              .eq("id", conn.id);
+            return { type: "cached" as const };
+          }
+
+          console.log(`ENRICH CACHE MISS: ${conn.first_name} ${conn.last_name} — calling EnrichLayer`);
+
+          // Call EnrichLayer Person Profile API
+          const enrichedData = await enrichProfile(linkedinUrl, conn.id);
+
+          if (!enrichedData) {
+            // enrichProfile already logged the error and set status to 'failed'
+            return { type: "failed" as const };
+          }
+
+          // Map and upsert to enriched_profiles
+          const profileRow = mapPersonToProfile(linkedinUrl, enrichedData);
+          await supabaseAdmin
+            .from("enriched_profiles")
+            .upsert(profileRow, { onConflict: "linkedin_url" });
+
+          // Company enrichment via EnrichLayer (dedup via cache inside enrichCompany)
+          const currentRole = getCurrentRole(enrichedData.experiences as any[]);
+          const companyUrl = currentRole?.company_linkedin_profile_url;
+          if (companyUrl) {
             try {
-              await enrichCompany(cachedCompanyUrl);
+              await enrichCompany(companyUrl);
             } catch (err) {
-              console.error("ENRICH: Company enrichment failed (cached path):", cachedCompanyUrl, err instanceof Error ? err.message : err);
+              console.error("ENRICH: Company enrichment failed:", companyUrl, err instanceof Error ? (err as Error).message : err);
             }
           }
 
           await supabaseAdmin
             .from("user_connections")
-            .update({ enrichment_status: "cached" })
+            .update({ enrichment_status: "enriched" })
             .eq("id", conn.id);
-          console.log("ENRICH: Cache HIT for", linkedinUrl);
-          return { type: "cached" as const };
-        }
 
-        // Call EnrichLayer Person Profile API
-        console.log("ENRICH: Cache MISS for", linkedinUrl);
-        const enrichedData = await enrichProfile(linkedinUrl, conn.id);
+          return { type: "enriched" as const };
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "Unknown error";
+          console.error(`ENRICH ERROR for ${conn.first_name} ${conn.last_name}:`, message);
 
-        if (!enrichedData) {
-          // enrichProfile already logged the error and updated the row
+          // Set to 'failed', NOT 'pending' — prevents infinite retry loop
+          await supabaseAdmin
+            .from("user_connections")
+            .update({
+              enrichment_status: "failed",
+              enrichment_error: message.slice(0, 500),
+            })
+            .eq("id", conn.id);
+
           return { type: "failed" as const };
         }
-
-        // Map and upsert to enriched_profiles
-        const profileRow = mapPersonToProfile(linkedinUrl, enrichedData);
-        await supabaseAdmin
-          .from("enriched_profiles")
-          .upsert(profileRow, { onConflict: "linkedin_url" });
-
-        // Company enrichment via EnrichLayer (dedup via cache)
-        const currentRole = getCurrentRole(enrichedData.experiences as any[]);
-        const companyUrl = currentRole?.company_linkedin_profile_url;
-        console.log("ENRICH: Company enrichment check —", {
-          connectionId: conn.id,
-          company: currentRole?.company,
-          companyUrl: companyUrl || "NONE",
-          hasExperiences: !!(enrichedData.experiences as any[])?.length,
-        });
-        if (companyUrl) {
-          try {
-            await enrichCompany(companyUrl);
-          } catch (err) {
-            console.error("ENRICH: Company enrichment failed:", companyUrl, err instanceof Error ? (err as Error).message : err);
-            // Non-fatal — don't block person enrichment
-          }
-        } else {
-          console.log("ENRICH: No company LinkedIn URL for", conn.first_name, conn.last_name);
-        }
-
-        await supabaseAdmin
-          .from("user_connections")
-          .update({ enrichment_status: "enriched" })
-          .eq("id", conn.id);
-
-        return { type: "enriched" as const };
       })
     );
 
@@ -530,7 +562,7 @@ export async function POST(request: Request) {
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
       .in("enrichment_tier", ["tier1", "tier2"])
-      .in("enrichment_status", ["enriched", "cached", "pending", "failed"]);
+      .in("enrichment_status", ["enriched", "cached", "pending", "enriching", "failed"]);
 
     const enrichedSoFar = (totalEligible || 0) - (remaining || 0);
     const progress =
