@@ -272,8 +272,7 @@ async function enrichCompany(
   const url =
     `https://enrichlayer.com/api/v2/company` +
     `?url=${encodeURIComponent(normalizedCompanyUrl)}` +
-    `&categories=include&funding_data=include&extra=include` +
-    `&exit_data=include&acquisitions=include&use_cache=if-present`;
+    `&funding_data=include&extra=include&use_cache=if-present`;
 
   const response = await fetchWithRetry(url, {
     method: "GET",
@@ -445,6 +444,10 @@ export async function POST(request: Request) {
     let cacheHits = 0;
     let freshCount = 0;
 
+    // Deduplicate company enrichment within this batch — if multiple
+    // connections work at the same company, only one API call is made.
+    const companyPromiseMap = new Map<string, Promise<Record<string, unknown> | null>>();
+
     // Process batch in parallel
     const enrichmentResults = await Promise.allSettled(
       connections.map(async (conn) => {
@@ -473,11 +476,15 @@ export async function POST(request: Request) {
           if (existingProfile && isFresh(existingProfile.enriched_at)) {
             console.log(`ENRICH CACHE HIT: ${conn.first_name} ${conn.last_name} — skipping API call`);
 
-            // Enrich company if needed (uses its own cache check internally)
+            // Enrich company if needed — deduplicated within batch
             const cachedCompanyUrl = existingProfile.current_company_linkedin;
             if (cachedCompanyUrl) {
+              const companyKey = normalizeLinkedInUrl(cachedCompanyUrl);
               try {
-                await enrichCompany(cachedCompanyUrl);
+                if (!companyPromiseMap.has(companyKey)) {
+                  companyPromiseMap.set(companyKey, enrichCompany(cachedCompanyUrl));
+                }
+                await companyPromiseMap.get(companyKey);
               } catch (err) {
                 console.error("ENRICH: Company enrichment failed (cached path):", cachedCompanyUrl, err instanceof Error ? err.message : err);
               }
@@ -506,12 +513,16 @@ export async function POST(request: Request) {
             .from("enriched_profiles")
             .upsert(profileRow, { onConflict: "linkedin_url" });
 
-          // Company enrichment via EnrichLayer (dedup via cache inside enrichCompany)
+          // Company enrichment via EnrichLayer — deduplicated within batch
           const currentRole = getCurrentRole(enrichedData.experiences as any[]);
           const companyUrl = currentRole?.company_linkedin_profile_url;
           if (companyUrl) {
+            const companyKey = normalizeLinkedInUrl(companyUrl);
             try {
-              await enrichCompany(companyUrl);
+              if (!companyPromiseMap.has(companyKey)) {
+                companyPromiseMap.set(companyKey, enrichCompany(companyUrl));
+              }
+              await companyPromiseMap.get(companyKey);
             } catch (err) {
               console.error("ENRICH: Company enrichment failed:", companyUrl, err instanceof Error ? (err as Error).message : err);
             }
