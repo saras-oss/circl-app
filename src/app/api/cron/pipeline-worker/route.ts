@@ -307,6 +307,7 @@ async function processClassifyBatch(supabase: any, job: any) {
 
     await updateJob(supabase, job.id, {
       classified_count: classifiedSoFar || 0,
+      last_tick_at: new Date().toISOString(),
     });
   }
 
@@ -396,6 +397,7 @@ async function processEnrichBatch(supabase: any, job: any) {
 
     await updateJob(supabase, job.id, {
       enriched_persons_count: enrichedSoFar || 0,
+      last_tick_at: new Date().toISOString(),
     });
 
     // DB-BASED STUCK DETECTION: has anything changed?
@@ -539,6 +541,7 @@ async function processScoreBatch(supabase: any, job: any) {
     await updateJob(supabase, job.id, {
       scored_count: scoredCount || 0,
       hits_count: hitsCount || 0,
+      last_tick_at: new Date().toISOString(),
     });
 
     // DB-BASED STUCK DETECTION
