@@ -444,8 +444,9 @@ export async function POST(request: Request) {
     let cacheHits = 0;
     let freshCount = 0;
 
-    // Deduplicate company enrichment within this batch — if multiple
-    // connections work at the same company, only one API call is made.
+    // Deduplicate person and company enrichment within this batch — if multiple
+    // connections share the same LinkedIn URL, only one API call is made.
+    const personPromiseMap = new Map<string, Promise<Record<string, unknown> | null>>();
     const companyPromiseMap = new Map<string, Promise<Record<string, unknown> | null>>();
 
     // Process batch in parallel
@@ -499,11 +500,25 @@ export async function POST(request: Request) {
 
           console.log(`ENRICH CACHE MISS: ${conn.first_name} ${conn.last_name} — calling EnrichLayer`);
 
-          // Call EnrichLayer Person Profile API
-          const enrichedData = await enrichProfile(linkedinUrl, conn.id);
+          // Call EnrichLayer Person Profile API — deduplicated within batch
+          if (!personPromiseMap.has(linkedinUrl)) {
+            personPromiseMap.set(
+              linkedinUrl,
+              enrichProfile(linkedinUrl, conn.id).catch(() => null)
+            );
+          }
+          const enrichedData = await personPromiseMap.get(linkedinUrl)!;
 
           if (!enrichedData) {
-            // enrichProfile already logged the error and set status to 'failed'
+            // Handle failure per-connection (enrichProfile wrote "failed" to the first
+            // connection's ID, but this connection may be a duplicate that needs its own update)
+            await supabaseAdmin
+              .from("user_connections")
+              .update({
+                enrichment_status: "failed",
+                enrichment_error: "Profile not found or private",
+              })
+              .eq("id", conn.id);
             return { type: "failed" as const };
           }
 

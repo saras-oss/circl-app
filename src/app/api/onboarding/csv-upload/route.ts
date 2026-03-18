@@ -58,6 +58,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // Guard: reject upload if a pipeline is actively running for this user
+    const { data: activeJob } = await supabaseAdmin
+      .from("pipeline_jobs")
+      .select("id, status")
+      .eq("user_id", userId)
+      .in("status", ["queued", "classifying", "enriching", "enriching_persons", "enriching_companies", "scoring"])
+      .maybeSingle();
+
+    if (activeJob) {
+      return NextResponse.json(
+        { error: "A pipeline is already running. Please wait for it to complete." },
+        { status: 409 }
+      );
+    }
+
+    // Clean slate: delete existing connections and stale pipeline jobs before re-upload
+    await supabaseAdmin
+      .from("user_connections")
+      .delete()
+      .eq("user_id", userId);
+
+    await supabaseAdmin
+      .from("pipeline_jobs")
+      .delete()
+      .eq("user_id", userId)
+      .in("status", ["completed", "failed", "cancelled", "paused"]);
+
     // Split rows: those with linkedin_url → upsert, those without → insert
     const upsertRows: Record<string, unknown>[] = [];
     const insertRows: Record<string, unknown>[] = [];

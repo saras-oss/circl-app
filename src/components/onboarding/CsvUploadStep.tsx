@@ -9,6 +9,7 @@ import {
   AlertCircle,
   ArrowLeft,
   FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
 
 interface CsvUploadStepProps {
@@ -178,6 +179,17 @@ function cleanLinkedInUrl(url: string | null | undefined): string | null {
   return cleaned;
 }
 
+/* ─── Parsed connection type ─── */
+interface ParsedConnection {
+  first_name: string;
+  last_name: string;
+  linkedin_url: string;
+  email_address: string;
+  company: string;
+  position: string;
+  connected_on: string | null;
+}
+
 /* ─── Component ─── */
 export default function CsvUploadStep({
   userId,
@@ -185,6 +197,7 @@ export default function CsvUploadStep({
   onBack,
 }: CsvUploadStepProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isProcessingRef = useRef(false);
   const [isDragging, setIsDragging] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -197,13 +210,21 @@ export default function CsvUploadStep({
   const [uploadMode, setUploadMode] = useState<string | null>(null);
   const [trackingToken, setTrackingToken] = useState<string | null>(null);
 
-  const processFile = useCallback(
+  // Preview state: parsed connections ready to upload
+  const [parsedConnections, setParsedConnections] = useState<ParsedConnection[] | null>(null);
+
+  const parseFile = useCallback(
     async (file: File) => {
+      // Guard against concurrent parse calls (double-drop, onChange + onDrop)
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+
       setError(null);
       setConnectionCount(null);
       setSkippedCount(0);
       setUploadComplete(false);
       setUploadProgress(0);
+      setParsedConnections(null);
 
       if (!file.name.endsWith(".csv")) {
         if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
@@ -213,6 +234,7 @@ export default function CsvUploadStep({
         } else {
           setError("Please upload a .csv file.");
         }
+        isProcessingRef.current = false;
         return;
       }
 
@@ -226,8 +248,9 @@ export default function CsvUploadStep({
       Papa.parse(cleanedContent, {
         header: true,
         skipEmptyLines: true,
-        complete: async (results) => {
+        complete: (results) => {
           setParsing(false);
+          isProcessingRef.current = false;
 
           if (!results.data || results.data.length === 0) {
             setError("The CSV file appears to be empty.");
@@ -274,15 +297,7 @@ export default function CsvUploadStep({
           // Map, clean, and validate each row
           const rows = results.data as Record<string, string>[];
           let skipped = 0;
-          const connections: {
-            first_name: string;
-            last_name: string;
-            linkedin_url: string;
-            email_address: string;
-            company: string;
-            position: string;
-            connected_on: string | null;
-          }[] = [];
+          const connections: ParsedConnection[] = [];
 
           for (const row of rows) {
             // Map CSV columns → DB columns
@@ -335,49 +350,71 @@ export default function CsvUploadStep({
             return;
           }
 
-          // Upload
-          setUploading(true);
-          setUploadProgress(10);
-
-          try {
-            setUploadProgress(30);
-
-            const res = await fetch("/api/onboarding/csv-upload", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId, connections }),
-            });
-
-            setUploadProgress(80);
-
-            const data = await res.json().catch(() => ({}));
-
-            if (!res.ok) {
-              throw new Error(data.error || "Failed to upload connections");
-            }
-
-            setUploadProgress(100);
-            setUploadComplete(true);
-            if (data.mode) setUploadMode(data.mode);
-            if (data.tracking_token) setTrackingToken(data.tracking_token);
-          } catch (err) {
-            setError(
-              err instanceof Error
-                ? err.message
-                : "Failed to upload connections"
-            );
-          } finally {
-            setUploading(false);
-          }
+          // Store parsed connections for preview — do NOT upload yet
+          setParsedConnections(connections);
         },
         error: () => {
           setParsing(false);
+          isProcessingRef.current = false;
           setError("Failed to parse the CSV file. Please check the format.");
         },
       });
     },
-    [userId]
+    []
   );
+
+  const uploadConnections = useCallback(async () => {
+    if (!parsedConnections || parsedConnections.length === 0) return;
+
+    setUploading(true);
+    setUploadProgress(10);
+    setError(null);
+
+    try {
+      setUploadProgress(30);
+
+      const res = await fetch("/api/onboarding/csv-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, connections: parsedConnections }),
+      });
+
+      setUploadProgress(80);
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload connections");
+      }
+
+      setUploadProgress(100);
+      setUploadComplete(true);
+      setParsedConnections(null);
+      if (data.mode) setUploadMode(data.mode);
+      if (data.tracking_token) setTrackingToken(data.tracking_token);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to upload connections"
+      );
+    } finally {
+      setUploading(false);
+    }
+  }, [userId, parsedConnections]);
+
+  function handleChangeFile() {
+    setParsedConnections(null);
+    setConnectionCount(null);
+    setSkippedCount(0);
+    setFileName(null);
+    setError(null);
+    isProcessingRef.current = false;
+    // Reset file input so the same file can be re-selected
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -398,16 +435,21 @@ export default function CsvUploadStep({
 
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      processFile(file);
+      parseFile(file);
     }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) {
-      processFile(file);
+      parseFile(file);
     }
   }
+
+  // Show drop zone when: no parsed data, not uploading, not complete
+  const showDropZone = !parsedConnections && !uploadComplete && !parsing && !uploading;
+  // Show preview when: parsed data ready, not uploading, not complete
+  const showPreview = !!parsedConnections && !uploadComplete && !uploading;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -427,7 +469,7 @@ export default function CsvUploadStep({
       </div>
 
       {/* LinkedIn export guide — collapsible */}
-      {!uploadComplete && (
+      {!uploadComplete && !showPreview && (
         <details className="mt-2 mb-4">
           <summary className="text-sm text-[#635BFF] font-medium cursor-pointer hover:underline">
             How to export your LinkedIn connections
@@ -444,7 +486,7 @@ export default function CsvUploadStep({
       )}
 
       {/* Drag-and-drop zone */}
-      {!uploadComplete && (
+      {showDropZone && (
         <div
           onClick={() => fileInputRef.current?.click()}
           onDragOver={handleDragOver}
@@ -502,8 +544,8 @@ export default function CsvUploadStep({
         </div>
       )}
 
-      {/* Parsing / uploading progress */}
-      {(parsing || uploading) && (
+      {/* Parsing indicator */}
+      {parsing && (
         <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-5 animate-fade-in-up">
           <div className="flex items-center gap-4">
             <div className="h-10 w-10 flex items-center justify-center">
@@ -511,23 +553,75 @@ export default function CsvUploadStep({
             </div>
             <div>
               <p className="text-sm font-semibold text-[#0A2540]">
-                {parsing
-                  ? "Parsing CSV file..."
-                  : `Uploading ${connectionCount?.toLocaleString()} connections...`}
+                Parsing CSV file...
               </p>
               {fileName && (
                 <p className="text-xs text-[#96A0B5] mt-0.5">{fileName}</p>
               )}
             </div>
           </div>
-          {uploading && (
-            <div className="h-2 rounded-full bg-[#F0F3F7] overflow-hidden">
-              <div
-                className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
-                style={{ width: `${uploadProgress}%` }}
-              />
+        </div>
+      )}
+
+      {/* Preview state — parsed but not yet uploaded */}
+      {showPreview && connectionCount !== null && (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F5F3FF]">
+              <FileSpreadsheet className="h-6 w-6 text-[#7C3AED]" strokeWidth={1.5} />
             </div>
-          )}
+            <div>
+              <p className="text-base font-semibold text-[#0A2540]">
+                {connectionCount.toLocaleString()} connections found
+              </p>
+              <p className="text-sm text-[#96A0B5]">
+                {fileName}
+                {skippedCount > 0 &&
+                  ` \u2014 ${skippedCount} row${skippedCount > 1 ? "s" : ""} skipped`}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={handleChangeFile}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[#E3E8EF] text-sm font-medium text-[#596780] hover:border-[#596780] transition-all"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Change File
+            </button>
+            <Button
+              onClick={uploadConnections}
+              size="lg"
+              className="flex-1 h-[44px] rounded-xl bg-[#0A2540] text-white font-semibold hover:bg-[#0A2540]/90 active:scale-[0.98] transition-all"
+            >
+              Upload {connectionCount.toLocaleString()} Connections
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Uploading progress */}
+      {uploading && (
+        <div className="bg-white rounded-xl shadow-sm border border-[#E3E8EF] p-6 sm:p-8 space-y-5 animate-fade-in-up">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 flex items-center justify-center">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#E3E8EF] border-t-accent" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-[#0A2540]">
+                Uploading {connectionCount?.toLocaleString()} connections...
+              </p>
+              {fileName && (
+                <p className="text-xs text-[#96A0B5] mt-0.5">{fileName}</p>
+              )}
+            </div>
+          </div>
+          <div className="h-2 rounded-full bg-[#F0F3F7] overflow-hidden">
+            <div
+              className="h-full bg-accent rounded-full transition-all duration-700 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            />
+          </div>
         </div>
       )}
 
